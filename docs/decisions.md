@@ -383,7 +383,7 @@
 - 后续是否把 `marketListVos` 拆成更细粒度记录，等待先验证 raw JSON 备份价值。
 - 后续新增业务 API 仍需要逐个阅读覆盖矩阵和文档详情后再选择，新增配置应先默认 `enabled: false`。
 - 对没有单字段主键的接口，是否继续使用 `data_hash`，或在 YAML 中支持复合业务主键，仍需在接入 `amazon_msku_page` 等接口前确认。
-- 对依赖型接口，参数来源、批次边界和失败日志粒度还需要单独设计；当前仅确认了 `product_detail` 和 `market_inventory_query` 的最小参数来源。
+- 对依赖型接口，参数来源、批次边界和失败日志粒度还需要继续完善；当前已确认 `product_detail`、`market_inventory_query` 和 `storage_inbound_detail` 的最小参数来源。
 - 阶段 4V 已将 `product_inventory_page` 和 `storage_inbound_page` 加入 enabled，因为 4U 已分别完成全量单接口验证，并确认 `item_count=total_count`。
 - 阶段 4V 的 enabled 批量同步批次号为 `sync_20260703_040353_819845`，该批次 `total_api_count=20`、`success_api_count=20`、`failed_api_count=0`。
 - 阶段 4V 同一批次中 `product_inventory_page` 请求 1187 次、写入 118653 条；`storage_inbound_page` 请求 1743 次、写入 174286 条；两个接口 checkpoint 均更新到该 enabled 批次且未截断。
@@ -426,3 +426,12 @@
 - 阶段 5A 已同步 `api_config`，当前数据库总配置 24 条，启用 20 条；`market_inventory_query.enabled=0`、`param_source.limit=3`、`offset=3`、`auto_advance=true`。
 - 阶段 5A 覆盖矩阵保持公开文档 API 185 个、真实配置 API 22 个、enabled 20 个。
 - 阶段 5A 结论：checkpoint 自动推进已经连续跑通；下一步不应继续只重复跑 `market_inventory_query` 小窗口，应从覆盖矩阵中选第二个依赖型接口验证机制复用性。
+- 阶段 5B 新增 `storage_inbound_detail`，文档 id 为 `235`，路径为 `GET /purchase/inventory/storageInbound/detail`，默认保持 `enabled=false`。
+- `storage_inbound_detail` 依赖参数为必填 `code`，可从已同步的 `storage_inbound_page.raw_json.code` 提取。
+- 阶段 5B 已确认 `storage_inbound_page` 当前有 174286 条 raw 数据具备 `code`，去重 `code` 也是 174286 个，适合小窗口参数来源。
+- 阶段 5B 复用 `param_source.fields`，不新增代码机制；测试约束该接口使用 `raw_json.code -> code`，并保持 disabled。
+- 阶段 5B 已用前三个真实入库单据编码验证 `storage_inbound_detail`，批次号为 `sync_20260703_065554_541779`，请求 3 次，写入 3 条，失败 0。
+- `storage_inbound_detail` 响应主键使用顶层 `code`，日期字段使用 `createdAt`，三条 raw 均已写入 `source_primary_key`、`data_hash` 和 `data_date`。
+- 阶段 5B checkpoint 记录 `param_offset=0`、`param_limit=3`、`next_param_offset=3`；下一步可开启 `auto_advance` 验证第二批 code。
+- 阶段 5B 已同步 `api_config`，当前数据库总配置 25 条，启用 20 条；`storage_inbound_detail.enabled=0`。
+- 阶段 5B 覆盖矩阵已刷新为公开文档 API 185 个、真实配置 API 23 个、enabled 20 个。

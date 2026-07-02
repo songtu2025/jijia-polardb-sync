@@ -558,6 +558,33 @@ apis:
       delay_seconds: 1
     params: {}
 
+  # 第二十三个真实文档接口：出入库明细V2，文档 id=235，依赖 storage_inbound_page 的单据 code，小样本验证阶段保持 disabled。
+  - api_code: storage_inbound_detail
+    name: 出入库明细V2
+    enabled: false
+    method: GET
+    path: /purchase/inventory/storageInbound/detail
+    page:
+      enabled: false
+    response:
+      item_field: data
+    primary_key:
+      field: code
+      required: false
+    date_field: createdAt
+    param_source:
+      source_api_code: storage_inbound_page
+      limit: 3
+      fields:
+        - source_field: raw_json.code
+          target_field: code
+    rate_limit:
+      sleep_seconds: 0.2
+    retry:
+      retries: 3
+      delay_seconds: 1
+    params: {}
+
   # 第二十二个真实文档接口：查询站点库存分布，文档 id=84，依赖 product_inventory_page 的 sku 和 warehouseId，小样本验证阶段保持 disabled。
   - api_code: market_inventory_query
     name: 查询站点库存分布

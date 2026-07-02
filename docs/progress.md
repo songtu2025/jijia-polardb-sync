@@ -2,7 +2,7 @@
 
 ## Current Stage
 
-阶段 5A 已完成。`market_inventory_query` 已验证 checkpoint 自动窗口可连续推进，并完成第四批小样本同步，当前真实配置 API 为 22 个，enabled API 仍为 20 个。
+阶段 5B 已完成。`storage_inbound_detail` 已作为第二个依赖型接口完成小样本同步，当前真实配置 API 为 23 个，enabled API 仍为 20 个。
 
 ## Completed
 
@@ -905,6 +905,23 @@
   - `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary`，通过，公开文档 API 为 185 个，真实配置 API 为 22 个，enabled 为 20 个。
   - `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
   - `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过，23 个测试。
+- 阶段 5B 已运行：
+  - 已从覆盖矩阵 `requires_upstream_params` 中选择 `storage_inbound_detail`，文档 id=235，路径为 `GET /purchase/inventory/storageInbound/detail`。
+  - 已读取公开文档详情，确认必填参数为 `code`，响应 `data` 为单对象，响应字段包含 `code`、`id`、`createdAt`、`inboundItemVOS` 等。
+  - 已只读查询 `storage_inbound_page.raw_json`，确认 174286 条上游 raw 均有 `code`，去重 `code` 也是 174286 个。
+  - 已新增 `tests/test_storage_inbound_detail_param_source.py`，先失败后通过，约束 `storage_inbound_detail` 默认 disabled，并复用 `param_source.fields` 从 `raw_json.code` 生成请求参数。
+  - 已新增 `storage_inbound_detail` YAML 配置，默认 `enabled=false`，小样本 `limit=3`，`response.item_field=data`，主键字段为 `code`，日期字段为 `createdAt`。
+  - `.\\.venv\\Scripts\\python.exe -m app.main`，通过，dry-run 仍显示 20 个 enabled API。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api storage_inbound_detail`，通过，批次 `sync_20260703_065554_541779`，`rows=3`，`requests=3`。
+  - 已查询数据库摘要，确认该批次 `total_api_count=1`、`success_api_count=1`、`failed_api_count=0`。
+  - 同一批次 `sync_api_log` 记录 `request_count=3`、`success_count=3`、`failed_count=0`，`failed_request_log` 为 0 条。
+  - 同一批次 `raw_api_data` 写入 3 条，3 条都有 `source_primary_key`、`data_hash` 和 `data_date`，主键为前三个上游单据 `code`。
+  - `storage_inbound_detail` checkpoint 更新到批次 `sync_20260703_065554_541779`，记录 `param_offset=0`、`param_limit=3`、`next_param_offset=3`。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，通过，同步配置数为 25。
+  - 已查询 `api_config`，确认 `storage_inbound_detail.enabled=0`、`param_source.source_api_code=storage_inbound_page`、`param_source.limit=3`。
+  - `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary`，通过，公开文档 API 为 185 个，真实配置 API 为 23 个，enabled 为 20 个。
+  - `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
+  - `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过，25 个测试。
 
 ## Review 4L-4N
 
@@ -1017,7 +1034,7 @@
 - 各业务 API 的具体路径、字段、分页和主键需要逐个阅读文档确认。
 - 新增后续业务接口前，仍需要逐个阅读积加文档确认路径、分页、主键和日期字段。
 - 当前 enabled API 已有 20 个：`amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`、`product_page`、`parent_product_page`、`kb_product_page`、`fba_warehouse_page`、`store_location_page`、`multi_shop_query`、`crm_tags_page`、`inventory_team_query`、`product_inventory_page`、`storage_inbound_page`。
-- 当前已配置真实 API 为 22 个，其中 20 个已加入 enabled，`product_detail` 和 `market_inventory_query` 已完成小样本验证但保持 disabled。
+- 当前已配置真实 API 为 23 个，其中 20 个已加入 enabled，`product_detail`、`market_inventory_query` 和 `storage_inbound_detail` 已完成小样本验证但保持 disabled。
 - 当前依赖参数来源机制支持从 `raw_api_data.source_primary_key` 取单个参数，也支持从 `raw_json` 顶层字段提取多个参数，并可用 `param_source.auto_advance` 基于 checkpoint 推进小窗口；尚未把 111307 个参数对纳入生产级调度。
 - 覆盖矩阵是公开文档视角，不等同于当前账号真实授权可调用结果；真实可访问性仍需单接口运行验证。
 - `product_page` 当前总量为 8258 条，请求 83 页；`product_inventory_page` 当前总量为 118653 条，请求 1187 页；`storage_inbound_page` 当前总量为 174286 条，请求 1743 页。当前 20 个 enabled API 的真实批量同步约 3052 次请求，必须按长耗时任务安排 cron 窗口。
@@ -1026,20 +1043,21 @@
 
 ## Next Stage
 
-阶段 5B：从覆盖矩阵中选择第二个依赖型接口，验证现有 `param_source` 机制能复用到另一个真实接口。
+阶段 5C：为 `storage_inbound_detail` 开启 checkpoint 自动窗口推进，并验证第二批 code 小样本。
 
 建议目标：
 
-- 先只读查看覆盖矩阵中 `requires_upstream_params` 的未配置接口，优先选择参数可从现有 enabled raw 数据取得、且不涉及敏感字段或写操作的接口。
-- 新增配置时默认 `enabled=false`，不要进入 20 个 enabled 生产批量同步。
-- 尽量复用现有 `param_source.source_primary_key` 或 `param_source.fields`，只有确有必要才做最小代码扩展。
-- 用小样本真实同步验证新依赖接口的批次、日志、raw 和 checkpoint。
-- 验证通过后同步 `api_config` 并刷新覆盖矩阵。
+- 将 `storage_inbound_detail.param_source.auto_advance` 设置为 `true`，继续保持 `enabled=false`。
+- 不修改 `limit=3`，用 checkpoint 中的 `next_param_offset=3` 读取第二批上游 `code`。
+- 先只读查询 offset=3 的第二批 `code`，确认不重复第一批。
+- 运行 `storage_inbound_detail` 第二批小样本真实同步，确认批次、日志、raw 和 checkpoint 可追踪。
+- 完成后同步 `api_config`、刷新覆盖矩阵，并做 5A-5C 三轮复盘。
 
 验收：
 
-- 新依赖接口完成文档确认和小样本真实同步，默认保持 disabled。
-- 如需代码扩展，必须有测试先行约束；如无需代码扩展，也要用只读 SQL 证明参数来源真实存在。
-- `api_config` 与覆盖矩阵增加对应真实配置 API，enabled 仍保持 20 个。
+- `storage_inbound_detail` 能从 checkpoint 自动推进到第二批 code 小样本。
+- 第二批 code 不重复第一批，且同步批次成功。
+- `storage_inbound_detail` 默认保持 disabled，不影响现有 20 个 enabled API。
+- `api_config` 与覆盖矩阵保持真实配置 API 23 个、enabled 20 个。
 - `compileall` 和 `unittest discover` 通过。
 - 继续保持 `.env`、token 缓存、日志和真实凭证不提交。
