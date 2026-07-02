@@ -2,7 +2,7 @@
 
 ## Current Stage
 
-阶段 4P 已完成。`kb_product_page` 和 `fba_warehouse_page` 已加入 enabled 批量同步，当前 enabled API 为 14 个。
+阶段 4Q 已完成。新增 `store_location_page` 和 `multi_shop_query` 两个低风险候选配置，均保持 disabled，当前 enabled API 仍为 14 个。
 
 ## Completed
 
@@ -728,6 +728,21 @@
   - `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary`，通过，真实配置 API 为 14 个，enabled 为 14 个。
   - `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
   - `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过，9 个测试。
+- 阶段 4Q 已运行：
+  - `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_api_config_4q_candidates.py" -v`，先失败，确认为缺少 `store_location_page` 和 `multi_shop_query` 配置。
+  - 新增两个候选配置后重跑该测试，通过，2 个测试。
+  - `.\\.venv\\Scripts\\python.exe -m app.main`，通过，dry-run 仍显示 14 个 enabled API。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api store_location_page`，通过，批次 `sync_20260703_013043_934150`，`rows=1116`，`requests=12`。
+  - 已查询数据库摘要，确认 `store_location_page` 批次成功、API 日志成功、raw 写入 1116 条，1116 条都有 `source_primary_key` 和 `data_date`。
+  - `store_location_page` checkpoint 记录 `item_count=1116`、`total_count=1116`，未发生截断。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api multi_shop_query`，通过，批次 `sync_20260703_013128_451336`，`rows=6`，`requests=1`。
+  - 已查询数据库摘要，确认 `multi_shop_query` 批次成功、API 日志成功、raw 写入 6 条，6 条都有 `source_primary_key`；该接口无日期字段，`data_date` 为空。
+  - `multi_shop_query` checkpoint 记录 `item_count=6`、`total_count=null`。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，通过，同步配置数为 18。
+  - 已查询 `api_config`，确认 `store_location_page.enabled=0`、`multi_shop_query.enabled=0`，启用配置数仍为 14。
+  - `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary`，通过，真实配置 API 为 16 个，enabled 为 14 个。
+  - `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
+  - `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过，11 个测试。
 
 ## Review 4L-4N
 
@@ -750,13 +765,34 @@
   - 同时开始准备依赖型接口策略，例如从已同步的店铺、SKU、仓库、产品数据生成请求参数。
   - 每轮仍保持“默认禁用 -> 单接口验证 -> 加入 enabled”的节奏。
 
+## Review 4O-4Q
+
+- 已完成第二组目标模式闭环：
+  - 4O 从未配置 direct_read_candidate 中接入并单接口验证 `kb_product_page` 和 `fba_warehouse_page`。
+  - 4P 将这 2 个接口加入 enabled 批量同步，并完成 14 个 API 同批次验证。
+  - 4Q 继续接入并单接口验证 `store_location_page` 和 `multi_shop_query`。
+- 当前覆盖状态：
+  - 公开文档 API：185 个。
+  - 已配置真实 API：16 个。
+  - enabled API：14 个。
+  - 新增候选中 `store_location_page` 和 `multi_shop_query` 已验证但仍保持 disabled。
+  - 依赖上游参数接口仍有 79 个，后续需要单独设计参数来源和批次粒度。
+- 本组三轮发现的问题：
+  - `kb_product_page` 当前账号返回 0 条，但请求、日志和 checkpoint 链路正常，仍可作为 enabled 空集接口运行。
+  - `store_location_page` 当前总量为 1116 条，请求 12 页，说明中等分页接口可以继续沿用现有模型，但加入 enabled 后会进一步拉长批量同步。
+  - `multi_shop_query` 是多平台店铺基础维度，可为后续多平台依赖型接口提供参数来源。
+- 下一组三轮建议：
+  - 先将 `store_location_page` 和 `multi_shop_query` 加入 enabled 并验证 16 个 API 同批次同步。
+  - 然后继续新增少量低风险直接读取接口。
+  - 同时开始为依赖型接口梳理“从已同步 raw 数据提取请求参数”的最小机制。
+
 ## Known Issues
 
 - `amazon_shop_page` 第一版以 `data_hash` 去重，不强行编造业务主键。
 - 各业务 API 的具体路径、字段、分页和主键需要逐个阅读文档确认。
 - 新增后续业务接口前，仍需要逐个阅读积加文档确认路径、分页、主键和日期字段。
 - 当前 enabled API 已有 14 个：`amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`、`product_page`、`parent_product_page`、`kb_product_page`、`fba_warehouse_page`。
-- 当前已配置真实 API 为 14 个，且 14 个均已加入 enabled。
+- 当前已配置真实 API 为 16 个，其中 14 个已加入 enabled，`store_location_page` 和 `multi_shop_query` 仍保持 disabled。
 - 覆盖矩阵是公开文档视角，不等同于当前账号真实授权可调用结果；真实可访问性仍需单接口运行验证。
 - `product_page` 当前总量为 8258 条，请求 83 页；enabled 批量同步耗时已经明显增加。
 - 后续如果继续把大接口加入 enabled，需要关注运行时长、数据库写入耗时和 cron 窗口。
@@ -764,20 +800,19 @@
 
 ## Next Stage
 
-阶段 4Q：继续接入下一批低风险直接读取接口，并完成第二组三轮复盘。
+阶段 4R：将阶段 4Q 已验证的低风险接口加入 enabled 批量同步。
 
 建议目标：
 
-- 从覆盖矩阵中继续选择 1-2 个低风险 `direct_read_candidate`。
-- 优先考虑分页清晰、有稳定 `id` 或明确业务主键、无敏感字段的接口。
-- 新接口仍默认 `enabled=false`，先单接口验证。
-- 完成后对 4O-4Q 做三轮复盘。
+- 将 `store_location_page.enabled` 和 `multi_shop_query.enabled` 从 `false` 改为 `true`。
+- dry-run 确认 enabled API 从 14 个变为 16 个。
+- 运行 `--sync-enabled`，确认 16 个 API 同批次成功。
+- 同步 `api_config`，确认两个新接口 `enabled=1`。
 
 验收：
 
-- 新增配置与公开文档一致，且默认不进入 `--sync-enabled`。
-- 单接口同步、数据库批次/API 日志/raw/checkpoint 验证通过。
-- `api_config` 与覆盖矩阵同步更新。
-- 写入 4O-4Q 三轮复盘。
+- 16 个 enabled API 同批次同步成功，`failed_api_count=0`。
+- `store_location_page` 和 `multi_shop_query` 的 `sync_api_log`、raw 写入数和 checkpoint 与本轮单接口验证一致。
+- `api_config.store_location_page.enabled=1`，`api_config.multi_shop_query.enabled=1`。
 - `compileall` 和 `unittest discover` 通过。
 - 继续保持 `.env`、token 缓存、日志和真实凭证不提交。

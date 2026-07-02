@@ -390,3 +390,50 @@ apis:
     params:
       page: 1
       pagesize: 100
+
+  # 第十五个真实文档接口：库位基础资料，文档 id=141，先单接口验证后再考虑启用。
+  - api_code: store_location_page
+    name: 查询库位信息
+    enabled: false
+    method: POST
+    path: /fulfillment/store/location/page
+    page:
+      enabled: true
+      page_no_field: page
+      page_size_field: pagesize
+      page_size: 100
+      max_pages: 20
+      list_field: data.rows
+      total_field: data.total
+    primary_key:
+      field: id
+      required: false
+    date_field: updateTime
+    rate_limit:
+      sleep_seconds: 0.2
+    retry:
+      retries: 3
+      delay_seconds: 1
+    params:
+      page: 1
+      pagesize: 100
+
+  # 第十六个真实文档接口：多平台店铺基础资料，文档 id=67，先单接口验证后再考虑启用。
+  - api_code: multi_shop_query
+    name: 查询多平台店铺信息
+    enabled: false
+    method: GET
+    path: /platform/multiplatform/multiShop/query
+    page:
+      enabled: false
+      list_field: data
+    primary_key:
+      field: shopId
+      required: false
+    date_field: ""
+    rate_limit:
+      sleep_seconds: 0.2
+    retry:
+      retries: 3
+      delay_seconds: 1
+    params: {}

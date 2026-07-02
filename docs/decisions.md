@@ -318,6 +318,19 @@
 - 阶段 4P 已运行 `--sync-api-configs`，数据库 `api_config.kb_product_page.enabled=1`、`api_config.fba_warehouse_page.enabled=1`。
 - 当前 enabled API 为 14 个，当前覆盖矩阵中的真实配置 API 也是 14 个。
 - 下一阶段继续新增低风险直接读取候选，并在完成 4Q 后做 4O-4Q 三轮复盘。
+- 阶段 4Q 选择 `store_location_page` 和 `multi_shop_query` 作为下一批低风险直接读取接口。
+- `store_location_page` 文档路径是 `POST /fulfillment/store/location/page`，实际请求路径是 `/api/open/fulfillment/store/location/page`。
+- `store_location_page` 响应列表字段是 `data.rows`，总数字段是 `data.total`，候选主键字段是 `id`，候选日期字段是 `updateTime`。
+- 阶段 4Q 的 `store_location_page` 验证批次号为 `sync_20260703_013043_934150`，请求 12 次，写入 1116 条。
+- `store_location_page` 的 `source_primary_key` 已确认从响应 `id` 写入，`data_date` 已确认从 `updateTime` 写入。
+- `multi_shop_query` 文档路径是 `GET /platform/multiplatform/multiShop/query`，实际请求路径是 `/api/open/platform/multiplatform/multiShop/query`。
+- `multi_shop_query` 响应列表字段是 `data`，无分页字段，候选主键字段是 `shopId`。
+- 阶段 4Q 的 `multi_shop_query` 验证批次号为 `sync_20260703_013128_451336`，请求 1 次，写入 6 条。
+- `multi_shop_query` 的 `source_primary_key` 已确认从响应 `shopId` 写入；文档未提供日期字段，`data_date` 保持为空。
+- 阶段 4Q 后 `store_location_page` 和 `multi_shop_query` 仍保持 `enabled=false`，未加入 enabled 批量同步。
+- 阶段 4Q 已运行 `--sync-api-configs`，数据库中两个新接口均为 `enabled=0`，当前启用配置数仍为 14。
+- 覆盖矩阵已刷新，当前已配置真实 API 为 16 个，enabled 仍为 14 个。
+- 4O-4Q 三轮复盘结论：当前“默认禁用 -> 单接口验证 -> enabled 批量验证”节奏仍有效；下一阶段可将 `store_location_page` 和 `multi_shop_query` 加入 enabled。
 
 ## Open Decisions
 
