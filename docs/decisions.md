@@ -225,6 +225,11 @@
 - `country_tree` 响应列表字段是 `data`，无分页字段。
 - `country_tree` 文档未展开 `data` 元素字段，不编造主键，先使用 `data_hash` 去重。
 - `country_tree` 新增配置默认 `enabled: false`，单接口验证通过前不加入 `--sync-enabled`。
+- 阶段 4D 已执行 `--sync-api country_tree`，单接口真实验证成功。
+- 阶段 4D 的 `country_tree` 验证批次号为 `sync_20260702_212537_116460`，请求 1 次，写入 4 条。
+- `country_tree` 因无稳定主键，`source_primary_key` 为空，已确认使用 `data_hash` 去重。
+- 阶段 4D 后 `country_tree` 仍保持 `enabled: false`，未加入 `--sync-enabled`。
+- 下一阶段可以将 `country_tree.enabled` 改为 `true`，并用 `--sync-enabled` 验证 8 个 API 同批次同步。
 
 ## Open Decisions
 

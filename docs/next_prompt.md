@@ -22,35 +22,34 @@
 
 当前要执行的阶段：
 
-阶段 4D：单接口验证 `country_tree`。
+阶段 4E：将 `country_tree` 加入 enabled 批量同步。
 
 当前事实：
 
 - 当前 enabled API 有 7 个：`amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`。
-- `country_tree` 已在阶段 4C 添加为第八个候选接口，默认 `enabled=false`。
-- `country_tree` 对应文档 id `4563`，名称是“获取已授权店铺区域国家”。
-- 文档路径为 `GET /middle/base/countryTree/page`，实际请求路径为 `/api/open/middle/base/countryTree/page`。
-- 请求头需要 `accessToken`，请求体示例为空 `{}`。
-- 响应列表字段为 `data`，文档未展开 `data` 元素字段，因此第一版使用 `data_hash` 去重。
-- 阶段 4C 已运行 `--sync-api-configs`，数据库配置总数为 10，`country_tree.enabled=0`。
+- `country_tree` 已在阶段 4D 完成单接口真实验证。
+- 阶段 4D 成功批次：`sync_20260702_212537_116460`。
+- `country_tree` 单接口验证结果：请求 1 次，写入 4 条，`source_primary_key` 为空，使用 `data_hash` 去重，`data_date` 为空。
+- 阶段 4D 后 `country_tree.enabled=false`，未加入 enabled 批量同步。
+- 最近一次 enabled 批次：`sync_20260702_212630_732463`，`apis=7`，七个 API 均成功。
 
 建议目标：
 
 1. 阅读现有 `config/api_config.example.yaml`、`docs/progress.md`、`docs/decisions.md`。
-2. 保持 `country_tree.enabled=false`。
-3. 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api country_tree` 做单接口验证。
-4. 查询数据库确认 `sync_batch`、`sync_api_log`、`raw_api_data`、`sync_checkpoint`。
-5. 确认无稳定主键时使用 `data_hash` 去重。
-6. 再运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`，确认仍只同步已启用的 7 个 API。
-7. 验证通过后，下一阶段再决定是否把 `country_tree` 加入 `--sync-enabled`。
+2. 将 `country_tree.enabled` 从 `false` 改为 `true`。
+3. 运行 `.\\.venv\\Scripts\\python.exe -m app.main`，确认 enabled API 变为 8 个。
+4. 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`。
+5. 查询数据库确认 `sync_batch`、`sync_api_log`、`raw_api_data`、`sync_checkpoint`。
+6. 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，同步 `api_config` 表。
+7. 查询 `api_config`，确认 `country_tree.enabled=1`。
 
 验收：
 
 1. `.\\.venv\\Scripts\\python.exe -m compileall app tests` 通过。
 2. `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"` 通过。
-3. `.\\.venv\\Scripts\\python.exe -m app.main` dry-run 仍显示 7 个 enabled API。
-4. `.\\.venv\\Scripts\\python.exe -m app.main --mock-sync` 通过。
-5. `country_tree` 单接口验证成功。
-6. `--sync-enabled` 仍只同步当前 7 个 enabled API。
-7. 数据库 `api_config.country_tree.enabled=0`。
+3. dry-run 显示 enabled API 为 8 个。
+4. `--sync-enabled` 成功同步 8 个 API。
+5. `country_tree` 在 enabled 批次中成功写入 4 条。
+6. `--sync-api-configs` 成功，同步配置数为 10。
+7. 数据库 `api_config.country_tree.enabled=1`。
 8. 不输出任何真实凭证或 accessToken。
