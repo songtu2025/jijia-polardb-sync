@@ -391,10 +391,10 @@ apis:
       page: 1
       pagesize: 100
 
-  # 第十五个真实文档接口：库位基础资料，文档 id=141，先单接口验证后再考虑启用。
+  # 第十五个真实文档接口：库位基础资料，文档 id=141，已通过单接口验证并加入 enabled 批量同步。
   - api_code: store_location_page
     name: 查询库位信息
-    enabled: false
+    enabled: true
     method: POST
     path: /fulfillment/store/location/page
     page:
@@ -418,10 +418,10 @@ apis:
       page: 1
       pagesize: 100
 
-  # 第十六个真实文档接口：多平台店铺基础资料，文档 id=67，先单接口验证后再考虑启用。
+  # 第十六个真实文档接口：多平台店铺基础资料，文档 id=67，已通过单接口验证并加入 enabled 批量同步。
   - api_code: multi_shop_query
     name: 查询多平台店铺信息
-    enabled: false
+    enabled: true
     method: GET
     path: /platform/multiplatform/multiShop/query
     page:

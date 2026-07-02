@@ -331,6 +331,14 @@
 - 阶段 4Q 已运行 `--sync-api-configs`，数据库中两个新接口均为 `enabled=0`，当前启用配置数仍为 14。
 - 覆盖矩阵已刷新，当前已配置真实 API 为 16 个，enabled 仍为 14 个。
 - 4O-4Q 三轮复盘结论：当前“默认禁用 -> 单接口验证 -> enabled 批量验证”节奏仍有效；下一阶段可将 `store_location_page` 和 `multi_shop_query` 加入 enabled。
+- 阶段 4R 已将 `store_location_page.enabled` 和 `multi_shop_query.enabled` 改为 `true`。
+- 阶段 4R 的 `--sync-enabled` 验证批次号为 `sync_20260703_014011_709944`。
+- 该批次 `total_api_count=16`、`success_api_count=16`、`failed_api_count=0`。
+- 同一批次中 `store_location_page` 请求 12 次，写入 1116 条，checkpoint 记录 `item_count=1116`、`total_count=1116`。
+- 同一批次中 `multi_shop_query` 请求 1 次，写入 6 条，checkpoint 记录 `item_count=6`、`total_count=null`。
+- 阶段 4R 已运行 `--sync-api-configs`，数据库 `api_config.store_location_page.enabled=1`、`api_config.multi_shop_query.enabled=1`。
+- 当前 enabled API 为 16 个，当前覆盖矩阵中的真实配置 API 也是 16 个。
+- 下一阶段继续新增低风险直接读取候选；依赖型接口参数来源机制仍待单独设计。
 
 ## Open Decisions
 

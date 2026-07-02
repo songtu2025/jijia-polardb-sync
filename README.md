@@ -147,7 +147,7 @@ python -m app.main --sync-api amazon_shop_page
 python -m app.main --sync-enabled
 ```
 
-`--sync-enabled` 会读取 `config/api_config.example.yaml` 中 `enabled: true` 的接口，并在同一个 `sync_batch` 下逐个写入 `sync_api_log`。当前启用了 `amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`、`product_page`、`parent_product_page`、`kb_product_page` 和 `fba_warehouse_page`。
+`--sync-enabled` 会读取 `config/api_config.example.yaml` 中 `enabled: true` 的接口，并在同一个 `sync_batch` 下逐个写入 `sync_api_log`。当前启用了 `amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`、`product_page`、`parent_product_page`、`kb_product_page`、`fba_warehouse_page`、`store_location_page` 和 `multi_shop_query`。
 
 生成积加公开文档 API 覆盖矩阵：
 
@@ -195,7 +195,7 @@ logs/sync.log
 
 ### 当前支持哪些真实积加 API？
 
-当前已验证并启用 `amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`、`product_page`、`parent_product_page`、`kb_product_page` 和 `fba_warehouse_page`。
+当前已验证并启用 `amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`、`product_page`、`parent_product_page`、`kb_product_page`、`fba_warehouse_page`、`store_location_page` 和 `multi_shop_query`。
 
 ### accessToken 如何获取？
 
@@ -205,7 +205,7 @@ logs/sync.log
 
 ### 当前接入了哪个业务 API？
 
-当前配置并启用了 `amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`、`product_page`、`parent_product_page`、`kb_product_page` 和 `fba_warehouse_page`。`amazon_shop_page` 对应文档 `id=153` 的“查询亚马逊店铺信息”；`org_manage_query` 对应文档 `id=2537` 的“查询部门列表”；`role_list` 对应文档 `id=2885` 的“查询角色列表”；`dictionary_query` 对应文档 `id=2538` 的“查询字典管理列表”；`rate_page` 对应文档 `id=139` 的“查询汇率设置”；`continent_country_tree` 对应文档 `id=4943` 的“获取大洲国家关系”；`ship_transport_list` 对应文档 `id=3059` 的“查询物流方式列表”；`country_tree` 对应文档 `id=4563` 的“获取已授权店铺区域国家”；`category_page` 对应文档 `id=54` 的“查询品类信息”；`brand_page` 对应文档 `id=1752` 的“查询品牌资料”；`product_page` 对应文档 `id=53` 的“查询产品列表”；`parent_product_page` 对应文档 `id=4835` 的“查询父产品信息”；`kb_product_page` 对应文档 `id=1956` 的“查询捆绑产品列表”；`fba_warehouse_page` 对应文档 `id=63` 的“查询仓库-FBA仓”。
+当前配置并启用了 `amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`、`product_page`、`parent_product_page`、`kb_product_page`、`fba_warehouse_page`、`store_location_page` 和 `multi_shop_query`。`amazon_shop_page` 对应文档 `id=153` 的“查询亚马逊店铺信息”；`org_manage_query` 对应文档 `id=2537` 的“查询部门列表”；`role_list` 对应文档 `id=2885` 的“查询角色列表”；`dictionary_query` 对应文档 `id=2538` 的“查询字典管理列表”；`rate_page` 对应文档 `id=139` 的“查询汇率设置”；`continent_country_tree` 对应文档 `id=4943` 的“获取大洲国家关系”；`ship_transport_list` 对应文档 `id=3059` 的“查询物流方式列表”；`country_tree` 对应文档 `id=4563` 的“获取已授权店铺区域国家”；`category_page` 对应文档 `id=54` 的“查询品类信息”；`brand_page` 对应文档 `id=1752` 的“查询品牌资料”；`product_page` 对应文档 `id=53` 的“查询产品列表”；`parent_product_page` 对应文档 `id=4835` 的“查询父产品信息”；`kb_product_page` 对应文档 `id=1956` 的“查询捆绑产品列表”；`fba_warehouse_page` 对应文档 `id=63` 的“查询仓库-FBA仓”；`store_location_page` 对应文档 `id=141` 的“查询库位信息”；`multi_shop_query` 对应文档 `id=67` 的“查询多平台店铺信息”。
 
 ### 如何运行测试？
 

@@ -7,10 +7,10 @@ class Stage4QCandidateApiConfigTest(unittest.TestCase):
     def setUp(self):
         self.apis = {api["api_code"]: api for api in load_api_configs("config/api_config.example.yaml")}
 
-    def test_store_location_page_config_matches_doc_and_stays_disabled(self):
+    def test_store_location_page_config_matches_doc_and_is_enabled(self):
         api = self.apis["store_location_page"]
 
-        self.assertFalse(api["enabled"])
+        self.assertTrue(api["enabled"])
         self.assertEqual(api["method"], "POST")
         self.assertEqual(api["path"], "/fulfillment/store/location/page")
         self.assertEqual(api["page"]["page_no_field"], "page")
@@ -20,10 +20,10 @@ class Stage4QCandidateApiConfigTest(unittest.TestCase):
         self.assertEqual(api["primary_key"]["field"], "id")
         self.assertEqual(api["date_field"], "updateTime")
 
-    def test_multi_shop_query_config_matches_doc_and_stays_disabled(self):
+    def test_multi_shop_query_config_matches_doc_and_is_enabled(self):
         api = self.apis["multi_shop_query"]
 
-        self.assertFalse(api["enabled"])
+        self.assertTrue(api["enabled"])
         self.assertEqual(api["method"], "GET")
         self.assertEqual(api["path"], "/platform/multiplatform/multiShop/query")
         self.assertFalse(api["page"]["enabled"])
