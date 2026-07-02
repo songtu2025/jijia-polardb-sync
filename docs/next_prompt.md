@@ -22,17 +22,17 @@
 
 当前要执行的阶段：
 
-阶段 3X：单接口验证 `continent_country_tree`。
+阶段 3Y：将 `continent_country_tree` 加入 enabled 批量同步。
 
 建议目标：
 
 1. 阅读现有 `config/api_config.example.yaml`、`docs/progress.md`、`docs/decisions.md`。
-2. 保持 `continent_country_tree.enabled=false`。
-3. 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api continent_country_tree` 做单接口验证。
-4. 查询数据库确认 `sync_batch`、`sync_api_log`、`raw_api_data`、`sync_checkpoint`。
-5. 因文档未提供稳定主键，确认该接口使用 `data_hash` 去重，`source_primary_key` 可为空。
-6. 再运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`，确认仍只同步已启用的 5 个 API。
-7. 验证通过后，下一阶段再决定是否把 `continent_country_tree` 加入 `--sync-enabled`。
+2. 将 `continent_country_tree.enabled` 从 `false` 改为 `true`。
+3. 运行 `.\\.venv\\Scripts\\python.exe -m app.main`，确认 enabled API 变为 6 个。
+4. 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`。
+5. 查询数据库确认同一个 `sync_batch` 下有 6 条 `sync_api_log`。
+6. 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，同步 `api_config` 表。
+7. 查询数据库确认 `api_config.continent_country_tree.enabled=1`。
 
 验收：
 
@@ -42,7 +42,7 @@
 4. `--test-api amazon_shop_page` 仍可分页请求并写入日志。
 5. `--sync-api amazon_shop_page` 仍可完成真实单接口同步。
 6. `--sync-enabled` 仍可完成 enabled API 同步。
-7. `continent_country_tree` 当前必须保持 `enabled: false`。
+7. `continent_country_tree` 成功加入 enabled 批量同步。
 8. 不输出任何真实凭证或 accessToken。
 
 当前阶段 3M 已完成内容：
@@ -221,3 +221,8 @@
 - 文档未展开 `data` 元素字段，因此不编造主键，第一版使用 `data_hash` 去重。
 - 已新增 `continent_country_tree` YAML 配置，默认 `enabled: false`。
 - 阶段 3W 未执行 `continent_country_tree` 真实业务 API。
+- 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api continent_country_tree`。
+- `continent_country_tree` 单接口验证成功，批次 `sync_20260702_185400_214824`，请求 1 次，写入 7 条。
+- 已确认 `source_primary_key` 为空，使用 `data_hash` 去重，`sync_checkpoint` 已更新。
+- 已再次运行 `--sync-enabled`，批次 `sync_20260702_185428_805435`，仍为 `apis=5`，未执行 `continent_country_tree`。
+- 已运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests` 和 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，均通过。

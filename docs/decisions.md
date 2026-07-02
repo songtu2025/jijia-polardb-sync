@@ -184,6 +184,11 @@
 - `continent_country_tree` 响应列表字段是 `data`，无分页字段。
 - `continent_country_tree` 文档未展开 `data` 元素字段，不编造主键，先使用 `data_hash` 去重。
 - `continent_country_tree` 新增配置默认 `enabled: false`，单接口验证通过前不加入 `--sync-enabled`。
+- 阶段 3X 已执行 `--sync-api continent_country_tree`，单接口真实验证成功。
+- 阶段 3X 的 `continent_country_tree` 验证批次号为 `sync_20260702_185400_214824`，请求 1 次，写入 7 条。
+- `continent_country_tree` 因无稳定主键，`source_primary_key` 为空，已确认使用 `data_hash` 去重。
+- 阶段 3X 后 `continent_country_tree` 仍保持 `enabled: false`，未加入 `--sync-enabled`。
+- 下一阶段可以将 `continent_country_tree.enabled` 改为 `true`，并用 `--sync-enabled` 验证 6 个 API 同批次同步。
 
 ## Open Decisions
 

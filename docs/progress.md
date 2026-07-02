@@ -2,7 +2,7 @@
 
 ## Current Stage
 
-阶段 3W 已完成。已调研并新增第六个真实业务 API 候选 `continent_country_tree`，默认不启用。
+阶段 3X 已完成。`continent_country_tree` 已在保持禁用状态下完成单接口真实验证。
 
 ## Completed
 
@@ -244,6 +244,17 @@
   - 文档未展开 `data` 元素字段，因此不编造主键，第一版使用 `data_hash` 去重。
   - 已新增 `continent_country_tree` YAML 配置，默认 `enabled: false`。
   - 本阶段未执行 `continent_country_tree` 真实 API。
+- 阶段 3X 已完成：
+  - 已保持 `continent_country_tree.enabled=false`。
+  - 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api continent_country_tree`。
+  - 验证成功，批次号 `sync_20260702_185400_214824`，请求 1 次，写入 7 条。
+  - `sync_batch.status=success`，`success_api_count=1`，`failed_api_count=0`。
+  - `sync_api_log.status=success`，`request_count=1`，`success_count=7`，`failed_count=0`。
+  - 本批次 `raw_api_data` 中 `continent_country_tree` 写入 7 条，`source_primary_key` 为空，7 条都有 `data_hash`。
+  - 已确认该接口按 `api_code + data_hash` 去重。
+  - `sync_checkpoint.last_sync_batch_no` 已更新为 `sync_20260702_185400_214824`。
+  - 已再次运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`。
+  - `--sync-enabled` 成功，批次号 `sync_20260702_185428_805435`，仍为 `apis=5`，未执行 `continent_country_tree`。
 
 ## Verification
 
@@ -351,6 +362,12 @@
   - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，通过，同步配置数为 8。
   - 已查询 `api_config`，确认 `continent_country_tree.enabled=0`，启用 API 仍为 5 个。
   - `.\\.venv\\Scripts\\python.exe -m app.main --test-token`，通过且没有输出 token。
+- 阶段 3X 已运行：
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api continent_country_tree`，通过，批次 `sync_20260702_185400_214824`。
+  - 已查询数据库摘要，确认批次、API 日志、raw data_hash 和 checkpoint。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`，通过，批次 `sync_20260702_185428_805435`，`apis=5`。
+  - `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
+  - `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过。
 
 ## Known Issues
 
@@ -361,15 +378,15 @@
 
 ## Next Stage
 
-阶段 3X：单接口验证 `continent_country_tree`。
+阶段 3Y：将 `continent_country_tree` 加入 enabled 批量同步。
 
 建议目标：
 
-- 保持 `continent_country_tree.enabled=false`。
-- 执行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api continent_country_tree`。
-- 验证写入 `sync_batch`、`sync_api_log`、`raw_api_data` 和 `sync_checkpoint`。
-- 因文档未提供稳定主键，确认该接口使用 `data_hash` 去重，`source_primary_key` 可为空。
-- 验证后再决定是否进入下一阶段启用。
+- 将 `continent_country_tree.enabled` 从 `false` 改为 `true`。
+- 运行 dry-run，确认 enabled API 变为 6 个。
+- 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`。
+- 查询数据库确认同一批次下有 6 条 `sync_api_log`。
+- 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，同步数据库中的 `api_config.enabled`。
 
 验收：
 
@@ -377,7 +394,7 @@
 - `python -m app.main` dry-run 仍可用。
 - `python -m app.main --mock-sync` 仍可用。
 - `python -m app.main --test-token` 仍可用且不输出 token。
-- `continent_country_tree` 单接口验证成功。
-- `--sync-enabled` 仍只同步当前 5 个 enabled API。
+- `--sync-enabled` 成功同步 6 个 API。
+- `api_config.continent_country_tree.enabled=1`。
 - `python -m unittest discover -s tests -p "test_*.py"` 通过。
 - 不写入任何真实凭证到代码或文档。
