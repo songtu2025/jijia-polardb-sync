@@ -397,3 +397,11 @@
 - 阶段 4W 已同步 `api_config`，当前数据库总配置 23 条，启用 20 条；`product_detail.enabled=0`。
 - 阶段 4W 覆盖矩阵已刷新为公开文档 API 185 个、真实配置 API 21 个、enabled 20 个。
 - 4U-4W 复盘结论：大分页直读接口已经能进入 enabled，但依赖型接口必须继续扩展参数来源；下一步优先支持从上游 `raw_json` 提取多字段参数，例如 `market_inventory_query` 需要 `sku` 和 `warehouseId`。
+- 阶段 4X 新增 `market_inventory_query`，文档 id 为 `84`，路径为 `GET /purchase/inventory/marketInventory/query`，默认保持 `enabled=false`。
+- 阶段 4X 扩展 `param_source.fields`，支持从上游 `raw_json` 顶层字段提取多个请求参数；当前用于 `product_inventory_page.raw_json.sku` 和 `product_inventory_page.raw_json.warehouseId`。
+- 阶段 4X 已确认 `product_inventory_page` 有 111307 个去重 `sku + warehouseId` 参数对，不能一次性纳入 enabled 批量同步。
+- 阶段 4X 已用 3 个真实参数对验证 `market_inventory_query`，批次号为 `sync_20260703_060856_408323`，请求 4 次，写入 2 条，失败 0。
+- `market_inventory_query` 响应行没有稳定单字段主键，当前 `source_primary_key` 为空，依靠 `api_code + data_hash` 去重。
+- 阶段 4X 已同步 `api_config`，当前数据库总配置 24 条，启用 20 条；`market_inventory_query.enabled=0`。
+- 阶段 4X 覆盖矩阵已刷新为公开文档 API 185 个、真实配置 API 22 个、enabled 20 个。
+- 下一阶段不应直接把 `market_inventory_query` 加入 enabled；应先做参数窗口或 checkpoint 续跑能力，避免 111307 个参数对在一次定时任务中失控。

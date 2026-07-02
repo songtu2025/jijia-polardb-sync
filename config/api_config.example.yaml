@@ -557,3 +557,31 @@ apis:
       retries: 3
       delay_seconds: 1
     params: {}
+
+  # 第二十二个真实文档接口：查询站点库存分布，文档 id=84，依赖 product_inventory_page 的 sku 和 warehouseId，小样本验证阶段保持 disabled。
+  - api_code: market_inventory_query
+    name: 查询站点库存分布
+    enabled: false
+    method: GET
+    path: /purchase/inventory/marketInventory/query
+    page:
+      enabled: false
+      list_field: data
+    primary_key:
+      field: ""
+      required: false
+    date_field: ""
+    param_source:
+      source_api_code: product_inventory_page
+      limit: 3
+      fields:
+        - source_field: raw_json.sku
+          target_field: sku
+        - source_field: raw_json.warehouseId
+          target_field: warehouseId
+    rate_limit:
+      sleep_seconds: 0.2
+    retry:
+      retries: 3
+      delay_seconds: 1
+    params: {}

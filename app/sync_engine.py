@@ -1,6 +1,7 @@
 import logging
 import hashlib
 import json
+import re
 import time
 from datetime import date, datetime
 from typing import Any
@@ -12,6 +13,7 @@ from app.retry import retry_call
 
 
 logger = logging.getLogger(__name__)
+RAW_JSON_FIELD_PATTERN = re.compile(r"^[A-Za-z0-9_.]+$")
 
 
 class ApiRequestError(Exception):
@@ -676,14 +678,19 @@ class SyncEngine:
     def _source_param_sets(self, connection: Any, api: dict[str, Any]) -> list[dict[str, Any]]:
         """从已入库的上游 raw 数据生成请求参数。
 
-        第一版只支持从 `raw_api_data.source_primary_key` 取值，满足
-        `product_detail` 从 `product_page` 产品 id 做小样本详情同步的需求。
+        当前支持两种最小来源：`source_primary_key` 单字段，以及从 raw_json
+        顶层字段提取多个参数。后者用于库存站点分布这类多入参接口。
         """
         param_source = api.get("param_source") or {}
         source_api_code = param_source.get("source_api_code")
+        fields = param_source.get("fields") or []
+        limit = int(param_source.get("limit") or 10)
+
+        if fields:
+            return self._source_param_sets_from_raw_json_fields(connection, source_api_code, fields, limit)
+
         source_field = param_source.get("source_field")
         target_field = param_source.get("target_field")
-        limit = int(param_source.get("limit") or 10)
 
         if source_field != "source_primary_key":
             raise ValueError(f"unsupported param source field: {source_field}")
@@ -705,6 +712,52 @@ class SyncEngine:
             {"source_api_code": source_api_code, "limit": limit},
         )
         return [{target_field: str(row["source_value"])} for row in result.mappings().all()]
+
+    def _source_param_sets_from_raw_json_fields(
+        self,
+        connection: Any,
+        source_api_code: str | None,
+        fields: list[dict[str, Any]],
+        limit: int,
+    ) -> list[dict[str, Any]]:
+        """从上游 raw_json 顶层字段生成多参数请求。"""
+        if not source_api_code:
+            raise ValueError("invalid param_source config: missing source_api_code")
+
+        select_parts = []
+        where_parts = []
+        target_fields = []
+        for index, field in enumerate(fields):
+            source_field = str(field.get("source_field") or "")
+            target_field = str(field.get("target_field") or "")
+            if not source_field.startswith("raw_json.") or not target_field:
+                raise ValueError(f"invalid raw_json param field: {source_field}")
+
+            raw_json_path = source_field.removeprefix("raw_json.")
+            if not RAW_JSON_FIELD_PATTERN.match(raw_json_path):
+                raise ValueError(f"invalid raw_json param field: {source_field}")
+
+            expression = f"JSON_UNQUOTE(JSON_EXTRACT(raw_json, '$.{raw_json_path}'))"
+            alias = f"source_{index}"
+            select_parts.append(f"{expression} AS {alias}")
+            where_parts.append(f"{expression} IS NOT NULL AND {expression} <> ''")
+            target_fields.append(target_field)
+
+        aliases = [f"source_{index}" for index in range(len(fields))]
+        sql = f"""
+            SELECT {", ".join(select_parts)}
+            FROM raw_api_data
+            WHERE api_code = :source_api_code
+              AND {" AND ".join(where_parts)}
+            GROUP BY {", ".join(aliases)}
+            ORDER BY {", ".join(aliases)}
+            LIMIT :limit
+        """
+        result = connection.execute(text(sql), {"source_api_code": source_api_code, "limit": limit})
+        rows = []
+        for row in result.mappings().all():
+            rows.append({target_field: str(row[f"source_{index}"]) for index, target_field in enumerate(target_fields)})
+        return rows
 
     def _request_with_retry(
         self,
