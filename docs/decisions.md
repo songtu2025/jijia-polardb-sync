@@ -163,6 +163,13 @@
 - `rate_page` 响应列表字段是 `data.rows`，总数字段是 `data.total`。
 - `rate_page` 候选主键字段是 `id`，候选日期字段是 `lastDate`。
 - `rate_page` 新增配置默认 `enabled: false`，单接口验证通过前不加入 `--sync-enabled`。
+- 阶段 3U 首次执行 `rate_page` 时命中 `max_pages=5`，只写入 2500 条，但响应总数为 2590。
+- `rate_page.page.max_pages` 已调整为 10，避免当前总量被截断。
+- 阶段 3U 已执行 `--sync-api rate_page`，单接口真实验证成功。
+- 阶段 3U 的 `rate_page` 验证批次号为 `sync_20260702_184242_907458`，请求 6 次，写入 2590 条。
+- `rate_page` 的 `source_primary_key` 已确认从响应 `id` 写入，`data_date` 已确认从 `lastDate` 写入。
+- 阶段 3U 后 `rate_page` 仍保持 `enabled: false`，未加入 `--sync-enabled`。
+- 下一阶段可以将 `rate_page.enabled` 改为 `true`，并用 `--sync-enabled` 验证 5 个 API 同批次同步。
 
 ## Open Decisions
 

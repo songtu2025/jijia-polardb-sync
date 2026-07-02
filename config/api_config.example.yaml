@@ -145,7 +145,7 @@ apis:
       page_no_field: page
       page_size_field: pagesize
       page_size: 500
-      max_pages: 5
+      max_pages: 10
       list_field: data.rows
       total_field: data.total
     primary_key:

@@ -2,7 +2,7 @@
 
 ## Current Stage
 
-阶段 3T 已完成。已调研并新增第五个真实业务 API 候选 `rate_page`，默认不启用。
+阶段 3U 已完成。`rate_page` 已在保持禁用状态下完成单接口真实验证。
 
 ## Completed
 
@@ -209,6 +209,19 @@
   - 已确认候选主键字段为 `id`，候选日期字段为 `lastDate`。
   - 已新增 `rate_page` YAML 配置，默认 `enabled: false`。
   - 本阶段未执行 `rate_page` 真实 API，避免未经单接口验证就扩大同步范围。
+- 阶段 3U 已完成：
+  - 已保持 `rate_page.enabled=false`。
+  - 首次运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api rate_page` 时，请求 5 页写入 2500 条，但接口 `total_count=2590`，命中 `max_pages=5` 保护值。
+  - 已将 `rate_page.page.max_pages` 从 5 调整为 10，同时保持 `amazon_shop_page.page.max_pages=5` 不变。
+  - 已重跑 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api rate_page`。
+  - 验证成功，批次号 `sync_20260702_184242_907458`，请求 6 次，写入 2590 条。
+  - `sync_batch.status=success`，`success_api_count=1`，`failed_api_count=0`。
+  - `sync_api_log.status=success`，`request_count=6`，`success_count=2590`，`failed_count=0`。
+  - 本批次 `raw_api_data` 中 `rate_page` 写入 2590 条，2590 条都有 `source_primary_key` 和 `data_date`。
+  - `source_primary_key` 已确认来自 `id`，`data_date` 已确认来自 `lastDate`。
+  - `sync_checkpoint.checkpoint_value` 已记录 `item_count=2590`、`total_count=2590`。
+  - 已再次运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`。
+  - `--sync-enabled` 成功，批次号 `sync_20260702_184336_640026`，仍为 `apis=4`，未执行 `rate_page`。
 
 ## Verification
 
@@ -293,6 +306,13 @@
   - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，通过，同步配置数为 7。
   - 已查询 `api_config`，确认 `rate_page.enabled=0`，启用 API 仍为 4 个。
   - `.\\.venv\\Scripts\\python.exe -m app.main --test-token`，通过且没有输出 token。
+- 阶段 3U 已运行：
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api rate_page`，首次返回 2500 条，发现 `total_count=2590`。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api rate_page`，修正 `max_pages` 后通过，批次 `sync_20260702_184242_907458`。
+  - 已查询数据库摘要，确认批次、API 日志、raw 主键日期和 checkpoint。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`，通过，批次 `sync_20260702_184336_640026`，`apis=4`。
+  - `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
+  - `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过。
 
 ## Known Issues
 
@@ -303,15 +323,15 @@
 
 ## Next Stage
 
-阶段 3U：单接口验证 `rate_page`。
+阶段 3V：将 `rate_page` 加入 enabled 批量同步。
 
 建议目标：
 
-- 保持 `rate_page.enabled=false`。
-- 执行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api rate_page`。
-- 验证写入 `sync_batch`、`sync_api_log`、`raw_api_data` 和 `sync_checkpoint`。
-- 确认 `source_primary_key` 使用 `id`，`data_date` 使用 `lastDate`。
-- 验证后再决定是否进入下一阶段启用。
+- 将 `rate_page.enabled` 从 `false` 改为 `true`。
+- 运行 dry-run，确认 enabled API 变为 5 个。
+- 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`。
+- 查询数据库确认同一批次下有 5 条 `sync_api_log`。
+- 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，同步数据库中的 `api_config.enabled`。
 
 验收：
 
@@ -319,7 +339,7 @@
 - `python -m app.main` dry-run 仍可用。
 - `python -m app.main --mock-sync` 仍可用。
 - `python -m app.main --test-token` 仍可用且不输出 token。
-- `rate_page` 单接口验证成功。
-- `--sync-enabled` 仍只同步 `amazon_shop_page`、`org_manage_query`、`role_list` 和 `dictionary_query`。
+- `--sync-enabled` 成功同步 5 个 API。
+- `api_config.rate_page.enabled=1`。
 - `python -m unittest discover -s tests -p "test_*.py"` 通过。
 - 不写入任何真实凭证到代码或文档。
