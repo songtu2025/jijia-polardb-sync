@@ -405,3 +405,9 @@
 - 阶段 4X 已同步 `api_config`，当前数据库总配置 24 条，启用 20 条；`market_inventory_query.enabled=0`。
 - 阶段 4X 覆盖矩阵已刷新为公开文档 API 185 个、真实配置 API 22 个、enabled 20 个。
 - 下一阶段不应直接把 `market_inventory_query` 加入 enabled；应先做参数窗口或 checkpoint 续跑能力，避免 111307 个参数对在一次定时任务中失控。
+- 阶段 4Y 为 `param_source` 增加手动 `offset` 参数窗口；单字段 `source_primary_key` 和多字段 `raw_json` 参数来源都支持 `LIMIT + OFFSET`。
+- 阶段 4Y 已将 `market_inventory_query.param_source.offset=3`，用于验证第二批参数对，不代表已经完整同步 111307 个参数对。
+- 阶段 4Y 已用 offset=3 的三个真实参数对验证 `market_inventory_query`，批次号为 `sync_20260703_062446_799475`，请求 4 次，写入 1 条，失败 0。
+- 阶段 4Y 已同步 `api_config`，当前数据库总配置 24 条，启用 20 条；`market_inventory_query.enabled=0`、`param_source.limit=3`、`param_source.offset=3`。
+- 阶段 4Y 覆盖矩阵保持公开文档 API 185 个、真实配置 API 22 个、enabled 20 个。
+- 下一阶段应把手动 offset 推进为 checkpoint 驱动的自动窗口推进，避免长期靠手工改 YAML 跑依赖参数接口。

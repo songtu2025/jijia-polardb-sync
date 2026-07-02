@@ -68,7 +68,7 @@ class ProductDetailParamSourceTest(unittest.TestCase):
         params = engine._source_param_sets(connection, api)
 
         self.assertEqual(params, [{"id": "101"}, {"id": "202"}])
-        self.assertEqual(connection.calls[0][1], {"source_api_code": "product_page", "limit": 3})
+        self.assertEqual(connection.calls[0][1], {"source_api_code": "product_page", "limit": 3, "offset": 0})
 
     def test_param_source_config_error_is_recorded_as_api_failure(self):
         engine = SyncEngine([])

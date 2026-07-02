@@ -685,9 +685,10 @@ class SyncEngine:
         source_api_code = param_source.get("source_api_code")
         fields = param_source.get("fields") or []
         limit = int(param_source.get("limit") or 10)
+        offset = int(param_source.get("offset") or 0)
 
         if fields:
-            return self._source_param_sets_from_raw_json_fields(connection, source_api_code, fields, limit)
+            return self._source_param_sets_from_raw_json_fields(connection, source_api_code, fields, limit, offset)
 
         source_field = param_source.get("source_field")
         target_field = param_source.get("target_field")
@@ -707,9 +708,10 @@ class SyncEngine:
                   AND source_primary_key <> ''
                 ORDER BY source_primary_key
                 LIMIT :limit
+                OFFSET :offset
                 """
             ),
-            {"source_api_code": source_api_code, "limit": limit},
+            {"source_api_code": source_api_code, "limit": limit, "offset": offset},
         )
         return [{target_field: str(row["source_value"])} for row in result.mappings().all()]
 
@@ -719,6 +721,7 @@ class SyncEngine:
         source_api_code: str | None,
         fields: list[dict[str, Any]],
         limit: int,
+        offset: int,
     ) -> list[dict[str, Any]]:
         """从上游 raw_json 顶层字段生成多参数请求。"""
         if not source_api_code:
@@ -752,8 +755,9 @@ class SyncEngine:
             GROUP BY {", ".join(aliases)}
             ORDER BY {", ".join(aliases)}
             LIMIT :limit
+            OFFSET :offset
         """
-        result = connection.execute(text(sql), {"source_api_code": source_api_code, "limit": limit})
+        result = connection.execute(text(sql), {"source_api_code": source_api_code, "limit": limit, "offset": offset})
         rows = []
         for row in result.mappings().all():
             rows.append({target_field: str(row[f"source_{index}"]) for index, target_field in enumerate(target_fields)})

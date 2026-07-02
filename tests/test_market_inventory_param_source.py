@@ -41,6 +41,7 @@ class MarketInventoryParamSourceTest(unittest.TestCase):
         self.assertEqual(api["date_field"], "")
         self.assertEqual(api["param_source"]["source_api_code"], "product_inventory_page")
         self.assertEqual(api["param_source"]["limit"], 3)
+        self.assertEqual(api["param_source"]["offset"], 3)
         self.assertEqual(
             api["param_source"]["fields"],
             [
@@ -62,6 +63,7 @@ class MarketInventoryParamSourceTest(unittest.TestCase):
             "param_source": {
                 "source_api_code": "product_inventory_page",
                 "limit": 3,
+                "offset": 3,
                 "fields": [
                     {"source_field": "raw_json.sku", "target_field": "sku"},
                     {"source_field": "raw_json.warehouseId", "target_field": "warehouseId"},
@@ -72,9 +74,10 @@ class MarketInventoryParamSourceTest(unittest.TestCase):
         params = engine._source_param_sets(connection, api)
 
         self.assertEqual(params, [{"sku": "SKU-A", "warehouseId": "12"}, {"sku": "SKU-B", "warehouseId": "17"}])
-        self.assertEqual(connection.calls[0][1], {"source_api_code": "product_inventory_page", "limit": 3})
+        self.assertEqual(connection.calls[0][1], {"source_api_code": "product_inventory_page", "limit": 3, "offset": 3})
         self.assertIn("JSON_EXTRACT(raw_json, '$.sku')", str(connection.calls[0][0]))
         self.assertIn("JSON_EXTRACT(raw_json, '$.warehouseId')", str(connection.calls[0][0]))
+        self.assertIn("OFFSET :offset", str(connection.calls[0][0]))
 
 
 if __name__ == "__main__":
