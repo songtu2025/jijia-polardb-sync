@@ -137,7 +137,7 @@ apis:
   # 第五个真实文档候选接口：已按文档 id=139 配置，先禁用，单接口验证通过后再考虑启用。
   - api_code: rate_page
     name: 查询汇率设置
-    enabled: false
+    enabled: true
     method: POST
     path: /middle/base/rate/page
     page:

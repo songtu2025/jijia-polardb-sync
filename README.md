@@ -147,7 +147,7 @@ python -m app.main --sync-api amazon_shop_page
 python -m app.main --sync-enabled
 ```
 
-`--sync-enabled` 会读取 `config/api_config.example.yaml` 中 `enabled: true` 的接口，并在同一个 `sync_batch` 下逐个写入 `sync_api_log`。当前启用了 `amazon_shop_page`、`org_manage_query`、`role_list` 和 `dictionary_query`。
+`--sync-enabled` 会读取 `config/api_config.example.yaml` 中 `enabled: true` 的接口，并在同一个 `sync_batch` 下逐个写入 `sync_api_log`。当前启用了 `amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query` 和 `rate_page`。
 
 ## ECS 部署
 
@@ -187,7 +187,7 @@ logs/sync.log
 
 ### 当前支持哪些真实积加 API？
 
-当前已验证并启用 `amazon_shop_page`、`org_manage_query`、`role_list` 和 `dictionary_query`。`rate_page` 已完成单接口验证，但默认禁用。
+当前已验证并启用 `amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query` 和 `rate_page`。
 
 ### accessToken 如何获取？
 
@@ -197,7 +197,7 @@ logs/sync.log
 
 ### 当前接入了哪个业务 API？
 
-当前配置并启用了 `amazon_shop_page`、`org_manage_query`、`role_list` 和 `dictionary_query`。`rate_page` 已单接口验证但默认禁用。`amazon_shop_page` 对应文档 `id=153` 的“查询亚马逊店铺信息”；`org_manage_query` 对应文档 `id=2537` 的“查询部门列表”；`role_list` 对应文档 `id=2885` 的“查询角色列表”；`dictionary_query` 对应文档 `id=2538` 的“查询字典管理列表”；`rate_page` 对应文档 `id=139` 的“查询汇率设置”。
+当前配置并启用了 `amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query` 和 `rate_page`。`amazon_shop_page` 对应文档 `id=153` 的“查询亚马逊店铺信息”；`org_manage_query` 对应文档 `id=2537` 的“查询部门列表”；`role_list` 对应文档 `id=2885` 的“查询角色列表”；`dictionary_query` 对应文档 `id=2538` 的“查询字典管理列表”；`rate_page` 对应文档 `id=139` 的“查询汇率设置”。
 
 ### 如何运行测试？
 

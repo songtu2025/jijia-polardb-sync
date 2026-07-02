@@ -170,6 +170,11 @@
 - `rate_page` 的 `source_primary_key` 已确认从响应 `id` 写入，`data_date` 已确认从 `lastDate` 写入。
 - 阶段 3U 后 `rate_page` 仍保持 `enabled: false`，未加入 `--sync-enabled`。
 - 下一阶段可以将 `rate_page.enabled` 改为 `true`，并用 `--sync-enabled` 验证 5 个 API 同批次同步。
+- 阶段 3V 已将 `rate_page.enabled` 改为 `true`。
+- 阶段 3V 的 `--sync-enabled` 验证批次号为 `sync_20260702_184635_149384`。
+- 该批次 `total_api_count=5`、`success_api_count=5`、`failed_api_count=0`。
+- 当前 enabled API 为 `amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`。
+- 阶段 3V 已运行 `--sync-api-configs`，数据库 `api_config.rate_page.enabled=1`。
 
 ## Open Decisions
 
