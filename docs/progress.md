@@ -2,7 +2,7 @@
 
 ## Current Stage
 
-阶段 4F 已完成。已调研并新增第九个真实业务 API 候选 `category_page`，默认不启用。
+阶段 4G 已完成。已保持 `category_page` 禁用，并完成单接口真实同步验证。
 
 ## Completed
 
@@ -350,6 +350,18 @@
   - 已确认候选主键字段为 `id`，文档未提供明确日期字段，`date_field` 暂为空。
   - 已新增 `category_page` YAML 配置，默认 `enabled: false`。
   - 本阶段未执行 `category_page` 真实 API，避免未经单接口验证就扩大真实同步范围。
+- 阶段 4G 已完成：
+  - 已保持 `category_page.enabled=false`。
+  - 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api category_page`。
+  - 验证成功，批次号 `sync_20260702_213741_496366`，请求 1 次，写入 42 条。
+  - `sync_batch.status=success`，`success_api_count=1`，`failed_api_count=0`。
+  - `sync_api_log.status=success`，`request_count=1`，`success_count=42`，`failed_count=0`。
+  - 本批次 `raw_api_data` 中 `category_page` 写入 42 条，42 条都有 `source_primary_key` 和 `data_hash`。
+  - `source_primary_key` 已确认来自响应字段 `id`。
+  - 文档未提供明确日期字段，因此 `data_date` 为空。
+  - `sync_checkpoint.checkpoint_value` 已记录 `last_page=1`、`request_count=1`、`item_count=42`、`total_count=42`。
+  - 已再次运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`。
+  - `--sync-enabled` 成功，批次号 `sync_20260702_213820_543116`，仍为 `apis=8`，未执行 `category_page`。
 
 ## Verification
 
@@ -534,6 +546,15 @@
   - `.\\.venv\\Scripts\\python.exe -m app.main --mock-sync`，通过，批次 `sync_20260702_213500_018482`。
   - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，通过，同步配置数为 11。
   - 已查询 `api_config`，确认 `category_page.enabled=0`，当前启用配置数仍为 8。
+- 阶段 4G 已运行：
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api category_page`，通过，批次 `sync_20260702_213741_496366`。
+  - 已查询数据库摘要，确认批次、API 日志、raw 主键和 checkpoint。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`，通过，批次 `sync_20260702_213820_543116`，`apis=8`。
+  - 已查询 enabled 批次日志，八个已启用 API 均成功，`failed_api_count=0`。
+  - `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
+  - `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过。
+  - `.\\.venv\\Scripts\\python.exe -m app.main`，通过，dry-run 仍显示 8 个 enabled API。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --mock-sync`，通过，批次 `sync_20260702_213956_467817`。
 
 ## Known Issues
 
@@ -541,20 +562,20 @@
 - 各业务 API 的具体路径、字段、分页和主键需要逐个阅读文档确认。
 - 新增后续业务接口前，仍需要逐个阅读积加文档确认路径、分页、主键和日期字段。
 - 当前 enabled API 已有 8 个：`amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`。
-- `category_page` 已配置为第九个候选接口，但当前仍未加入 enabled 批量同步。
+- `category_page` 已通过单接口验证，但当前仍未加入 enabled 批量同步。
 - 远程 PolarDB 如出现遗留睡眠未提交事务，可能导致 raw 写入锁等待超时，需要先查 `information_schema.processlist` 和 `information_schema.innodb_trx`。
 
 ## Next Stage
 
-阶段 4G：单接口验证 `category_page`。
+阶段 4H：将 `category_page` 加入 enabled 批量同步。
 
 建议目标：
 
-- 保持 `category_page.enabled=false`。
-- 执行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api category_page`。
-- 验证写入 `sync_batch`、`sync_api_log`、`raw_api_data` 和 `sync_checkpoint`。
-- 确认 `source_primary_key` 使用 `id`。
-- 验证后再决定是否进入下一阶段启用。
+- 将 `category_page.enabled` 从 `false` 改为 `true`。
+- 运行 dry-run，确认 enabled API 变为 9 个。
+- 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`。
+- 查询数据库确认 9 个 API 同批次成功。
+- 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，同步 `api_config` 表。
 
 验收：
 
@@ -562,7 +583,7 @@
 - `python -m app.main` dry-run 仍可用。
 - `python -m app.main --mock-sync` 仍可用。
 - `python -m app.main --test-token` 仍可用且不输出 token。
-- `category_page` 单接口验证成功。
-- `--sync-enabled` 仍只同步当前 8 个 enabled API。
+- `category_page` 加入 enabled 后批量同步成功。
+- `--sync-enabled` 同步当前 9 个 enabled API。
 - `python -m unittest discover -s tests -p "test_*.py"` 通过。
 - 不写入任何真实凭证到代码或文档。

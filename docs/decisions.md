@@ -242,6 +242,11 @@
 - `category_page` 响应列表字段是 `data.rows`，总数字段是 `data.total`。
 - `category_page` 候选主键字段是 `id`，无明确日期字段。
 - `category_page` 新增配置默认 `enabled: false`，单接口验证通过前不加入 `--sync-enabled`。
+- 阶段 4G 已执行 `--sync-api category_page`，单接口真实验证成功。
+- 阶段 4G 的 `category_page` 验证批次号为 `sync_20260702_213741_496366`，请求 1 次，写入 42 条。
+- `category_page` 的 `source_primary_key` 已确认从响应 `id` 写入。
+- 阶段 4G 后 `category_page` 仍保持 `enabled: false`，未加入 `--sync-enabled`。
+- 下一阶段可以将 `category_page.enabled` 改为 `true`，并用 `--sync-enabled` 验证 9 个 API 同批次同步。
 
 ## Open Decisions
 
