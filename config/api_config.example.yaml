@@ -575,6 +575,7 @@ apis:
     param_source:
       source_api_code: storage_inbound_page
       limit: 3
+      auto_advance: true
       fields:
         - source_field: raw_json.code
           target_field: code

@@ -2,7 +2,7 @@
 
 ## Current Stage
 
-阶段 5B 已完成。`storage_inbound_detail` 已作为第二个依赖型接口完成小样本同步，当前真实配置 API 为 23 个，enabled API 仍为 20 个。
+阶段 5C 已完成。`storage_inbound_detail` 已开启 checkpoint 自动窗口推进并完成第二批 code 小样本同步，当前真实配置 API 为 23 个，enabled API 仍为 20 个。
 
 ## Completed
 
@@ -922,6 +922,23 @@
   - `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary`，通过，公开文档 API 为 185 个，真实配置 API 为 23 个，enabled 为 20 个。
   - `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
   - `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过，25 个测试。
+- 阶段 5C 已运行：
+  - 已测试先行约束 `storage_inbound_detail.param_source.auto_advance=true`；测试先失败于缺少该字段，再通过。
+  - 已将 `storage_inbound_detail.param_source.auto_advance` 设置为 `true`，同时保持 `enabled=false` 和 `limit=3` 不变。
+  - `.\\.venv\\Scripts\\python.exe -m app.main`，通过，dry-run 仍显示 20 个 enabled API。
+  - 已只读确认 `storage_inbound_detail` checkpoint 为 `param_offset=0`、`param_limit=3`、`next_param_offset=3`。
+  - 已按程序真实排序确认 offset=0 的第一批 code 为 `GIB00922092000000001`、`GIB00922092100000002`、`GIB00922092100000003`。
+  - 已按程序真实排序确认 offset=3 的第二批 code 为 `GIB00922092100000004`、`GIB00922093000000005`、`GIB00922093000000006`，不重复第一批。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api storage_inbound_detail`，通过，批次 `sync_20260703_071322_698205`，`rows=3`，`requests=3`。
+  - 已查询数据库摘要，确认该批次 `total_api_count=1`、`success_api_count=1`、`failed_api_count=0`。
+  - 同一批次 `sync_api_log` 记录 `request_count=3`、`success_count=3`、`failed_count=0`，`failed_request_log` 为 0 条。
+  - 同一批次 `raw_api_data` 写入 3 条，主键为第二批三个 code，且 3 条都有 `source_primary_key`、`data_hash` 和 `data_date`。
+  - `storage_inbound_detail` checkpoint 更新到批次 `sync_20260703_071322_698205`，记录 `param_offset=3`、`param_limit=3`、`next_param_offset=6`。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，通过，同步配置数为 25。
+  - 已查询 `api_config`，确认 `storage_inbound_detail.enabled=0`、`param_source.limit=3`、`param_source.auto_advance=true`，数据库配置总数 25、启用 20。
+  - `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary`，通过，公开文档 API 为 185 个，真实配置 API 为 23 个，enabled 为 20 个。
+  - `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
+  - `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过，25 个测试。
 
 ## Review 4L-4N
 
@@ -1028,6 +1045,27 @@
   - 复核依赖参数接口的 checkpoint 语义，明确空结果窗口是否继续推进。
   - 再选择一个依赖型接口复用同一机制，避免只为一个接口定制。
 
+## Review 5A-5C
+
+- 已完成第六组目标模式闭环：
+  - 5A 验证 `market_inventory_query` 不改 YAML 即可从 checkpoint 自动推进到第四批参数窗口。
+  - 5B 接入第二个依赖型接口 `storage_inbound_detail`，复用 `raw_json.code` 参数来源完成第一批小样本。
+  - 5C 为 `storage_inbound_detail` 开启 `auto_advance`，完成第二批 code 小样本，并把 checkpoint 推进到 `next_param_offset=6`。
+- 当前覆盖状态：
+  - 公开文档 API：185 个。
+  - 已配置真实 API：23 个。
+  - enabled API：20 个。
+  - `product_detail`、`market_inventory_query` 和 `storage_inbound_detail` 已验证但保持 disabled。
+  - 当前已验证两类 raw_json 参数来源：多字段 `sku + warehouseId` 和单字段 `code`。
+- 本组三轮发现的问题：
+  - 依赖型接口的小窗口推进链路成立，但仍不应直接加入 enabled 批量同步，否则会把 111307 个库存参数对或 174286 个入库单据 code 带入一次日常批次。
+  - 参数窗口的真实排序必须按程序 SQL 理解；`raw_json` 字段来源当前按提取字段 `GROUP BY/ORDER BY`，不是按 raw 表插入时间。
+  - `storage_inbound_detail` 的详情响应包含 `inboundItemVOS` 明细数组，目前仍作为完整 raw JSON 保存，暂不拆子表。
+- 下一组三轮建议：
+  - 先为 `product_detail` 开启 `param_source.auto_advance`，验证 `source_primary_key` 参数来源分支也能从 checkpoint 连续推进。
+  - 继续保持依赖型接口 disabled，用 `--sync-api` 做小窗口验证。
+  - 之后再选择新的依赖型接口，或开始设计依赖型窗口接口的生产级调度策略。
+
 ## Known Issues
 
 - `amazon_shop_page` 第一版以 `data_hash` 去重，不强行编造业务主键。
@@ -1043,21 +1081,21 @@
 
 ## Next Stage
 
-阶段 5C：为 `storage_inbound_detail` 开启 checkpoint 自动窗口推进，并验证第二批 code 小样本。
+阶段 5D：为 `product_detail` 开启 checkpoint 自动窗口推进，并验证第二批产品 ID 小样本。
 
 建议目标：
 
-- 将 `storage_inbound_detail.param_source.auto_advance` 设置为 `true`，继续保持 `enabled=false`。
-- 不修改 `limit=3`，用 checkpoint 中的 `next_param_offset=3` 读取第二批上游 `code`。
-- 先只读查询 offset=3 的第二批 `code`，确认不重复第一批。
-- 运行 `storage_inbound_detail` 第二批小样本真实同步，确认批次、日志、raw 和 checkpoint 可追踪。
-- 完成后同步 `api_config`、刷新覆盖矩阵，并做 5A-5C 三轮复盘。
+- 将 `product_detail.param_source.auto_advance` 设置为 `true`，继续保持 `enabled=false`。
+- 不修改 `limit=3`，用 `product_detail` 既有 checkpoint 推进到第二批产品 ID。
+- 先只读查询第二批 `product_page.source_primary_key`，确认不重复第一批 `1`、`10`、`100`。
+- 运行 `product_detail` 第二批小样本真实同步，确认批次、日志、raw 和 checkpoint 可追踪。
+- 完成后同步 `api_config`、刷新覆盖矩阵。
 
 验收：
 
-- `storage_inbound_detail` 能从 checkpoint 自动推进到第二批 code 小样本。
-- 第二批 code 不重复第一批，且同步批次成功。
-- `storage_inbound_detail` 默认保持 disabled，不影响现有 20 个 enabled API。
+- `product_detail` 能从 checkpoint 自动推进到第二批产品 ID 小样本。
+- 第二批产品 ID 不重复第一批，且同步批次成功。
+- `product_detail` 默认保持 disabled，不影响现有 20 个 enabled API。
 - `api_config` 与覆盖矩阵保持真实配置 API 23 个、enabled 20 个。
 - `compileall` 和 `unittest discover` 通过。
 - 继续保持 `.env`、token 缓存、日志和真实凭证不提交。

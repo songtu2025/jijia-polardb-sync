@@ -435,3 +435,11 @@
 - 阶段 5B checkpoint 记录 `param_offset=0`、`param_limit=3`、`next_param_offset=3`；下一步可开启 `auto_advance` 验证第二批 code。
 - 阶段 5B 已同步 `api_config`，当前数据库总配置 25 条，启用 20 条；`storage_inbound_detail.enabled=0`。
 - 阶段 5B 覆盖矩阵已刷新为公开文档 API 185 个、真实配置 API 23 个、enabled 20 个。
+- 阶段 5C 已将 `storage_inbound_detail.param_source.auto_advance=true`，同时保持 `storage_inbound_detail.enabled=0`、`limit=3`。
+- 阶段 5C 已按程序真实排序确认 `storage_inbound_detail` 第二批 code 为 `GIB00922092100000004`、`GIB00922093000000005`、`GIB00922093000000006`，不重复第一批。
+- 阶段 5C 已用第二批 code 验证 `storage_inbound_detail`，批次号为 `sync_20260703_071322_698205`，请求 3 次，写入 3 条，失败 0。
+- 阶段 5C 后 `storage_inbound_detail` checkpoint 记录 `param_offset=3`、`param_limit=3`、`next_param_offset=6`。
+- 阶段 5C 已同步 `api_config`，当前数据库总配置 25 条，启用 20 条；`storage_inbound_detail.enabled=0`、`param_source.auto_advance=true`。
+- 阶段 5C 覆盖矩阵保持公开文档 API 185 个、真实配置 API 23 个、enabled 20 个。
+- 5A-5C 复盘结论：依赖型接口的小窗口自动推进已在多字段 raw_json、单字段 raw_json 两种来源上验证成立，但仍不应直接加入 enabled 批量同步。
+- 下一阶段优先为 `product_detail` 开启 `auto_advance`，补齐 `source_primary_key` 参数来源分支的连续窗口验证。

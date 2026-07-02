@@ -47,6 +47,8 @@ class StorageInboundDetailParamSourceTest(unittest.TestCase):
         self.assertEqual(api["date_field"], "createdAt")
         self.assertEqual(api["param_source"]["source_api_code"], "storage_inbound_page")
         self.assertEqual(api["param_source"]["limit"], 3)
+        self.assertIn("auto_advance", api["param_source"])
+        self.assertTrue(api["param_source"]["auto_advance"])
         self.assertEqual(
             api["param_source"]["fields"],
             [{"source_field": "raw_json.code", "target_field": "code"}],
