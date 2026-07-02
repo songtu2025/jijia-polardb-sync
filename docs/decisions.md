@@ -297,6 +297,19 @@
 - 当前 enabled API 为 12 个，当前覆盖矩阵中的真实配置 API 也是 12 个。
 - 4L-4N 三轮复盘结论：覆盖矩阵和低风险接口接入路径成立，但大分页接口会显著拉长 enabled 批量同步耗时；后续接入大接口前需要关注 `max_pages`、总量和定时任务窗口。
 - 4L-4N 三轮复盘结论：依赖上游参数接口数量较多，后续不能只靠静态 YAML，需要设计从已同步 raw 数据生成请求参数的机制。
+- 阶段 4O 继续从覆盖矩阵未配置的 `direct_read_candidate` 中选择低风险接口。
+- 阶段 4O 选择 `kb_product_page` 和 `fba_warehouse_page`，因为二者分页清晰、响应行有稳定 `id`，且请求参数不依赖上游业务对象。
+- `kb_product_page` 文档路径是 `POST /purchase/goods/kbProduct/page`，实际请求路径是 `/api/open/purchase/goods/kbProduct/page`。
+- `kb_product_page` 响应列表字段是 `data.rows`，总数字段是 `data.total`，候选主键字段是 `id`，候选日期字段是 `updateTime`。
+- 阶段 4O 的 `kb_product_page` 验证批次号为 `sync_20260703_010426_080352`，请求 1 次，当前账号返回 0 条，checkpoint 记录 `item_count=0`、`total_count=0`。
+- `fba_warehouse_page` 文档路径是 `POST /purchase/inventory/fbaWarehouse/page`，实际请求路径是 `/api/open/purchase/inventory/fbaWarehouse/page`。
+- `fba_warehouse_page` 响应列表字段是 `data.rows`，总数字段是 `data.total`，候选主键字段是 `id`，候选日期字段是 `createDate`。
+- 阶段 4O 的 `fba_warehouse_page` 验证批次号为 `sync_20260703_010654_343796`，请求 1 次，写入 36 条。
+- `fba_warehouse_page` 的 `source_primary_key` 已确认从响应 `id` 写入，`data_date` 已确认从 `createDate` 写入。
+- 阶段 4O 后 `kb_product_page` 和 `fba_warehouse_page` 仍保持 `enabled=false`，未加入 enabled 批量同步。
+- 阶段 4O 已运行 `--sync-api-configs`，数据库中两个新接口均为 `enabled=0`，当前启用配置数仍为 12。
+- 覆盖矩阵已刷新，当前已配置真实 API 为 14 个，enabled 仍为 12 个。
+- 下一阶段可以将 `kb_product_page.enabled` 和 `fba_warehouse_page.enabled` 改为 `true`，并用 `--sync-enabled` 验证 14 个 API 同批次同步。
 
 ## Open Decisions
 

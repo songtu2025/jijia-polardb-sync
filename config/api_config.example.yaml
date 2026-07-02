@@ -336,3 +336,57 @@ apis:
     params:
       page: 1
       pagesize: 100
+
+  # 第十三个真实文档接口：捆绑产品基础资料，文档 id=1956，先单接口验证后再考虑启用。
+  - api_code: kb_product_page
+    name: 查询捆绑产品列表
+    enabled: false
+    method: POST
+    path: /purchase/goods/kbProduct/page
+    page:
+      enabled: true
+      page_no_field: page
+      page_size_field: pagesize
+      page_size: 100
+      max_pages: 20
+      list_field: data.rows
+      total_field: data.total
+    primary_key:
+      field: id
+      required: false
+    date_field: updateTime
+    rate_limit:
+      sleep_seconds: 0.2
+    retry:
+      retries: 3
+      delay_seconds: 1
+    params:
+      page: 1
+      pagesize: 100
+
+  # 第十四个真实文档接口：FBA仓基础资料，文档 id=63，先单接口验证后再考虑启用。
+  - api_code: fba_warehouse_page
+    name: 查询仓库-FBA仓
+    enabled: false
+    method: POST
+    path: /purchase/inventory/fbaWarehouse/page
+    page:
+      enabled: true
+      page_no_field: page
+      page_size_field: pagesize
+      page_size: 100
+      max_pages: 20
+      list_field: data.rows
+      total_field: data.total
+    primary_key:
+      field: id
+      required: false
+    date_field: createDate
+    rate_limit:
+      sleep_seconds: 0.2
+    retry:
+      retries: 3
+      delay_seconds: 1
+    params:
+      page: 1
+      pagesize: 100
