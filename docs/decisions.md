@@ -1,0 +1,124 @@
+# Technical Decisions
+
+## Confirmed Decisions
+
+- 项目使用 Python 3.11+。
+- 目标数据库是阿里云 PolarDB MySQL 版。
+- 项目运行在阿里云 ECS。
+- 同步频率是每天一次。
+- 第一版以原始 JSON 备份为主。
+- 所有 API 返回数据优先保存到 `raw_api_data.raw_json`。
+- 订单、商品、库存等结构化 transformer 先预留，不作为第一版重点。
+- API 通过 YAML 配置管理。
+- 敏感信息通过 `.env` 或环境变量读取。
+- 每天一次同步由 ECS 上的 cron 或 systemd timer 触发。
+- 不做实时同步。
+- 不做可视化后台。
+- 不做复杂 BI 分析。
+- 如果真实积加 API 字段暂时无法确认，先用示例配置占位，不编造确定字段。
+
+## Stage 1 Decisions
+
+- 使用 `pydantic-settings` 读取 `.env` 和环境变量。
+- 使用 `PyYAML` 读取 `config/api_config.example.yaml`。
+- 使用 `SQLAlchemy` + `PyMySQL` 作为 MySQL/PolarDB 访问基础。
+- 第一阶段 `app.main` 默认只执行 dry-run：读取配置、初始化日志、加载启用 API，不请求真实积加 API。
+- `raw_api_data` 使用两条去重路径：
+  - 有稳定业务主键时使用 `api_code + source_primary_key`。
+  - 没有稳定业务主键时使用 `api_code + data_hash`。
+
+## Stage 2 Decisions
+
+- 先实现 mock 落库，不接真实积加 API。
+- `python -m app.main` 保持 dry-run，不连接数据库。
+- `python -m app.main --mock-sync` 只有显式指定时才连接数据库并写入 mock 数据。
+- `data_hash` 使用原始 item 的稳定 JSON 字符串计算 SHA-256。
+- `raw_api_data` 写入使用 `ON DUPLICATE KEY UPDATE`，让 mock-sync 可重复执行。
+- 数据库连接失败时只输出脱敏错误，不打印完整 SQLAlchemy/PyMySQL 异常栈。
+
+## Stage 3 Decisions
+
+- 根据积加开放平台文档 `id=596`，获取 token 的文档路径是 `POST /api_token`。
+- token 请求体只使用 `appId` 和 `appKey`。
+- token 响应读取 `data.accessToken`、`data.expiresIn`、`data.expiresOut`。
+- 积加文档展示的是业务路径，例如 `/api_token`。
+- 实际开放接口请求需要加网关前缀 `/api/open`，例如 `/api/open/api_token`。
+- 项目新增 `JIJIA_OPEN_GATEWAY_PREFIX=/api/open`，后续业务接口也应复用这个前缀。
+- `--test-token` 成功时不打印 token，只打印过期时间。
+- 选择“查询亚马逊店铺信息”作为第一个业务 API，文档 id 是 `153`。
+- `amazon_shop_page` 文档路径是 `POST /middle/base/market/page`，实际请求路径是 `/api/open/middle/base/market/page`。
+- `amazon_shop_page` 请求头需要 `accessToken`。
+- `amazon_shop_page` 请求体第一版固定为 `{"page": 1, "pagesize": 20, "condition": {}}`。
+- `amazon_shop_page` 响应列表字段是 `data.rows`。
+- 第一版只请求第一页，不做全量分页循环。
+- 第一版不强行编造业务主键，使用 `data_hash` 去重。
+- 已在阶段 3D 执行 `--test-api amazon_shop_page`，真实业务 API 请求成功。
+- 阶段 3D 的真实测试批次号为 `sync_20260702_141413_745961`。
+- 阶段 3D 写入 `raw_api_data` 的 `amazon_shop_page` 原始记录数为 7。
+- 当前不输出 accessToken，也不在验证记录中输出完整业务 `raw_json`。
+- 下一阶段优先补齐当前 API 的分页循环和 `sync_checkpoint`，暂不新增第二个业务 API。
+- 阶段 3E 为 `amazon_shop_page` 增加最小分页循环。
+- 分页循环使用配置中的 `page_no_field`、`page_size_field`、`page_size`、`total_field`。
+- `amazon_shop_page` 暂设 `page.max_pages=5`，用于测试阶段保护。
+- `sync_checkpoint.checkpoint_value` 暂存 JSON 摘要：`last_page`、`request_count`、`item_count`、`total_count`。
+- 阶段 3E 真实测试批次号为 `sync_20260702_163706_146056`。
+- 阶段 3E 真实测试请求 2 页，写入 13 条 `amazon_shop_page` 原始记录。
+- 下一阶段优先补齐真实 API 失败记录和最小重试，暂不新增第二个业务 API。
+- 阶段 3F 为真实 API 请求增加最小重试。
+- 重试使用 `app.retry.retry_call()`，每个 API 可通过 YAML 的 `retry.retries` 和 `retry.delay_seconds` 配置。
+- `amazon_shop_page` 当前配置为最多 3 次尝试，间隔 1 秒。
+- 重试仍失败时写入 `failed_request_log`。
+- `failed_request_log.request_params` 只记录请求体参数，不记录 `accessToken`。
+- 阶段 3F 正常真实 API 验证批次号为 `sync_20260702_170155_676007`，请求 2 页，写入 13 条。
+- 阶段 3F 失败日志验证批次号为 `sync_20260702_170231_079008`，`retry_count=1`，已确认 `request_params` 不包含 `accessToken`。
+- 下一阶段优先把当前 `--test-api` 能力整理为更清晰的单接口真实同步入口。
+- 阶段 3G 新增 `--sync-api` 作为真实单接口同步入口。
+- `--sync-api` 和 `--test-api` 共用同一条单接口执行链路。
+- `--test-api` 保留为开发调试兼容入口。
+- 阶段 3G 的 `--sync-api amazon_shop_page` 验证批次号为 `sync_20260702_170601_361540`，请求 2 页，写入 13 条。
+- 下一阶段进入多接口同步前，先整理 YAML 启用状态，并明确多接口是否共用一个 `sync_batch`。
+- 阶段 3H 明确：一个 `sync_batch` 表示一次调度运行，多接口同步时所有 enabled API 共用一个批次。
+- 每个 API 的执行结果仍单独写入 `sync_api_log`。
+- 阶段 3H 已整理 YAML 启用状态：占位接口 `order_list`、`product_list` 禁用，真实验证过的 `amazon_shop_page` 启用。
+- 阶段 3H 新增 `--sync-enabled`，用于同步 YAML 中 `enabled: true` 的 API。
+- 阶段 3H 的 `--sync-enabled` 验证批次号为 `sync_20260702_171221_307284`，`total_api_count=1`，请求 2 页，写入 13 条。
+- 新增第二个业务 API 时，配置应先设 `enabled: false`，单接口验证通过后再决定是否加入 `--sync-enabled`。
+- 阶段 3I 调研过“获取本位币币种”，文档 id 是 `66`，路径是 `POST /middle/base/baseCurrency/query`。
+- “获取本位币币种”响应 `data` 是单个字符串，不符合当前列表型 raw item 同步模型，暂不作为第二个 API。
+- 阶段 3I 选择“查询部门列表”作为第二个低风险业务 API 候选，文档 id 是 `2537`。
+- `org_manage_query` 文档路径是 `POST /middle/base/orgManage/query`，实际请求路径是 `/api/open/middle/base/orgManage/query`。
+- `org_manage_query` 请求头需要 `accessToken`。
+- `org_manage_query` 请求体字段 `startTime`、`endTime`、`status`、`condition` 都是可选字段，第一版配置使用空请求体 `{}`。
+- `org_manage_query` 响应列表字段是 `data`，无分页字段。
+- `org_manage_query` 候选主键字段是 `id`，候选日期字段是 `createdTime`。
+- `org_manage_query` 新增配置默认 `enabled: false`，单接口验证通过前不加入 `--sync-enabled`。
+- 阶段 3J 已执行 `--sync-api org_manage_query`，单接口真实验证成功。
+- 阶段 3J 的 `org_manage_query` 验证批次号为 `sync_20260702_173136_319602`，请求 1 次，写入 1 条。
+- `org_manage_query` 的 `source_primary_key` 已从响应 `id` 写入。
+- `org_manage_query` 的 `data_date` 已从响应 `createdTime` 提取日期写入。
+- 阶段 3J 后 `org_manage_query` 仍保持 `enabled: false`，未加入 `--sync-enabled`。
+- 阶段 3K 已确认将 `org_manage_query` 加入 `--sync-enabled`。
+- 阶段 3K 只修改 `org_manage_query.enabled=true`，没有新增第三个 API。
+- 阶段 3K 的 `--sync-enabled` 验证批次号为 `sync_20260702_174830_926688`。
+- 该批次 `total_api_count=2`、`success_api_count=2`、`failed_api_count=0`。
+- 同一批次下 `amazon_shop_page` 写入 13 条，`org_manage_query` 写入 1 条。
+- 下一阶段优先实现 accessToken 简单缓存，减少每次运行都请求 token。
+- 阶段 3L 已实现 accessToken 本地简单缓存。
+- token 缓存路径默认是 `logs/token_cache.json`，可通过 `JIJIA_TOKEN_CACHE_PATH` 覆盖。
+- token 缓存提前 60 秒视为过期。
+- `logs/token_cache.json` 已加入 `.gitignore`，不能提交。
+- `--test-token`、`--sync-api`、`--sync-enabled` 都复用 `JijiaAuthClient.get_access_token()` 的缓存逻辑。
+- 阶段 3L 验证批次号为 `sync_20260702_175624_199936`，`--sync-enabled` 仍成功同步 2 个 enabled API。
+- 下一阶段优先将 YAML API 配置同步到 `api_config` 表，便于数据库侧追踪当前接口配置。
+- 阶段 3M 新增 `--sync-api-configs`，用于同步 YAML API 配置到数据库。
+- `api_config` 按 `api_code` upsert，重复运行不会重复插入。
+- `api_config.config_json` 保存完整 YAML API 配置快照。
+- 阶段 3M 已验证 `api_config` 总数为 4，启用数为 2。
+- `api_config` 中 `amazon_shop_page`、`org_manage_query` 为启用状态，`order_list`、`product_list` 为禁用状态。
+- 阶段 3M 不请求真实业务接口，只写配置元数据。
+- 下一阶段如接第三个 API，仍应先做文档调研，新增配置默认 `enabled: false`。
+
+## Open Decisions
+
+- `raw_api_data.data_date` 取哪个业务时间字段，需要按每个 API 单独确认。
+- 后续是否把 `marketListVos` 拆成更细粒度记录，等待先验证 raw JSON 备份价值。

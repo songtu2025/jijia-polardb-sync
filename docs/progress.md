@@ -1,0 +1,193 @@
+# Project Progress
+
+## Current Stage
+
+阶段 3M 已完成。YAML API 配置已可通过 `--sync-api-configs` 同步写入 `api_config` 表。
+
+## Completed
+
+- 阶段 1 已完成：
+  - 创建根目录 `AGENTS.md`。
+  - 创建 `app/` 基础模块。
+  - 创建 `app/transformers/` 占位 transformer。
+  - 创建 `config/api_config.example.yaml`。
+  - 创建 `sql/init_tables.sql`，包含核心 6 张表。
+  - 创建 `.env.example`、`requirements.txt`、`.gitignore`、`logs/.gitkeep`。
+  - 创建 README 初稿。
+- 阶段 2A 已完成：
+  - `python -m app.main` 继续执行 dry-run，只读取 YAML，不连接数据库。
+  - 新增 `python -m app.main --mock-sync`。
+  - mock-sync 会写入 `sync_batch`、`sync_api_log` 和 `raw_api_data`。
+  - 已实现稳定 `data_hash` 计算。
+  - 已用 `ON DUPLICATE KEY UPDATE` 支持重复运行时更新同一条 mock 数据。
+- 阶段 2B 已完成：
+  - 已执行 `sql/init_tables.sql`，创建 6 张核心表。
+  - 已执行 `python -m app.main --check-db`，数据库连接通过。
+  - 已执行两次 `python -m app.main --mock-sync`。
+  - 已验证重复运行后 `raw_api_data` 仍为 1 条，mock 原始数据没有重复膨胀。
+  - 已改进 CLI 数据库错误处理，避免连接失败时打印完整异常栈和敏感连接信息。
+- 阶段 3A/3B 已完成：
+  - 已从积加开放平台文档 `id=596` 确认获取 token 接口。
+  - 已确认真实 token 请求路径为 `/api/open/api_token`。
+  - 已新增 `JIJIA_OPEN_GATEWAY_PREFIX=/api/open`。
+  - 已实现 `JijiaAuthClient.get_access_token()`。
+  - 已新增 `python -m app.main --test-token`。
+  - 已实测 `--test-token` 成功，且不输出 accessToken。
+- 阶段 3C 已完成：
+  - 已从积加开放平台文档 `id=153` 读取“查询亚马逊店铺信息”接口。
+  - 已新增 `amazon_shop_page` API 配置。
+  - 已实现 `JijiaApiClient.request()`。
+  - 已新增 `python -m app.main --test-api amazon_shop_page`。
+  - 已实现单个业务 API 测试落库：写入 `sync_batch`、`sync_api_log`、`raw_api_data`。
+  - 当前只请求第一页，`pagesize=20`，不做全量分页循环。
+- 阶段 3D 已完成：
+  - 已在用户确认后执行真实业务 API 测试：`.\\.venv\\Scripts\\python.exe -m app.main --test-api amazon_shop_page`。
+  - 执行成功，批次号为 `sync_20260702_141413_745961`。
+  - `sync_batch` 状态为 `success`，`success_api_count=1`，`failed_api_count=0`。
+  - `sync_api_log` 中 `amazon_shop_page` 状态为 `success`，`request_count=1`，`success_count=7`，`failed_count=0`。
+  - `raw_api_data` 中本批次写入 7 条 `amazon_shop_page` 原始记录。
+  - 验证过程没有输出 accessToken，也没有输出完整业务 `raw_json`。
+- 阶段 3E 已完成：
+  - `JijiaApiClient.request()` 支持传入单次请求参数覆盖，用于分页请求。
+  - `amazon_shop_page` 配置新增 `page.max_pages=5` 作为测试保护。
+  - `SyncEngine.test_api_once()` 已按 `page`、`pagesize`、`data.total` 做分页循环。
+  - 每页返回数据继续写入 `raw_api_data`，仍使用 `data_hash` 去重。
+  - API 成功后会 upsert `sync_checkpoint`，记录最后页、请求次数、写入条数、总数和批次号。
+  - 已执行真实分页测试，批次号为 `sync_20260702_163706_146056`。
+  - 本次 `sync_api_log.request_count=2`，`success_count=13`，`failed_count=0`。
+  - `sync_checkpoint.last_sync_batch_no=sync_20260702_163706_146056`。
+- 阶段 3F 已完成：
+  - `amazon_shop_page` 配置新增 `retry.retries=3`、`retry.delay_seconds=1`。
+  - 真实 API 分页请求已通过 `retry_call()` 做最小重试。
+  - 重试失败时会写入 `failed_request_log`。
+  - 失败日志写入 `request_url`、`request_method`、`request_params`、`response_status_code`、`response_body`、`error_message`、`retry_count`。
+  - `request_params` 不包含 `accessToken`。
+  - 正常真实 API 验证成功，批次号 `sync_20260702_170155_676007`，请求 2 页，写入 13 条。
+  - 临时错误路径验证成功，失败批次号 `sync_20260702_170231_079008`，`request_count=2`，`retry_count=1`。
+  - 已确认失败日志中 `request_params` 不包含 `accessToken`。
+- 阶段 3G 已完成：
+  - 新增 CLI 参数 `--sync-api`。
+  - `--sync-api` 复用当前单接口同步链路，包括分页、`sync_checkpoint`、重试和失败日志。
+  - `--test-api` 保留为兼容入口，仍可用于开发调试。
+  - README 已补充 `--sync-api amazon_shop_page` 的本地运行、ECS 和 cron 示例。
+  - 已执行 `--sync-api amazon_shop_page` 成功，批次号 `sync_20260702_170601_361540`，请求 2 页，写入 13 条。
+  - 已执行 `--test-api amazon_shop_page` 成功，批次号 `sync_20260702_170650_348326`，确认兼容入口仍可用。
+  - 已给新增关键代码补充中文备注，覆盖分页参数覆盖、失败上下文脱敏、真实请求次数统计、`max_pages` 保护、重试计数、checkpoint 摘要和失败请求落库边界。
+- 阶段 3H 已完成：
+  - 已明确批次边界：一个 `sync_batch` 表示一次调度运行，多接口同步时所有 enabled API 共用同一个批次。
+  - 已整理 `config/api_config.example.yaml` 启用状态：占位接口 `order_list`、`product_list` 禁用，真实验证过的 `amazon_shop_page` 启用。
+  - 已新增 CLI 参数 `--sync-enabled`。
+  - `--sync-enabled` 会读取 YAML 中 `enabled: true` 的接口，在同一个批次下逐个写入 `sync_api_log`。
+  - 当前第一版 enabled 同步仍只跑 `amazon_shop_page`，没有新增第二个业务接口。
+  - 已执行 `--sync-enabled` 成功，批次号 `sync_20260702_171221_307284`，`total_api_count=1`，请求 2 页，写入 13 条。
+  - README 已补充 `--sync-enabled` 本地运行、ECS 和 cron 示例。
+- 阶段 3I 已完成：
+  - 已从积加开放平台文档 `id=66` 调研“获取本位币币种”，确认其响应 `data` 是单个字符串，不适合当前列表型 raw item 同步模型，暂不接入。
+  - 已从积加开放平台文档 `id=2537` 调研“查询部门列表”。
+  - 已选择“查询部门列表”作为第二个低风险业务 API 候选。
+  - 已确认文档路径为 `POST /middle/base/orgManage/query`，实际请求路径将是 `/api/open/middle/base/orgManage/query`。
+  - 已确认请求头需要 `accessToken`。
+  - 已确认请求体字段：`startTime`、`endTime`、`status`、`condition`，均可选。
+  - 已确认响应列表字段为 `data`，无分页字段。
+  - 已确认候选主键字段为 `id`，候选日期字段为 `createdTime`。
+  - 已新增 `org_manage_query` YAML 配置，默认 `enabled: false`。
+  - 未执行 `org_manage_query` 真实 API，避免在未确认前扩大真实同步范围。
+- 阶段 3J 已完成：
+  - 已在保持 `org_manage_query.enabled=false` 的前提下执行单接口验证。
+  - 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api org_manage_query`。
+  - 验证成功，批次号 `sync_20260702_173136_319602`，请求 1 次，写入 1 条。
+  - `sync_batch.status=success`，`success_api_count=1`，`failed_api_count=0`。
+  - `sync_api_log.status=success`，`request_count=1`，`success_count=1`，`failed_count=0`。
+  - `raw_api_data.source_primary_key` 已从 `id` 写入。
+  - `raw_api_data.data_date` 已从 `createdTime` 提取日期写入。
+  - `sync_checkpoint` 已写入 `org_manage_query` 的分页摘要。
+  - 已再次运行 `--sync-enabled`，确认仍只同步 `amazon_shop_page`，没有执行 `org_manage_query`。
+- 阶段 3K 已完成：
+  - 已将 `org_manage_query.enabled` 从 `false` 改为 `true`。
+  - 未新增第三个 API。
+  - dry-run 已确认 enabled API 变为 2 个：`amazon_shop_page`、`org_manage_query`。
+  - 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`。
+  - 验证成功，批次号 `sync_20260702_174830_926688`，`apis=2`，`rows=14`，`requests=3`。
+  - 数据库确认该批次 `total_api_count=2`、`success_api_count=2`、`failed_api_count=0`。
+  - 同一批次下有两条 `sync_api_log`：`amazon_shop_page` 成功写入 13 条，`org_manage_query` 成功写入 1 条。
+  - 两个 API 的 `sync_checkpoint.last_sync_batch_no` 均已更新到该批次。
+- 阶段 3L 已完成：
+  - 新增 `JIJIA_TOKEN_CACHE_PATH` 配置，默认 `logs/token_cache.json`。
+  - `JijiaAuthClient.get_access_token()` 会先读取本地 token 缓存，缓存不存在或快过期时才请求 `/api/open/api_token`。
+  - token 缓存提前 60 秒视为过期。
+  - `logs/token_cache.json` 已加入 `.gitignore`。
+  - 已更新 README，说明 token 缓存路径、安全边界和当前 enabled API。
+  - 已连续运行两次 `--test-token`，第二次命中缓存且未输出 accessToken。
+  - 已运行 `--sync-enabled`，确认 token 缓存不影响真实同步。
+- 阶段 3M 已完成：
+  - 新增 CLI 参数 `--sync-api-configs`。
+  - 新增 `SyncEngine.sync_api_configs()`，将 YAML API 配置 upsert 到 `api_config` 表。
+  - 写入字段包括 `api_code`、`api_name`、`enabled`、`method`、`path`、`config_json`。
+  - 已连续运行两次 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`。
+  - 每次均同步 4 条配置，重复运行没有重复插入。
+  - 数据库确认 `api_config` 总数为 4，启用数为 2。
+  - `amazon_shop_page` 和 `org_manage_query` 为启用状态。
+  - `order_list` 和 `product_list` 为禁用状态。
+  - 本阶段未新增第三个业务 API，也未请求真实业务接口。
+
+## Verification
+
+- 已运行：`.\\.venv\\Scripts\\python.exe -m compileall -f app`
+- 结果：通过。
+- 已运行：`.\\.venv\\Scripts\\python.exe -m app.main`
+- 结果：通过。
+- 已运行：`.\\.venv\\Scripts\\python.exe -m app.main --help`
+- 结果：已出现 `--test-api TEST_API`。
+- 已运行过：`.\\.venv\\Scripts\\python.exe -m app.main --test-token`
+- 结果：成功，只输出过期时间，没有输出 token；连续第二次运行命中本地缓存。
+- 已运行：`.\\.venv\\Scripts\\python.exe -m app.main --test-api amazon_shop_page`
+- 结果：成功，最新批次 `sync_20260702_172316_152881`，`rows=13`，`request_count=3`。
+- 已运行：`.\\.venv\\Scripts\\python.exe -m app.main --sync-api amazon_shop_page`
+- 结果：成功，最新批次 `sync_20260702_172316_106886`，`rows=13`，`request_count=3`。
+- 已运行：`.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`
+- 结果：成功，最新批次 `sync_20260702_175624_199936`，`apis=2`，`rows=14`，`request_count=3`。
+- 已运行：`.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`
+- 结果：连续运行两次均成功，`count=4`。
+- 已运行：`.\\.venv\\Scripts\\python.exe -m app.main --sync-api org_manage_query`
+- 结果：成功，批次 `sync_20260702_173136_319602`，`rows=1`，`request_count=1`。
+- 已查询数据库验证：
+  - `sync_enabled` 批次状态为 `success`。
+  - `sync_enabled` 批次 `total_api_count=2`，`success_api_count=2`，`failed_api_count=0`。
+  - `sync_enabled` 批次包含 `amazon_shop_page` 和 `org_manage_query` 两条 API 日志。
+  - `sync_enabled` 本批次 `raw_api_data` 写入 14 条。
+  - 两个 API 的 `sync_checkpoint` 已更新到 `sync_enabled` 批次。
+- 已用临时错误路径验证失败日志：
+  - 失败批次状态为 `failed`。
+  - `sync_api_log.request_count=2`。
+  - `failed_request_log.retry_count=1`。
+  - `failed_request_log.request_params` 不包含 `accessToken`。
+- 已运行：`.\\.venv\\Scripts\\python.exe -m app.main --mock-sync`
+- 结果：通过。
+
+## Known Issues
+
+- `amazon_shop_page` 第一版以 `data_hash` 去重，不强行编造业务主键。
+- 各业务 API 的具体路径、字段、分页和主键需要逐个阅读文档确认。
+- 新增第二个业务接口前，仍需要逐个阅读积加文档确认路径、分页、主键和日期字段。
+- 当前 enabled API 已有 2 个：`amazon_shop_page`、`org_manage_query`。
+
+## Next Stage
+
+阶段 3N：调研第三个真实业务 API 候选。
+
+建议目标：
+
+- 先只做文档调研和候选选择。
+- 优先选择基础数据或低风险只读接口。
+- 明确接口路径、请求体、分页字段、列表字段、总数字段、主键字段和日期字段。
+- 如果新增 YAML 配置，默认 `enabled: false`。
+- 不直接加入 `--sync-enabled`。
+
+验收：
+
+- `python -m compileall app` 通过。
+- `python -m app.main` dry-run 仍可用。
+- `python -m app.main --mock-sync` 仍可用。
+- `python -m app.main --test-token` 仍可用且不输出 token。
+- 若新增第三个 API 配置，必须默认 `enabled: false`。
+- 不写入任何真实凭证到代码或文档。

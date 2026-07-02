@@ -1,0 +1,95 @@
+apis:
+  # 订单列表示例：路径和字段需要按真实积加文档替换后再启用。
+  - api_code: order_list
+    name: 订单列表示例
+    enabled: false
+    method: POST
+    path: /replace/with/real/order/list/path
+    page:
+      # list_field/total_field 使用点分路径读取响应体，例如 data.list。
+      enabled: true
+      page_no_field: pageNo
+      page_size_field: pageSize
+      page_size: 100
+      list_field: data.list
+      total_field: data.total
+    primary_key:
+      # 有稳定业务主键时用于幂等更新；没有时会退回到 data_hash 去重。
+      field: orderId
+      required: false
+    date_field: payTime
+    rate_limit:
+      sleep_seconds: 1
+    params:
+      startTime: "{{ checkpoint_or_default_start }}"
+      endTime: "{{ current_time }}"
+
+  # 商品列表示例：当前作为接入模板保留，默认不参与同步。
+  - api_code: product_list
+    name: 商品列表示例
+    enabled: false
+    method: POST
+    path: /replace/with/real/product/list/path
+    page:
+      enabled: true
+      page_no_field: pageNo
+      page_size_field: pageSize
+      page_size: 100
+      list_field: data.list
+      total_field: data.total
+    primary_key:
+      field: productId
+      required: false
+    date_field: updatedAt
+    rate_limit:
+      sleep_seconds: 1
+    params: {}
+
+  # 已接入的真实示例接口：用于验证 token、分页、入库和日志链路。
+  - api_code: amazon_shop_page
+    name: 查询亚马逊店铺信息
+    enabled: true
+    method: POST
+    path: /middle/base/market/page
+    page:
+      # max_pages 是接入阶段保护值，避免分页字段配置错误时无限请求。
+      enabled: true
+      page_no_field: page
+      page_size_field: pagesize
+      page_size: 20
+      max_pages: 5
+      list_field: data.rows
+      total_field: data.total
+    primary_key:
+      field: ""
+      required: false
+    date_field: ""
+    rate_limit:
+      sleep_seconds: 1
+    retry:
+      retries: 3
+      delay_seconds: 1
+    params:
+      page: 1
+      pagesize: 20
+      condition: {}
+
+  # 非分页接口示例：page.enabled=false 时同步引擎只请求一次。
+  - api_code: org_manage_query
+    name: 查询部门列表
+    enabled: true
+    method: POST
+    path: /middle/base/orgManage/query
+    page:
+      enabled: false
+      list_field: data
+    primary_key:
+      field: id
+      required: false
+    date_field: createdTime
+    rate_limit:
+      sleep_seconds: 0.2
+    retry:
+      retries: 3
+      delay_seconds: 1
+    params: {}

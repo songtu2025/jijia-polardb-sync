@@ -1,0 +1,8 @@
+.env
+.codex/
+__pycache__/
+*.py[cod]
+.venv/
+logs/*.log
+logs/cron.log
+logs/token_cache.json
