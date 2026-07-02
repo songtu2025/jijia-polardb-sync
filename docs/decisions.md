@@ -420,3 +420,9 @@
 - 阶段 4Z 已同步 `api_config`，当前数据库总配置 24 条，启用 20 条；`market_inventory_query.enabled=0`、`param_source.limit=3`、`offset=3`、`auto_advance=true`。
 - 阶段 4Z 覆盖矩阵保持公开文档 API 185 个、真实配置 API 22 个、enabled 20 个。
 - 4X-4Z 复盘结论：依赖型接口需要把“参数窗口成功”和“响应有数据”分开判断；下一步应验证 `next_param_offset=9` 能连续推进，而不是继续手工改 YAML。
+- 阶段 5A 未修改 YAML offset，直接复用 checkpoint 的 `next_param_offset=9` 验证连续自动推进。
+- 阶段 5A 已用 offset=9 的第四批参数对 `301 Black + 48`、`301 Black + 50`、`301 Black + 51` 验证 `market_inventory_query`，批次号为 `sync_20260703_064619_937667`，请求 4 次，写入 1 条，失败 0。
+- 阶段 5A 后 `market_inventory_query` checkpoint 记录 `param_offset=9`、`param_limit=3`、`next_param_offset=12`。
+- 阶段 5A 已同步 `api_config`，当前数据库总配置 24 条，启用 20 条；`market_inventory_query.enabled=0`、`param_source.limit=3`、`offset=3`、`auto_advance=true`。
+- 阶段 5A 覆盖矩阵保持公开文档 API 185 个、真实配置 API 22 个、enabled 20 个。
+- 阶段 5A 结论：checkpoint 自动推进已经连续跑通；下一步不应继续只重复跑 `market_inventory_query` 小窗口，应从覆盖矩阵中选第二个依赖型接口验证机制复用性。

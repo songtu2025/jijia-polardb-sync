@@ -2,7 +2,7 @@
 
 ## Current Stage
 
-阶段 4Z 已完成。`market_inventory_query` 已支持 checkpoint 驱动的参数窗口自动推进，并完成第三批小样本同步，当前真实配置 API 为 22 个，enabled API 仍为 20 个。
+阶段 5A 已完成。`market_inventory_query` 已验证 checkpoint 自动窗口可连续推进，并完成第四批小样本同步，当前真实配置 API 为 22 个，enabled API 仍为 20 个。
 
 ## Completed
 
@@ -891,6 +891,20 @@
   - `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary`，通过，公开文档 API 为 185 个，真实配置 API 为 22 个，enabled 为 20 个。
   - `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
   - `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过，23 个测试。
+- 阶段 5A 已运行：
+  - 未修改 YAML offset，直接复用 `market_inventory_query` checkpoint 中的 `next_param_offset=9` 读取第四批参数窗口。
+  - 已只读确认 checkpoint 为 `param_offset=6`、`param_limit=3`、`next_param_offset=9`。
+  - 已只读确认 offset=9 对应第四批参数对为 `301 Black + 48`、`301 Black + 50`、`301 Black + 51`，不重复前三批参数对。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api market_inventory_query`，通过，批次 `sync_20260703_064619_937667`，`rows=1`，`requests=4`。
+  - 已查询数据库摘要，确认该批次 `total_api_count=1`、`success_api_count=1`、`failed_api_count=0`。
+  - 同一批次 `sync_api_log` 记录 `request_count=4`、`success_count=1`、`failed_count=0`，`failed_request_log` 为 0 条。
+  - 同一批次 `raw_api_data` 写入 1 条，该条有 `data_hash`，没有稳定 `source_primary_key` 和 `data_date`。
+  - `market_inventory_query` checkpoint 更新到批次 `sync_20260703_064619_937667`，记录 `param_offset=9`、`param_limit=3`、`next_param_offset=12`。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，通过，同步配置数为 24。
+  - 已查询 `api_config`，确认 `market_inventory_query.enabled=0`、`param_source.limit=3`、`offset=3`、`auto_advance=true`。
+  - `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary`，通过，公开文档 API 为 185 个，真实配置 API 为 22 个，enabled 为 20 个。
+  - `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
+  - `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过，23 个测试。
 
 ## Review 4L-4N
 
@@ -1012,21 +1026,20 @@
 
 ## Next Stage
 
-阶段 5A：继续验证 checkpoint 自动窗口能连续推进，先围绕 `market_inventory_query` 做第四批小样本验证。
+阶段 5B：从覆盖矩阵中选择第二个依赖型接口，验证现有 `param_source` 机制能复用到另一个真实接口。
 
 建议目标：
 
-- 不修改 YAML offset，直接复用 checkpoint 中的 `next_param_offset=9` 读取第四批参数窗口。
-- 保持 `market_inventory_query.enabled=false`，不要进入 20 个 enabled 生产批量同步。
-- 用测试或只读查询约束下一批 offset 从 checkpoint 读取，而不是从 YAML 手动改值。
-- 运行 `market_inventory_query` 第四批小样本真实同步，确认批次、日志、raw 和 checkpoint 可追踪。
+- 先只读查看覆盖矩阵中 `requires_upstream_params` 的未配置接口，优先选择参数可从现有 enabled raw 数据取得、且不涉及敏感字段或写操作的接口。
+- 新增配置时默认 `enabled=false`，不要进入 20 个 enabled 生产批量同步。
+- 尽量复用现有 `param_source.source_primary_key` 或 `param_source.fields`，只有确有必要才做最小代码扩展。
+- 用小样本真实同步验证新依赖接口的批次、日志、raw 和 checkpoint。
 - 验证通过后同步 `api_config` 并刷新覆盖矩阵。
 
 验收：
 
-- `market_inventory_query` 能基于 checkpoint 自动推进到第四批小样本。
-- 第四批小样本同步批次成功，`sync_api_log` 成功数、raw 写入数和 checkpoint 可核验。
-- `market_inventory_query` 默认保持 disabled，不影响现有 20 个 enabled API 的生产批量同步。
-- `api_config` 与覆盖矩阵保持真实配置 API 22 个、enabled 20 个。
+- 新依赖接口完成文档确认和小样本真实同步，默认保持 disabled。
+- 如需代码扩展，必须有测试先行约束；如无需代码扩展，也要用只读 SQL 证明参数来源真实存在。
+- `api_config` 与覆盖矩阵增加对应真实配置 API，enabled 仍保持 20 个。
 - `compileall` 和 `unittest discover` 通过。
 - 继续保持 `.env`、token 缓存、日志和真实凭证不提交。
