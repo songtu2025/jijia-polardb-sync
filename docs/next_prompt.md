@@ -25,7 +25,7 @@
 
 当前阶段：
 
-阶段 5D 已完成。下一阶段 5E 不修改 YAML，复用 `product_detail` checkpoint 自动推进到第三批产品 ID 小样本。
+阶段 5E 已完成。下一阶段 5F 从覆盖矩阵中选择下一个依赖型接口，继续验证参数来源机制的复用性。
 
 当前事实：
 
@@ -78,27 +78,42 @@
 - 覆盖矩阵显示公开文档 API 185 个，真实配置 API 23 个，enabled 20 个。
 - 已运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
 - 已运行 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过，25 个测试。
+- 阶段 5E 未修改 YAML，直接复用 `product_detail` checkpoint 的 `next_param_offset=6`。
+- offset=6 的第三批产品 ID 为 `1003`、`1004`、`1005`，不重复前两批。
+- 阶段 5E 第三批同步批次为 `sync_20260703_073351_494098`，`rows=3`，`requests=3`。
+- 数据库已确认该批次 `total_api_count=1`、`success_api_count=1`、`failed_api_count=0`。
+- `product_detail` 同批次 `sync_api_log` 为 `request_count=3`、`success_count=3`、`failed_count=0`，`failed_request_log` 为 0 条。
+- 第三批 raw 写入 3 条，均有 `source_primary_key` 和 `data_hash`，`data_date` 为空符合该接口未配置日期字段的预期。
+- `product_detail` checkpoint 已更新为 `param_offset=6`、`param_limit=3`、`next_param_offset=9`。
+- 已运行 `.\\.venv\\Scripts\\python.exe -m app.main`，dry-run 仍显示 20 个 enabled API。
+- 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，同步配置数为 25。
+- 数据库已确认 `api_config.product_detail.enabled=0`、`param_source.auto_advance=true`。
+- 覆盖矩阵显示公开文档 API 185 个，真实配置 API 23 个，enabled 20 个。
+- 已运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
+- 已运行 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过，25 个测试。
 - 本地 Git 应与远端同步；开始前仍请先看 `git status --short --branch` 和 `git log -1 --oneline`。
 
 建议目标：
 
-1. 不修改 YAML，复用 `product_detail` checkpoint 中的 `next_param_offset=6`。
-2. 先只读查询第三批 `product_page.source_primary_key`，确认不重复前两批 `1`、`10`、`100`、`1000`、`1001`、`1002`。
-3. 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api product_detail`，验证第三批小样本真实同步。
-4. 查询数据库确认新批次成功，`sync_api_log`、`raw_api_data`、checkpoint 都可追踪，且 checkpoint 推进到 `next_param_offset=9`。
-5. 运行 dry-run，确认 enabled 仍为 20 个。
-6. 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`。
-7. 查询 `api_config.product_detail.enabled=0` 且 `param_source.auto_advance=true`。
-8. 运行 `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary`，确认真实配置 API 仍为 23 个、enabled 仍为 20 个。
-9. 运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests`。
-10. 运行 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`。
-11. 更新三份 docs，并提交推送；不要提交 `.env`、token 缓存、日志或任何敏感信息。
+1. 只读读取覆盖矩阵，筛选 `requires_upstream_params` 中尚未配置、参数可从现有 enabled raw 数据获得、且不涉及敏感字段或写操作的候选接口。
+2. 阅读候选接口公开文档详情，确认路径、方法、必填参数、响应形态、主键和日期字段。
+3. 只读查询数据库，证明所需参数来源真实存在，例如来自 `source_primary_key` 或 `raw_json` 顶层字段。
+4. 新增一个依赖型 API 配置，默认 `enabled=false`，小样本 `limit` 控制在 3 左右。
+5. 如果现有 `param_source.source_primary_key` 或 `param_source.fields` 足够，优先不改代码；如果不够，必须测试先行做最小扩展。
+6. 运行新接口 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api <api_code>` 做小样本真实同步。
+7. 查询数据库确认新接口批次成功，`sync_api_log`、`raw_api_data`、checkpoint 都可追踪。
+8. 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`。
+9. 查询 `api_config.<api_code>.enabled=0`。
+10. 运行 `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary`，确认真实配置 API 增加 1 个、enabled 仍为 20 个。
+11. 运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests`。
+12. 运行 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`。
+13. 更新三份 docs，并提交推送；不要提交 `.env`、token 缓存、日志或任何敏感信息。
 
 验收：
 
-1. `product_detail` 能从 checkpoint 自动推进到第三批产品 ID 小样本。
-2. 第三批产品 ID 不重复前两批，且同步批次成功。
-3. `product_detail` 默认保持 disabled，不影响现有 20 个 enabled API。
-4. `api_config` 与覆盖矩阵保持真实配置 API 23 个、enabled 20 个。
+1. 新依赖型接口完成文档确认和小样本真实同步，默认保持 disabled。
+2. 参数来源由数据库只读查询证明，不靠猜测字段。
+3. 新接口同步批次成功，`sync_api_log` 成功数、raw 写入数和 checkpoint 可核验。
+4. `api_config` 与覆盖矩阵显示真实配置 API 增加 1 个，enabled 仍为 20 个。
 5. `compileall` 和 `unittest discover` 通过。
 6. 不提交 `.env`、token 缓存、日志或真实凭证。

@@ -451,3 +451,10 @@
 - 阶段 5D 已同步 `api_config`，当前数据库总配置 25 条，启用 20 条；`product_detail.enabled=0`、`param_source.auto_advance=true`。
 - 阶段 5D 覆盖矩阵保持公开文档 API 185 个、真实配置 API 23 个、enabled 20 个。
 - 下一阶段不改 YAML，继续验证 `product_detail` 从 `next_param_offset=6` 连续推进到第三批产品 ID。
+- 阶段 5E 未修改 YAML，直接复用 `product_detail` checkpoint 的 `next_param_offset=6`。
+- 阶段 5E 已按程序真实排序确认第三批产品 ID 为 `1003`、`1004`、`1005`，不重复前两批。
+- 阶段 5E 已用第三批产品 ID 验证 `product_detail`，批次号为 `sync_20260703_073351_494098`，请求 3 次，写入 3 条，失败 0。
+- 阶段 5E 后 `product_detail` checkpoint 记录 `param_offset=6`、`param_limit=3`、`next_param_offset=9`。
+- 阶段 5E 已同步 `api_config`，当前数据库总配置 25 条，启用 20 条；`product_detail.enabled=0`、`param_source.auto_advance=true`。
+- 阶段 5E 覆盖矩阵保持公开文档 API 185 个、真实配置 API 23 个、enabled 20 个。
+- `source_primary_key` 参数来源分支已完成连续窗口验证；下一阶段应回到覆盖矩阵，选择新的依赖型接口继续扩大覆盖，而不是继续重复同一接口小窗口。
