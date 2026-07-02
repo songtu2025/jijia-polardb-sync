@@ -2,7 +2,7 @@
 
 ## Current Stage
 
-阶段 4L 已完成。已生成积加公开文档 API 覆盖矩阵，当前公开文档接口数为 185 个。
+阶段 4M 已完成。已新增并单接口验证 `product_page` 和 `parent_product_page`，两者仍保持 disabled。
 
 ## Completed
 
@@ -414,6 +414,22 @@
   - 当前本地真实配置 API 为 10 个，且 10 个均已 enabled。
   - 分类统计：`direct_read_candidate=58`、`requires_upstream_params=79`、`sensitive_review=23`、`write_or_mutation=24`、`unsupported_shape_review=1`。
   - 第一批未配置的直接读取候选集中在产品、库存、报表、物流等模块。
+- 阶段 4M 已完成：
+  - 已只读查看 `doc_id=53`、`1921`、`1956`、`4835` 的公开文档详情。
+  - 已选择 `product_page` 和 `parent_product_page` 作为本轮低风险产品基础资料接口。
+  - 已新增 `product_page` YAML 配置，默认 `enabled=false`，路径为 `POST /purchase/goods/product/page`。
+  - 已新增 `parent_product_page` YAML 配置，默认 `enabled=false`，路径为 `POST /purchase/goods/parentProduct/page`。
+  - 已新增 `tests/test_api_config_product_candidates.py`，验证两个新配置的路径、分页、主键、日期字段和禁用状态。
+  - dry-run 已确认 enabled API 仍为 10 个。
+  - `product_page` 首次单接口同步命中 `max_pages=20` 保护，只写入 2000 条，但文档返回 `total_count=8258`。
+  - 已将 `product_page.page.max_pages` 调整为 100，并用测试约束避免再次截断当前总量。
+  - 已重跑 `product_page` 单接口同步成功，批次 `sync_20260703_004233_884329`，请求 83 次，写入 8258 条。
+  - 数据库确认 `product_page` 本批次 `item_count=8258`、`total_count=8258`，8258 条均有 `source_primary_key` 和 `data_date`。
+  - 已运行 `parent_product_page` 单接口同步成功，批次 `sync_20260703_004505_706770`，请求 3 次，写入 124 条。
+  - 数据库确认 `parent_product_page` 本批次 `item_count=124`、`total_count=124`，124 条均有 `source_primary_key` 和 `data_date`。
+  - 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，同步配置数为 14。
+  - 数据库确认 `api_config.product_page.enabled=0`、`api_config.parent_product_page.enabled=0`，当前启用配置数仍为 10。
+  - 已刷新 `config/jijia_api_catalog.generated.json`，覆盖矩阵中的真实配置 API 变为 12 个，enabled 仍为 10 个。
 
 ## Verification
 
@@ -647,6 +663,20 @@
   - `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
   - `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过，5 个测试。
   - `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --summary`，通过，确认公开文档接口数仍为 185 个。
+- 阶段 4M 已运行：
+  - `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_api_config_product_candidates.py" -v`，先失败，确认为缺少 `product_page` 和 `parent_product_page` 配置。
+  - 新增配置后重跑 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_api_config_product_candidates.py" -v`，通过，2 个测试。
+  - `.\\.venv\\Scripts\\python.exe -m app.main`，通过，dry-run 仍显示 10 个 enabled API。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api product_page`，首次写入 2000 条但发现 `total_count=8258`，随后调整 `max_pages`。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api product_page`，重跑通过，批次 `sync_20260703_004233_884329`，`rows=8258`，`requests=83`。
+  - 已查询数据库摘要，确认 `product_page` 批次、API 日志、raw 主键日期和 checkpoint。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api parent_product_page`，通过，批次 `sync_20260703_004505_706770`，`rows=124`，`requests=3`。
+  - 已查询数据库摘要，确认 `parent_product_page` 批次、API 日志、raw 主键日期和 checkpoint。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，通过，同步配置数为 14。
+  - 已查询 `api_config`，确认两个新接口 `enabled=0`，启用配置数仍为 10。
+  - `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary`，通过，真实配置 API 变为 12 个。
+  - `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
+  - `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过，7 个测试。
 
 ## Known Issues
 
@@ -654,22 +684,27 @@
 - 各业务 API 的具体路径、字段、分页和主键需要逐个阅读文档确认。
 - 新增后续业务接口前，仍需要逐个阅读积加文档确认路径、分页、主键和日期字段。
 - 当前 enabled API 已有 10 个：`amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`。
+- 当前已配置真实 API 为 12 个，其中 `product_page` 和 `parent_product_page` 已通过单接口验证但尚未加入 enabled。
 - 覆盖矩阵是公开文档视角，不等同于当前账号真实授权可调用结果；真实可访问性仍需单接口运行验证。
+- `product_page` 当前总量为 8258 条，请求 83 页；后续加入 enabled 后批量同步耗时会明显增加。
 - 远程 PolarDB 如出现遗留睡眠未提交事务，可能导致 raw 写入锁等待超时，需要先查 `information_schema.processlist` 和 `information_schema.innodb_trx`。
 
 ## Next Stage
 
-阶段 4M：从未配置的直接读取候选中接入下一批低风险接口。
+阶段 4N：将 `product_page` 和 `parent_product_page` 加入 enabled 批量同步。
 
 建议目标：
 
-- 优先从产品基础数据开始，例如 `product_page`、`amazon_msku_page`、`kb_product_page`、`parent_product_page`。
-- 每个新接口仍按老流程：YAML 默认 `enabled: false`，单接口真实验证通过后再决定是否加入 enabled。
-- 如果接口返回量较大，先检查分页字段和 `max_pages`，避免截断或长时间运行。
+- 将 `product_page.enabled` 和 `parent_product_page.enabled` 从 `false` 改为 `true`。
+- 运行 dry-run，确认 enabled API 变为 12 个。
+- 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`，预计会包含 83 页 `product_page`，耗时会明显增加。
+- 查询数据库确认 12 个 API 同批次成功，且 `product_page` 未截断。
+- 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，同步 `api_config`。
 
 验收：
 
-- 新增接口配置与公开文档一致。
-- 单接口同步、数据库批次/API 日志/raw/checkpoint 验证通过。
+- `product_page` 和 `parent_product_page` 加入 enabled 后批量同步成功。
+- `--sync-enabled` 同步当前 12 个 enabled API。
+- 数据库 `api_config.product_page.enabled=1`、`api_config.parent_product_page.enabled=1`。
 - `compileall` 和 `unittest discover` 通过。
 - 继续保持 `.env`、token 缓存、日志和真实凭证不提交。

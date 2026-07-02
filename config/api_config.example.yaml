@@ -282,3 +282,57 @@ apis:
     params:
       page: 1
       pagesize: 100
+
+  # 第十一个真实文档接口：产品基础资料，文档 id=53，先单接口验证后再考虑启用。
+  - api_code: product_page
+    name: 查询产品列表
+    enabled: false
+    method: POST
+    path: /purchase/goods/product/page
+    page:
+      enabled: true
+      page_no_field: page
+      page_size_field: pagesize
+      page_size: 100
+      max_pages: 100
+      list_field: data.rows
+      total_field: data.total
+    primary_key:
+      field: id
+      required: false
+    date_field: lastDate
+    rate_limit:
+      sleep_seconds: 0.2
+    retry:
+      retries: 3
+      delay_seconds: 1
+    params:
+      page: 1
+      pagesize: 100
+
+  # 第十二个真实文档接口：父产品基础资料，文档 id=4835，先单接口验证后再考虑启用。
+  - api_code: parent_product_page
+    name: 查询父产品信息
+    enabled: false
+    method: POST
+    path: /purchase/goods/parentProduct/page
+    page:
+      enabled: true
+      page_no_field: page
+      page_size_field: pagesize
+      page_size: 100
+      max_pages: 20
+      list_field: data.rows
+      total_field: data.total
+    primary_key:
+      field: id
+      required: false
+    date_field: lastDate
+    rate_limit:
+      sleep_seconds: 0.2
+    retry:
+      retries: 3
+      delay_seconds: 1
+    params:
+      page: 1
+      pagesize: 100

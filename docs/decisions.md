@@ -276,6 +276,18 @@
 - 阶段 4L 当前分类结果为 `direct_read_candidate=58`、`requires_upstream_params=79`、`sensitive_review=23`、`write_or_mutation=24`、`unsupported_shape_review=1`。
 - 覆盖矩阵是公开文档视角，不等同于当前账号真实授权可调用结果；真实可访问性仍以 `--sync-api` 单接口验证为准。
 - 下一阶段优先从未配置的 `direct_read_candidate` 中选择低风险产品基础数据接口，新增配置仍默认 `enabled: false`。
+- 阶段 4M 选择 `product_page` 和 `parent_product_page` 作为下一批产品基础数据接口。
+- `product_page` 文档路径是 `POST /purchase/goods/product/page`，实际请求路径是 `/api/open/purchase/goods/product/page`。
+- `product_page` 响应列表字段是 `data.rows`，总数字段是 `data.total`，候选主键字段是 `id`，候选日期字段是 `lastDate`。
+- `product_page` 单接口首次验证时 `max_pages=20` 导致写入 2000 条但 `total_count=8258`，因此将 `product_page.page.max_pages` 调整为 100。
+- 阶段 4M 的 `product_page` 完整验证批次号为 `sync_20260703_004233_884329`，请求 83 次，写入 8258 条。
+- `parent_product_page` 文档路径是 `POST /purchase/goods/parentProduct/page`，实际请求路径是 `/api/open/purchase/goods/parentProduct/page`。
+- `parent_product_page` 响应列表字段是 `data.rows`，总数字段是 `data.total`，候选主键字段是 `id`，候选日期字段是 `lastDate`。
+- 阶段 4M 的 `parent_product_page` 验证批次号为 `sync_20260703_004505_706770`，请求 3 次，写入 124 条。
+- 阶段 4M 后 `product_page` 和 `parent_product_page` 仍保持 `enabled=false`，未加入 enabled 批量同步。
+- 阶段 4M 已运行 `--sync-api-configs`，数据库中两个新接口均为 `enabled=0`，当前启用配置数仍为 10。
+- 覆盖矩阵已刷新，当前已配置真实 API 为 12 个，enabled 仍为 10 个。
+- `amazon_msku_page` 暂缓到后续阶段，因为文档响应行未提供单独 `id`，需要继续使用 `data_hash` 或引入复合业务主键策略。
 
 ## Open Decisions
 
