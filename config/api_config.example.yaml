@@ -575,6 +575,7 @@ apis:
       source_api_code: product_inventory_page
       limit: 3
       offset: 3
+      auto_advance: true
       fields:
         - source_field: raw_json.sku
           target_field: sku

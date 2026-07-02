@@ -2,7 +2,7 @@
 
 ## Current Stage
 
-阶段 4Y 已完成。`market_inventory_query` 已支持 `param_source.offset` 参数窗口，并完成第二批小样本同步，当前真实配置 API 为 22 个，enabled API 仍为 20 个。
+阶段 4Z 已完成。`market_inventory_query` 已支持 checkpoint 驱动的参数窗口自动推进，并完成第三批小样本同步，当前真实配置 API 为 22 个，enabled API 仍为 20 个。
 
 ## Completed
 
@@ -874,6 +874,23 @@
   - `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary`，通过，公开文档 API 为 185 个，真实配置 API 为 22 个，enabled 为 20 个。
   - `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
   - `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过，21 个测试。
+- 阶段 4Z 已运行：
+  - 已为 `param_source` 增加 `auto_advance` 开关；只有显式开启时才从 `sync_checkpoint` 读取下一批参数窗口。
+  - 已将 `market_inventory_query.param_source.auto_advance` 设置为 `true`，同时保持 `enabled=false`、`limit=3`、`offset=3`。
+  - 已新增测试约束：旧 checkpoint 只有 `total_count=3` 时，基础 `offset=3` 会自动推进到 `offset=6`；新 checkpoint 会写入 `param_offset`、`param_limit`、`next_param_offset`。
+  - `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_market_inventory_param_source.py" -v`，先失败后通过，确认 checkpoint 自动 offset 生效。
+  - 已只读确认 offset=6 对应第三批参数对为 `301 Black + 45`、`301 Black + 46`、`301 Black + 47`，不重复 4X 和 4Y 的前两批参数对。
+  - `.\\.venv\\Scripts\\python.exe -m app.main`，通过，dry-run 仍显示 20 个 enabled API。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api market_inventory_query`，通过，批次 `sync_20260703_063707_425797`，`rows=0`，`requests=3`。
+  - 已查询数据库摘要，确认该批次 `total_api_count=1`、`success_api_count=1`、`failed_api_count=0`。
+  - 同一批次 `sync_api_log` 记录 `request_count=3`、`success_count=0`、`failed_count=0`，`failed_request_log` 为 0 条。
+  - 同一批次 `raw_api_data` 写入 0 条，这是第三批参数对的真实空结果，不是失败。
+  - `market_inventory_query` checkpoint 更新到批次 `sync_20260703_063707_425797`，记录 `param_offset=6`、`param_limit=3`、`next_param_offset=9`。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，通过，同步配置数为 24。
+  - 已查询 `api_config`，确认 `market_inventory_query.enabled=0`、`param_source.limit=3`、`offset=3`、`auto_advance=true`。
+  - `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary`，通过，公开文档 API 为 185 个，真实配置 API 为 22 个，enabled 为 20 个。
+  - `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
+  - `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过，23 个测试。
 
 ## Review 4L-4N
 
@@ -959,6 +976,27 @@
   - 下一轮可从 `market_inventory_query` 开始，因为它需要 `sku` 和 `warehouseId`，参数可来自已同步的 `product_inventory_page`。
   - 依赖型接口仍先小样本验证，默认保持 disabled，确认请求量和失败粒度后再讨论是否进入 enabled。
 
+## Review 4X-4Z
+
+- 已完成第五组目标模式闭环：
+  - 4X 接入 `market_inventory_query`，打通从上游 `raw_json.sku` 和 `raw_json.warehouseId` 生成多字段请求参数。
+  - 4Y 增加手动 `offset` 参数窗口，完成第二批小样本验证。
+  - 4Z 增加 checkpoint 驱动的自动窗口推进，完成第三批小样本验证。
+- 当前覆盖状态：
+  - 公开文档 API：185 个。
+  - 已配置真实 API：22 个。
+  - enabled API：20 个。
+  - `product_detail` 和 `market_inventory_query` 已验证但保持 disabled。
+  - `market_inventory_query` 的上游去重参数对约 111307 个，当前只完成前三个小窗口。
+- 本组三轮发现的问题：
+  - 依赖型接口不能直接加入 enabled 批量同步；即使单接口可调用，也必须先控制参数窗口和 checkpoint 续跑边界。
+  - `market_inventory_query` 第三批参数请求成功但返回 0 条，说明“参数窗口成功”和“响应有数据”需要分开判断。
+  - 当前 checkpoint 自动推进只解决单接口连续小窗口，尚未解决依赖型接口的生产级调度频率、窗口大小和失败重跑策略。
+- 下一组三轮建议：
+  - 先连续再跑一次 `market_inventory_query`，验证 `next_param_offset=9` 能不改 YAML 自动推进到第四批。
+  - 复核依赖参数接口的 checkpoint 语义，明确空结果窗口是否继续推进。
+  - 再选择一个依赖型接口复用同一机制，避免只为一个接口定制。
+
 ## Known Issues
 
 - `amazon_shop_page` 第一版以 `data_hash` 去重，不强行编造业务主键。
@@ -966,7 +1004,7 @@
 - 新增后续业务接口前，仍需要逐个阅读积加文档确认路径、分页、主键和日期字段。
 - 当前 enabled API 已有 20 个：`amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`、`product_page`、`parent_product_page`、`kb_product_page`、`fba_warehouse_page`、`store_location_page`、`multi_shop_query`、`crm_tags_page`、`inventory_team_query`、`product_inventory_page`、`storage_inbound_page`。
 - 当前已配置真实 API 为 22 个，其中 20 个已加入 enabled，`product_detail` 和 `market_inventory_query` 已完成小样本验证但保持 disabled。
-- 当前依赖参数来源机制支持从 `raw_api_data.source_primary_key` 取单个参数，也支持从 `raw_json` 顶层字段提取多个参数，并可用手动 `offset` 做小窗口验证；尚未支持自动 checkpoint 推进 111307 个参数对。
+- 当前依赖参数来源机制支持从 `raw_api_data.source_primary_key` 取单个参数，也支持从 `raw_json` 顶层字段提取多个参数，并可用 `param_source.auto_advance` 基于 checkpoint 推进小窗口；尚未把 111307 个参数对纳入生产级调度。
 - 覆盖矩阵是公开文档视角，不等同于当前账号真实授权可调用结果；真实可访问性仍需单接口运行验证。
 - `product_page` 当前总量为 8258 条，请求 83 页；`product_inventory_page` 当前总量为 118653 条，请求 1187 页；`storage_inbound_page` 当前总量为 174286 条，请求 1743 页。当前 20 个 enabled API 的真实批量同步约 3052 次请求，必须按长耗时任务安排 cron 窗口。
 - 后续如果继续增加大分页接口或依赖型批量接口，需要关注运行时长、数据库写入耗时和 cron 窗口。
@@ -974,20 +1012,20 @@
 
 ## Next Stage
 
-阶段 4Z：为依赖参数接口增加 checkpoint 驱动的自动窗口推进，先围绕 `market_inventory_query` 做第三批小样本验证。
+阶段 5A：继续验证 checkpoint 自动窗口能连续推进，先围绕 `market_inventory_query` 做第四批小样本验证。
 
 建议目标：
 
-- 在 `param_source` 中增加最小自动窗口推进能力，优先基于 checkpoint 记录下一批 offset。
+- 不修改 YAML offset，直接复用 checkpoint 中的 `next_param_offset=9` 读取第四批参数窗口。
 - 保持 `market_inventory_query.enabled=false`，不要进入 20 个 enabled 生产批量同步。
-- 用测试约束下一批 offset 能从 checkpoint 读取或更新。
-- 运行 `market_inventory_query` 第三批小样本真实同步，确认批次、日志、raw 和 checkpoint 可追踪。
+- 用测试或只读查询约束下一批 offset 从 checkpoint 读取，而不是从 YAML 手动改值。
+- 运行 `market_inventory_query` 第四批小样本真实同步，确认批次、日志、raw 和 checkpoint 可追踪。
 - 验证通过后同步 `api_config` 并刷新覆盖矩阵。
 
 验收：
 
-- `market_inventory_query` 能基于 checkpoint 自动推进到第三批小样本。
-- 第三批小样本同步批次成功，`sync_api_log` 成功数、raw 写入数和 checkpoint 可核验。
+- `market_inventory_query` 能基于 checkpoint 自动推进到第四批小样本。
+- 第四批小样本同步批次成功，`sync_api_log` 成功数、raw 写入数和 checkpoint 可核验。
 - `market_inventory_query` 默认保持 disabled，不影响现有 20 个 enabled API 的生产批量同步。
 - `api_config` 与覆盖矩阵保持真实配置 API 22 个、enabled 20 个。
 - `compileall` 和 `unittest discover` 通过。

@@ -411,3 +411,12 @@
 - 阶段 4Y 已同步 `api_config`，当前数据库总配置 24 条，启用 20 条；`market_inventory_query.enabled=0`、`param_source.limit=3`、`param_source.offset=3`。
 - 阶段 4Y 覆盖矩阵保持公开文档 API 185 个、真实配置 API 22 个、enabled 20 个。
 - 下一阶段应把手动 offset 推进为 checkpoint 驱动的自动窗口推进，避免长期靠手工改 YAML 跑依赖参数接口。
+- 阶段 4Z 为 `param_source` 增加 `auto_advance` 开关；只有显式开启时才读取 `sync_checkpoint` 推进下一批参数 offset，避免影响仍需手动控制的小样本接口。
+- 阶段 4Z 的自动推进兼容 4Y 旧 checkpoint：当 checkpoint 还没有 `next_param_offset` 时，使用 YAML 基础 `offset` 加上 checkpoint 的 `total_count` 计算下一批窗口。
+- 阶段 4Z 新 checkpoint 会写入 `param_offset`、`param_limit`、`next_param_offset`，其中 `total_count` 对依赖参数接口表示本次参数对数量，不表示接口响应行总数。
+- 阶段 4Z 已将 `market_inventory_query.param_source.auto_advance=true`，同时保持 `market_inventory_query.enabled=0`。
+- 阶段 4Z 已用 offset=6 的第三批参数对 `301 Black + 45`、`301 Black + 46`、`301 Black + 47` 验证 `market_inventory_query`，批次号为 `sync_20260703_063707_425797`，请求 3 次，写入 0 条，失败 0。
+- 阶段 4Z 的空结果窗口仍会推进 checkpoint；该批次 checkpoint 记录 `param_offset=6`、`param_limit=3`、`next_param_offset=9`。
+- 阶段 4Z 已同步 `api_config`，当前数据库总配置 24 条，启用 20 条；`market_inventory_query.enabled=0`、`param_source.limit=3`、`offset=3`、`auto_advance=true`。
+- 阶段 4Z 覆盖矩阵保持公开文档 API 185 个、真实配置 API 22 个、enabled 20 个。
+- 4X-4Z 复盘结论：依赖型接口需要把“参数窗口成功”和“响应有数据”分开判断；下一步应验证 `next_param_offset=9` 能连续推进，而不是继续手工改 YAML。

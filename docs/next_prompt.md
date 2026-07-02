@@ -25,7 +25,7 @@
 
 当前阶段：
 
-阶段 4Y 已完成。下一阶段 4Z 为依赖参数接口增加 checkpoint 驱动的自动窗口推进，先围绕 `market_inventory_query` 做第三批小样本验证。
+阶段 4Z 已完成。下一阶段 5A 继续验证 checkpoint 自动窗口能连续推进，先围绕 `market_inventory_query` 做第四批小样本验证。
 
 当前事实：
 
@@ -34,29 +34,30 @@
 - `market_inventory_query` 文档 id 为 `84`，路径为 `GET /purchase/inventory/marketInventory/query`。
 - `market_inventory_query` 的参数来源是 `product_inventory_page.raw_json` 的 `sku` 和 `warehouseId`，小样本限制为 3。
 - 阶段 4X 已完成第一批小样本，批次为 `sync_20260703_060856_408323`，`rows=2`，`requests=4`。
-- 阶段 4Y 已增加 `param_source.offset`，并将 `market_inventory_query.param_source.offset=3`。
-- offset=3 对应第二批参数对：`301 Black + 23`、`301 Black + 43`、`301 Black + 44`。
-- 阶段 4Y 的第二批小样本同步批次为 `sync_20260703_062446_799475`，`rows=1`，`requests=4`。
+- 阶段 4Y 已完成第二批小样本，批次为 `sync_20260703_062446_799475`，`rows=1`，`requests=4`。
+- 阶段 4Z 已为 `param_source` 增加 `auto_advance`，并将 `market_inventory_query.param_source.auto_advance=true`。
+- 4Z 开始前旧 checkpoint 只有 `total_count=3`；新逻辑用 YAML 基础 `offset=3` 加 `total_count=3`，自动推进到 offset=6。
+- offset=6 对应第三批参数对：`301 Black + 45`、`301 Black + 46`、`301 Black + 47`。
+- 阶段 4Z 第三批同步批次为 `sync_20260703_063707_425797`，`rows=0`，`requests=3`。
 - 数据库已确认该批次 `total_api_count=1`、`success_api_count=1`、`failed_api_count=0`。
-- `market_inventory_query` 同批次 `sync_api_log` 为 `request_count=4`、`success_count=1`、`failed_count=0`，`failed_request_log` 为 0 条。
-- `market_inventory_query` 同批次 raw 写入 1 条，有 `data_hash`，没有稳定 `source_primary_key` 和 `data_date`。
-- checkpoint 记录 `item_count=1`、`total_count=3`；这里的 `total_count=3` 表示本次参数对数量，不是响应行总数。
+- `market_inventory_query` 同批次 `sync_api_log` 为 `request_count=3`、`success_count=0`、`failed_count=0`，`failed_request_log` 为 0 条。
+- 第三批 raw 写入 0 条，这是接口真实空结果，不是失败。
+- checkpoint 已更新为 `param_offset=6`、`param_limit=3`、`next_param_offset=9`。
 - 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，同步配置数为 24。
-- 数据库已确认 `api_config.market_inventory_query.enabled=0`、`param_source.limit=3`、`param_source.offset=3`，当前启用配置数为 20。
+- 数据库已确认 `api_config.market_inventory_query.enabled=0`、`param_source.limit=3`、`offset=3`、`auto_advance=true`。
 - 覆盖矩阵显示公开文档 API 185 个，真实配置 API 22 个，enabled 20 个。
 - 已运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
-- 已运行 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过，21 个测试。
-- 目前 offset 仍是手动 YAML 窗口；还没有从 checkpoint 自动推进下一批参数。
+- 已运行 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过，23 个测试。
 - 本地 Git 可能仍领先远端，因为之前 GitHub 凭据阻塞过 `git push`。开始前请先看 `git status --short --branch` 和 `git log -1 --oneline`。
 
 建议目标：
 
-1. 阅读现有 `SyncEngine._source_param_sets()`、`_update_checkpoint()`、`market_inventory_query` 配置和相关测试。
-2. 为 `param_source` 增加最小 checkpoint 自动推进能力，优先让下一批 offset 从上次 checkpoint 计算。
-3. 用测试约束：上次 offset=3、limit=3 后，下一批 offset 应推进到 6。
+1. 阅读现有 `SyncEngine._param_source_offset()`、`_source_param_sets()`、`_update_checkpoint()`、`market_inventory_query` 配置和相关测试。
+2. 不修改 YAML offset，先只读查询 checkpoint，确认下一批 offset 应为 9。
+3. 只读查询 offset=9 的第四批参数对，确认不重复前三批。
 4. 保持 `market_inventory_query.enabled=false`，不要加入 20 个 enabled 生产批量同步。
-5. 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api market_inventory_query` 做第三批小样本真实同步。
-6. 查询数据库确认第三批批次成功，`sync_api_log`、`raw_api_data`、checkpoint 都可追踪。
+5. 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api market_inventory_query` 做第四批小样本真实同步。
+6. 查询数据库确认第四批批次成功，`sync_api_log`、`raw_api_data`、checkpoint 都可追踪。
 7. 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`。
 8. 查询 `api_config.market_inventory_query.enabled=0`。
 9. 运行 `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary`，确认真实配置 API 仍为 22 个、enabled 仍为 20 个。
@@ -66,9 +67,9 @@
 
 验收：
 
-1. `market_inventory_query` 能从 checkpoint 自动推进到第三批小样本。
-2. 第三批参数对不重复前两批参数对。
-3. 第三批同步批次成功，`sync_api_log` 成功数、raw 写入数和 checkpoint 可核验。
+1. `market_inventory_query` 能从 checkpoint 的 `next_param_offset=9` 自动推进到第四批小样本。
+2. 第四批参数对不重复前三批参数对。
+3. 第四批同步批次成功，`sync_api_log` 成功数、raw 写入数和 checkpoint 可核验。
 4. `market_inventory_query` 默认保持 disabled，不影响现有 20 个 enabled API。
 5. `api_config` 和覆盖矩阵保持真实配置 API 22 个、enabled 20 个。
 6. `compileall` 和 `unittest discover` 通过。

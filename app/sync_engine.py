@@ -442,7 +442,10 @@ class SyncEngine:
         api_started_at = datetime.now()
 
         try:
-            param_sets = self._source_param_sets(connection, api)
+            param_source = api.get("param_source") or {}
+            param_limit = int(param_source.get("limit") or 10)
+            param_offset = self._param_source_offset(connection, api)
+            param_sets = self._source_param_sets(connection, api, offset=param_offset)
             total_count = len(param_sets)
             for index, source_params in enumerate(param_sets, start=1):
                 params = dict(api.get("params") or {})
@@ -454,7 +457,20 @@ class SyncEngine:
                 item_count += len(items)
                 self._sleep_between_param_requests(api, index, total_count)
 
-            self._update_checkpoint(connection, api_code, batch_no, item_count, request_count, total_count, total_count)
+            self._update_checkpoint(
+                connection,
+                api_code,
+                batch_no,
+                item_count,
+                request_count,
+                total_count,
+                total_count,
+                extra={
+                    "param_offset": param_offset,
+                    "param_limit": param_limit,
+                    "next_param_offset": param_offset + total_count,
+                },
+            )
             self._insert_api_log(connection, batch_no, api_code, "success", request_count, item_count, 0, api_started_at)
         except Exception as error:
             failed_count = 1
@@ -675,7 +691,12 @@ class SyncEngine:
                 break
             page_no += 1
 
-    def _source_param_sets(self, connection: Any, api: dict[str, Any]) -> list[dict[str, Any]]:
+    def _source_param_sets(
+        self,
+        connection: Any,
+        api: dict[str, Any],
+        offset: int | None = None,
+    ) -> list[dict[str, Any]]:
         """从已入库的上游 raw 数据生成请求参数。
 
         当前支持两种最小来源：`source_primary_key` 单字段，以及从 raw_json
@@ -685,7 +706,7 @@ class SyncEngine:
         source_api_code = param_source.get("source_api_code")
         fields = param_source.get("fields") or []
         limit = int(param_source.get("limit") or 10)
-        offset = int(param_source.get("offset") or 0)
+        offset = self._param_source_offset(connection, api) if offset is None else offset
 
         if fields:
             return self._source_param_sets_from_raw_json_fields(connection, source_api_code, fields, limit, offset)
@@ -714,6 +735,44 @@ class SyncEngine:
             {"source_api_code": source_api_code, "limit": limit, "offset": offset},
         )
         return [{target_field: str(row["source_value"])} for row in result.mappings().all()]
+
+    def _param_source_offset(self, connection: Any, api: dict[str, Any]) -> int:
+        """计算依赖参数来源的读取窗口起点。
+
+        `offset` 仍是人工配置的基准值；只有显式开启 `auto_advance` 时才读取
+        checkpoint，避免影响仍在手动小样本验证的依赖接口。
+        """
+        param_source = api.get("param_source") or {}
+        base_offset = int(param_source.get("offset") or 0)
+        if not param_source.get("auto_advance"):
+            return base_offset
+
+        result = connection.execute(
+            text(
+                """
+                SELECT checkpoint_value
+                FROM sync_checkpoint
+                WHERE api_code = :api_code
+                """
+            ),
+            {"api_code": api["api_code"]},
+        )
+        row = result.mappings().first()
+        if not row or not row.get("checkpoint_value"):
+            return base_offset
+
+        try:
+            checkpoint = json.loads(str(row["checkpoint_value"]))
+        except json.JSONDecodeError:
+            return base_offset
+
+        if checkpoint.get("next_param_offset") is not None:
+            return int(checkpoint["next_param_offset"])
+        if checkpoint.get("param_offset") is not None and checkpoint.get("param_limit") is not None:
+            return int(checkpoint["param_offset"]) + int(checkpoint["param_limit"])
+        if checkpoint.get("total_count") is not None:
+            return base_offset + int(checkpoint["total_count"])
+        return base_offset
 
     def _source_param_sets_from_raw_json_fields(
         self,
@@ -836,20 +895,24 @@ class SyncEngine:
         request_count: int,
         last_page: int,
         total_count: int | None,
+        extra: dict[str, Any] | None = None,
     ) -> None:
         """更新单个 API 的同步检查点。
 
-        当前 checkpoint 只记录分页执行摘要；等真实接口支持按更新时间或游标增量
-        同步后，可以把 checkpoint_value 换成业务时间或游标值。
+        默认记录分页执行摘要；依赖参数接口可以额外写入参数窗口，后续运行据此
+        自动推进下一批 offset。
         """
         # checkpoint_value 暂存分页摘要，后续接入增量接口时再替换为业务时间或游标。
+        checkpoint_data = {
+            "last_page": last_page,
+            "request_count": request_count,
+            "item_count": item_count,
+            "total_count": total_count,
+        }
+        if extra:
+            checkpoint_data.update(extra)
         checkpoint_value = json.dumps(
-            {
-                "last_page": last_page,
-                "request_count": request_count,
-                "item_count": item_count,
-                "total_count": total_count,
-            },
+            checkpoint_data,
             ensure_ascii=False,
             separators=(",", ":"),
         )
