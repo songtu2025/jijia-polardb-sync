@@ -187,7 +187,7 @@ logs/sync.log
 
 ### 当前支持哪些真实积加 API？
 
-当前已验证并启用 `amazon_shop_page`、`org_manage_query`、`role_list` 和 `dictionary_query`。
+当前已验证并启用 `amazon_shop_page`、`org_manage_query`、`role_list` 和 `dictionary_query`。`rate_page` 已按文档配置为第五个候选接口，但默认禁用。
 
 ### accessToken 如何获取？
 
@@ -197,7 +197,7 @@ logs/sync.log
 
 ### 当前接入了哪个业务 API？
 
-当前配置并启用了 `amazon_shop_page`、`org_manage_query`、`role_list` 和 `dictionary_query`。`amazon_shop_page` 对应文档 `id=153` 的“查询亚马逊店铺信息”；`org_manage_query` 对应文档 `id=2537` 的“查询部门列表”；`role_list` 对应文档 `id=2885` 的“查询角色列表”；`dictionary_query` 对应文档 `id=2538` 的“查询字典管理列表”。
+当前配置并启用了 `amazon_shop_page`、`org_manage_query`、`role_list` 和 `dictionary_query`。`rate_page` 已配置但默认禁用。`amazon_shop_page` 对应文档 `id=153` 的“查询亚马逊店铺信息”；`org_manage_query` 对应文档 `id=2537` 的“查询部门列表”；`role_list` 对应文档 `id=2885` 的“查询角色列表”；`dictionary_query` 对应文档 `id=2538` 的“查询字典管理列表”；`rate_page` 对应文档 `id=139` 的“查询汇率设置”。
 
 ### 如何运行测试？
 

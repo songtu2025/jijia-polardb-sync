@@ -156,6 +156,13 @@
 - 该批次 `total_api_count=4`、`success_api_count=4`、`failed_api_count=0`。
 - 当前 enabled API 为 `amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`。
 - 阶段 3S 已运行 `--sync-api-configs`，数据库 `api_config.dictionary_query.enabled=1`。
+- 阶段 3T 选择“查询汇率设置”作为第五个低风险业务 API 候选，文档 id 是 `139`。
+- `rate_page` 文档路径是 `POST /middle/base/rate/page`，实际请求路径是 `/api/open/middle/base/rate/page`。
+- `rate_page` 请求头需要 `accessToken`。
+- `rate_page` 请求体必填 `page` 和 `pagesize`，可选 `condition.currency` 和 `condition.monthDate`。
+- `rate_page` 响应列表字段是 `data.rows`，总数字段是 `data.total`。
+- `rate_page` 候选主键字段是 `id`，候选日期字段是 `lastDate`。
+- `rate_page` 新增配置默认 `enabled: false`，单接口验证通过前不加入 `--sync-enabled`。
 
 ## Open Decisions
 

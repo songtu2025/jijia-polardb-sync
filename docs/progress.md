@@ -2,7 +2,7 @@
 
 ## Current Stage
 
-阶段 3S 已完成。`dictionary_query` 已加入 enabled 批量同步，当前 enabled API 为 4 个。
+阶段 3T 已完成。已调研并新增第五个真实业务 API 候选 `rate_page`，默认不启用。
 
 ## Completed
 
@@ -199,6 +199,16 @@
   - 四个 API 的 `sync_checkpoint.last_sync_batch_no` 均已更新到该批次。
   - 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，同步配置数为 6。
   - 数据库确认 `api_config.dictionary_query.enabled=1`。
+- 阶段 3T 已完成：
+  - 已通过公开文档站只读接口 `/api/openAdmin/doc/detail?id=139` 调研“查询汇率设置”。
+  - 已选择“查询汇率设置”作为第五个低风险业务 API 候选。
+  - 已确认文档路径为 `POST /middle/base/rate/page`，实际请求路径将是 `/api/open/middle/base/rate/page`。
+  - 已确认请求头需要 `accessToken`。
+  - 已确认请求体必填 `page` 和 `pagesize`，可选 `condition.currency` 和 `condition.monthDate`。
+  - 已确认响应列表字段为 `data.rows`，总数字段为 `data.total`。
+  - 已确认候选主键字段为 `id`，候选日期字段为 `lastDate`。
+  - 已新增 `rate_page` YAML 配置，默认 `enabled: false`。
+  - 本阶段未执行 `rate_page` 真实 API，避免未经单接口验证就扩大同步范围。
 
 ## Verification
 
@@ -275,6 +285,14 @@
   - 已查询 `api_config`，确认 `dictionary_query.enabled=1`。
   - `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
   - `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过。
+- 阶段 3T 已运行：
+  - `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
+  - `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过。
+  - `.\\.venv\\Scripts\\python.exe -m app.main`，dry-run 仍只加载 4 个 enabled API。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --mock-sync`，通过，批次 `sync_20260702_183851_976534`。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，通过，同步配置数为 7。
+  - 已查询 `api_config`，确认 `rate_page.enabled=0`，启用 API 仍为 4 个。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --test-token`，通过且没有输出 token。
 
 ## Known Issues
 
@@ -285,15 +303,15 @@
 
 ## Next Stage
 
-阶段 3T：调研第五个真实业务 API 候选。
+阶段 3U：单接口验证 `rate_page`。
 
 建议目标：
 
-- 先只做文档调研和候选选择。
-- 优先选择基础数据或低风险只读接口。
-- 明确接口路径、请求体、分页字段、列表字段、总数字段、主键字段和日期字段。
-- 如果新增 YAML 配置，默认 `enabled: false`。
-- 不直接加入 `--sync-enabled`。
+- 保持 `rate_page.enabled=false`。
+- 执行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api rate_page`。
+- 验证写入 `sync_batch`、`sync_api_log`、`raw_api_data` 和 `sync_checkpoint`。
+- 确认 `source_primary_key` 使用 `id`，`data_date` 使用 `lastDate`。
+- 验证后再决定是否进入下一阶段启用。
 
 验收：
 
@@ -301,6 +319,7 @@
 - `python -m app.main` dry-run 仍可用。
 - `python -m app.main --mock-sync` 仍可用。
 - `python -m app.main --test-token` 仍可用且不输出 token。
-- 若新增第五个 API 配置，必须默认 `enabled: false`。
+- `rate_page` 单接口验证成功。
+- `--sync-enabled` 仍只同步 `amazon_shop_page`、`org_manage_query`、`role_list` 和 `dictionary_query`。
 - `python -m unittest discover -s tests -p "test_*.py"` 通过。
 - 不写入任何真实凭证到代码或文档。

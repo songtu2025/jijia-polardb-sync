@@ -22,17 +22,17 @@
 
 当前要执行的阶段：
 
-阶段 3T：调研第五个真实业务 API 候选。
+阶段 3U：单接口验证 `rate_page`。
 
 建议目标：
 
 1. 阅读现有 `config/api_config.example.yaml`、`docs/progress.md`、`docs/decisions.md`。
-2. 从积加开放平台文档中选择第五个低风险业务 API 候选。
-3. 先只做文档调研和候选选择。
-4. 明确接口路径、请求体、分页字段、列表字段、总数字段、主键字段和日期字段。
-5. 如果新增 YAML 配置，默认 `enabled: false`。
-6. 不直接加入 `--sync-enabled`。
-7. 不执行新接口真实 API，除非下一阶段专门验证。
+2. 保持 `rate_page.enabled=false`。
+3. 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api rate_page` 做单接口验证。
+4. 查询数据库确认 `sync_batch`、`sync_api_log`、`raw_api_data`、`sync_checkpoint`。
+5. 确认 `raw_api_data.source_primary_key` 来自 `id`，`data_date` 来自 `lastDate`。
+6. 再运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`，确认仍只同步已启用的 4 个 API。
+7. 验证通过后，下一阶段再决定是否把 `rate_page` 加入 `--sync-enabled`。
 
 验收：
 
@@ -42,7 +42,7 @@
 4. `--test-api amazon_shop_page` 仍可分页请求并写入日志。
 5. `--sync-api amazon_shop_page` 仍可完成真实单接口同步。
 6. `--sync-enabled` 仍可完成 enabled API 同步。
-7. 若新增第五个 API 配置，必须默认 `enabled: false`。
+7. `rate_page` 当前必须保持 `enabled: false`。
 8. 不输出任何真实凭证或 accessToken。
 
 当前阶段 3M 已完成内容：
@@ -192,3 +192,9 @@
 - 数据库确认同一批次下有四条 `sync_api_log`，四个 API 均成功。
 - 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，数据库 `api_config.dictionary_query.enabled=1`。
 - 已运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests` 和 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，均通过。
+- 已通过公开文档站只读接口调研“查询汇率设置”，文档 id 为 `139`。
+- 已确认 `rate_page` 路径为 `POST /middle/base/rate/page`。
+- 已确认请求头需要 `accessToken`，请求体必填 `page` 和 `pagesize`，可选 `condition.currency` 和 `condition.monthDate`。
+- 已确认响应列表字段为 `data.rows`，总数字段为 `data.total`，候选主键字段为 `id`，日期字段为 `lastDate`。
+- 已新增 `rate_page` YAML 配置，默认 `enabled: false`。
+- 阶段 3T 未执行 `rate_page` 真实业务 API。
