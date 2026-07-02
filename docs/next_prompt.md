@@ -25,7 +25,7 @@
 
 当前阶段：
 
-阶段 5F 已完成。下一阶段 5G 不改 YAML，继续验证 `country_province_query` 的 checkpoint 自动推进。
+阶段 5G 已完成。下一阶段 5H 从覆盖矩阵中选择下一个依赖型接口，继续扩大可验证覆盖面。
 
 当前事实：
 
@@ -33,40 +33,45 @@
 - 当前已配置真实 API 有 24 个，其中 20 个已 enabled，`product_detail`、`market_inventory_query`、`storage_inbound_detail` 和 `country_province_query` 已验证但保持 disabled。
 - `country_province_query` 文档 id 为 `5066`，路径为 `GET /middle/base/countryProvince/query`。
 - `country_province_query` 的必填参数是 `countryCode`，参数来源是 `fba_warehouse_page.raw_json.country`，小样本限制为 3。
-- 已只读确认 `fba_warehouse_page` 有 36 条 raw 均有 `country`，去重国家/区域码为 6 个。
 - 阶段 5F 已完成 `country_province_query` 第一批小样本，批次为 `sync_20260703_074515_363198`，`rows=60`，`requests=5`。
 - 第一批参数按程序排序为 `CA`、`EU`、`JP`；其中 `CA` 和 `JP` 返回省州 raw，`EU` 未返回省州 raw 但接口未失败。
+- 阶段 5G 未修改 YAML，直接复用 `country_province_query` checkpoint 的 `next_param_offset=3`。
+- offset=3 的第二批参数按程序排序为 `MX`、`UK`、`US`。
+- 阶段 5G 第二批同步批次为 `sync_20260703_075322_115002`，`rows=90`，`requests=5`。
 - 数据库已确认该批次 `total_api_count=1`、`success_api_count=1`、`failed_api_count=0`。
-- `country_province_query` 同批次 `sync_api_log` 为 `request_count=5`、`success_count=60`、`failed_count=0`，`failed_request_log` 为 0 条。
-- 第一批 raw 写入 60 条，均有 `source_primary_key` 和 `data_hash`。
-- `country_province_query` checkpoint 已更新为 `param_offset=0`、`param_limit=3`、`next_param_offset=3`。
+- `country_province_query` 同批次 `sync_api_log` 为 `request_count=5`、`success_count=90`、`failed_count=0`，`failed_request_log` 为 0 条。
+- 第二批 raw 写入 90 条，均有 `source_primary_key` 和 `data_hash`。
+- 第二批中 `MX` 和 `US` 返回省州 raw，`UK` 未返回省州 raw 但接口未失败；不要把无数据国家码等同失败。
+- `country_province_query` checkpoint 已更新为 `param_offset=3`、`param_limit=3`、`next_param_offset=6`。
 - 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，同步配置数为 26。
 - 数据库已确认 `api_config.country_province_query.enabled=0`、`param_source.source_api_code=fba_warehouse_page`、`param_source.limit=3`、`param_source.auto_advance=true`。
 - 覆盖矩阵显示公开文档 API 185 个，真实配置 API 24 个，enabled 20 个。
 - 已运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
 - 已运行 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过，27 个测试。
-- 5D-5F 三轮复盘已写入 `docs/progress.md`。
 - `app.main` 当前没有 `--dry-run` 参数；如需确认 enabled 数量，用配置加载脚本或 `app.doc_catalog` 摘要，不要假设 CLI 支持 dry-run。
 - 本地 Git 应与远端同步；开始前仍请先看 `git status --short --branch` 和 `git log -1 --oneline`。
 
 建议目标：
 
-1. 只读确认 `country_province_query` 当前 checkpoint 为 `next_param_offset=3`。
-2. 按程序 SQL 预览 offset=3 的第二批 `countryCode`，确认不会重复第一批 `CA`、`EU`、`JP`。
-3. 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api country_province_query` 做第二批真实同步。
-4. 查询数据库确认新批次成功，`sync_api_log`、`raw_api_data`、checkpoint 都可追踪。
-5. 如果第二批出现无数据国家码，记录事实即可，不要把无数据等同失败。
-6. 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`。
-7. 查询 `api_config.country_province_query.enabled=0`。
-8. 运行 `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary`，确认真实配置 API 仍为 24 个、enabled 仍为 20 个。
-9. 运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests`。
-10. 运行 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`。
-11. 更新三份 docs，并提交推送；不要提交 `.env`、token 缓存、日志或任何敏感信息。
+1. 只读读取覆盖矩阵，筛选 `requires_upstream_params` 中尚未配置、参数可从现有 enabled raw 数据获得、且不涉及敏感字段或写操作的候选接口。
+2. 阅读候选接口公开文档详情，确认路径、方法、必填参数、响应形态、主键和日期字段。
+3. 只读查询数据库，证明所需参数来源真实存在，例如来自 `source_primary_key` 或 `raw_json` 顶层字段。
+4. 新增一个依赖型 API 配置，默认 `enabled=false`，小样本 `limit` 控制在 3 左右。
+5. 如果现有 `param_source.source_primary_key` 或 `param_source.fields` 足够，优先不改代码；如果不够，必须测试先行做最小扩展。
+6. 运行新接口 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api <api_code>` 做小样本真实同步。
+7. 查询数据库确认新接口批次成功，`sync_api_log`、`raw_api_data`、checkpoint 都可追踪。
+8. 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`。
+9. 查询 `<api_code>.enabled=0`。
+10. 运行 `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary`，确认真实配置 API 增加 1 个、enabled 仍为 20 个。
+11. 运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests`。
+12. 运行 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`。
+13. 更新三份 docs，并提交推送；不要提交 `.env`、token 缓存、日志或任何敏感信息。
 
 验收：
 
-1. `country_province_query` 不改 YAML 自动推进到第二批参数窗口。
-2. 第二批同步成功，`sync_api_log` 成功数、raw 写入数和 checkpoint 可核验。
-3. `api_config` 与覆盖矩阵显示真实配置 API 仍为 24 个，enabled 仍为 20 个。
-4. `compileall` 和 `unittest discover` 通过。
-5. 不提交 `.env`、token 缓存、日志或真实凭证。
+1. 新依赖型接口完成文档确认和小样本真实同步，默认保持 disabled。
+2. 参数来源由数据库只读查询证明，不靠猜测字段。
+3. 新接口同步批次成功，`sync_api_log` 成功数、raw 写入数和 checkpoint 可核验。
+4. `api_config` 与覆盖矩阵显示真实配置 API 增加 1 个，enabled 仍为 20 个。
+5. `compileall` 和 `unittest discover` 通过。
+6. 不提交 `.env`、token 缓存、日志或真实凭证。

@@ -467,3 +467,11 @@
 - 阶段 5F 已同步 `api_config`，当前数据库总配置 26 条，启用 20 条；`country_province_query.enabled=0`、`param_source.source_api_code=fba_warehouse_page`、`param_source.auto_advance=true`。
 - 阶段 5F 覆盖矩阵已刷新为公开文档 API 185 个、真实配置 API 24 个、enabled 20 个。
 - 5D-5F 复盘结论：依赖型接口的小窗口机制已覆盖 `source_primary_key`、单字段 `raw_json`、多字段 `raw_json` 三种来源；下一阶段优先不改 YAML，验证 `country_province_query` 从 `next_param_offset=3` 连续推进。
+- 阶段 5G 未修改 YAML，直接复用 `country_province_query` checkpoint 的 `next_param_offset=3`。
+- 阶段 5G 已按程序真实排序确认第二批 `countryCode` 为 `MX`、`UK`、`US`，不重复第一批 `CA`、`EU`、`JP`。
+- 阶段 5G 已用第二批国家码验证 `country_province_query`，批次号为 `sync_20260703_075322_115002`，请求 5 次，写入 90 条，失败 0。
+- `country_province_query` 第二批 raw 中 `MX` 和 `US` 返回省州数据，`UK` 未返回省州数据但接口未失败；空响应国家码仍应视为成功窗口而不是失败。
+- 阶段 5G 后 `country_province_query` checkpoint 记录 `param_offset=3`、`param_limit=3`、`next_param_offset=6`。
+- 阶段 5G 已同步 `api_config`，当前数据库总配置 26 条，启用 20 条；`country_province_query.enabled=0`、`param_source.auto_advance=true`。
+- 阶段 5G 覆盖矩阵保持公开文档 API 185 个、真实配置 API 24 个、enabled 20 个。
+- 下一阶段不应继续只重复 `country_province_query` 小窗口；应回到覆盖矩阵，选择新的依赖型接口继续扩大覆盖。
