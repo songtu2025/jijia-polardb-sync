@@ -339,6 +339,19 @@
 - 阶段 4R 已运行 `--sync-api-configs`，数据库 `api_config.store_location_page.enabled=1`、`api_config.multi_shop_query.enabled=1`。
 - 当前 enabled API 为 16 个，当前覆盖矩阵中的真实配置 API 也是 16 个。
 - 下一阶段继续新增低风险直接读取候选；依赖型接口参数来源机制仍待单独设计。
+- 阶段 4S 选择 `crm_tags_page` 和 `inventory_team_query` 作为下一批低风险直接读取接口。
+- `crm_tags_page` 文档 id 是 `136`，文档路径是 `GET /operation/crm/tags/page`，实际请求路径是 `/api/open/operation/crm/tags/page`。
+- `crm_tags_page` 响应列表字段是 `data`，无分页字段，候选主键字段是 `id`，候选日期字段是 `updateTime`。
+- 阶段 4S 的 `crm_tags_page` 验证批次号为 `sync_20260703_015227_219654`，请求 1 次，写入 7 条。
+- `crm_tags_page` 的 `source_primary_key` 已确认从响应 `id` 写入，`data_date` 已确认从 `updateTime` 写入。
+- `inventory_team_query` 文档 id 是 `5654`，文档路径是 `POST /fulfillment/inventory/teamManagement/query`，实际请求路径是 `/api/open/fulfillment/inventory/teamManagement/query`。
+- `inventory_team_query` 响应列表字段是 `data`，无分页字段，候选主键字段是 `teamId`。
+- 阶段 4S 的 `inventory_team_query` 验证批次号为 `sync_20260703_015302_084824`，请求 1 次，写入 1 条。
+- `inventory_team_query` 的 `source_primary_key` 已确认从响应 `teamId` 写入；文档未提供日期字段，`data_date` 保持为空。
+- 阶段 4S 后 `crm_tags_page` 和 `inventory_team_query` 仍保持 `enabled=false`，未加入 enabled 批量同步。
+- 阶段 4S 已运行 `--sync-api-configs`，数据库中两个新接口均为 `enabled=0`，当前启用配置数仍为 16。
+- 覆盖矩阵已刷新，当前已配置真实 API 为 18 个，enabled 仍为 16 个。
+- 下一阶段可以将 `crm_tags_page.enabled` 和 `inventory_team_query.enabled` 改为 `true`，并用 `--sync-enabled` 验证 18 个 API 同批次同步。
 
 ## Open Decisions
 

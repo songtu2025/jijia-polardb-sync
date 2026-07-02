@@ -437,3 +437,43 @@ apis:
       retries: 3
       delay_seconds: 1
     params: {}
+
+  # 第十七个真实文档接口：客服标签基础资料，文档 id=136，先单接口验证后再考虑启用。
+  - api_code: crm_tags_page
+    name: 查询标签管理信息
+    enabled: false
+    method: GET
+    path: /operation/crm/tags/page
+    page:
+      enabled: false
+      list_field: data
+    primary_key:
+      field: id
+      required: false
+    date_field: updateTime
+    rate_limit:
+      sleep_seconds: 0.2
+    retry:
+      retries: 3
+      delay_seconds: 1
+    params: {}
+
+  # 第十八个真实文档接口：库存团队基础资料，文档 id=5654，先单接口验证后再考虑启用。
+  - api_code: inventory_team_query
+    name: 查询团队信息
+    enabled: false
+    method: POST
+    path: /fulfillment/inventory/teamManagement/query
+    page:
+      enabled: false
+      list_field: data
+    primary_key:
+      field: teamId
+      required: false
+    date_field: ""
+    rate_limit:
+      sleep_seconds: 0.2
+    retry:
+      retries: 3
+      delay_seconds: 1
+    params: {}

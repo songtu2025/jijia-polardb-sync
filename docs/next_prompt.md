@@ -24,34 +24,38 @@
 
 当前阶段：
 
-阶段 4R 已完成。下一阶段 4S 继续接入下一批低风险 `direct_read_candidate`。
+阶段 4S 已完成。下一阶段 4T 将 `crm_tags_page` 和 `inventory_team_query` 加入 enabled 批量同步。
 
 当前事实：
 
 - 当前 enabled API 有 16 个：`amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`、`product_page`、`parent_product_page`、`kb_product_page`、`fba_warehouse_page`、`store_location_page`、`multi_shop_query`。
-- 当前已配置真实 API 有 16 个，且 16 个均已 enabled。
-- 阶段 4R 成功批次：`sync_20260703_014011_709944`。
-- 该批次 `total_api_count=16`、`success_api_count=16`、`failed_api_count=0`。
-- `store_location_page` 在 enabled 批次中请求 12 次，写入 1116 条，1116 条 raw 数据都有 `source_primary_key` 和 `data_date`。
-- `multi_shop_query` 在 enabled 批次中请求 1 次，写入 6 条，6 条 raw 数据都有 `source_primary_key`；该接口无日期字段，`data_date` 为空。
-- `api_config.store_location_page.enabled=1`、`api_config.multi_shop_query.enabled=1`。
-- 覆盖矩阵仍显示公开文档 API 185 个，真实配置 API 16 个，enabled 16 个。
+- 当前已配置真实 API 有 18 个，其中 16 个已 enabled。
+- `crm_tags_page` 和 `inventory_team_query` 已单接口验证成功，但仍保持 `enabled=false`。
+- `crm_tags_page` 文档 id 为 `136`，路径为 `GET /operation/crm/tags/page`，响应列表字段为 `data`，主键字段为 `id`，日期字段为 `updateTime`。
+- `crm_tags_page` 成功批次：`sync_20260703_015227_219654`，`rows=7`，`requests=1`，7 条 raw 数据都有 `source_primary_key` 和 `data_date`。
+- `inventory_team_query` 文档 id 为 `5654`，路径为 `POST /fulfillment/inventory/teamManagement/query`，响应列表字段为 `data`，主键字段为 `teamId`，无日期字段。
+- `inventory_team_query` 成功批次：`sync_20260703_015302_084824`，`rows=1`，`requests=1`，1 条 raw 数据有 `source_primary_key`，`data_date` 为空符合配置。
+- 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，同步配置数为 20。
+- 数据库已确认 `api_config.crm_tags_page.enabled=0`、`api_config.inventory_team_query.enabled=0`，当前启用配置数仍为 16。
+- 覆盖矩阵显示公开文档 API 185 个，真实配置 API 18 个，enabled 16 个。
 
 建议目标：
 
-1. 从 `config/jijia_api_catalog.generated.json` 中选择 1-2 个新的低风险 `direct_read_candidate`。
-2. 优先选择分页清晰、有稳定 `id` 或明确业务主键、无敏感字段的接口。
-3. 暂缓 `amazon_msku_page` 这类无单字段 id 的接口，除非先明确 data_hash 或复合主键策略。
-4. 新接口新增 YAML 配置时默认 `enabled=false`。
-5. 单接口运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api <api_code>` 并查库验证。
-6. 单接口验证通过后，同步 `api_config` 并刷新覆盖矩阵。
-7. 运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests`。
-8. 运行 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`。
+1. 将 `config/api_config.example.yaml` 中 `crm_tags_page.enabled` 和 `inventory_team_query.enabled` 从 `false` 改为 `true`。
+2. 运行 `.\\.venv\\Scripts\\python.exe -m app.main`，确认 dry-run enabled API 变为 18 个。
+3. 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`。
+4. 查询数据库确认该批次 `total_api_count=18`、`success_api_count=18`、`failed_api_count=0`。
+5. 查询同批次 `sync_api_log`，确认 18 个 API 均成功，尤其确认 `crm_tags_page` 和 `inventory_team_query`。
+6. 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`。
+7. 查询 `api_config.crm_tags_page.enabled=1`、`api_config.inventory_team_query.enabled=1`。
+8. 运行 `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary`，确认真实配置 API 18 个、enabled 18 个。
+9. 运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests`。
+10. 运行 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`。
 
 验收：
 
-1. 新增配置与公开文档一致，且默认不进入 `--sync-enabled`。
-2. dry-run enabled API 仍为 16 个。
-3. 单接口同步成功并可查库验证。
-4. `api_config` 和覆盖矩阵同步到新配置状态。
+1. dry-run enabled API 为 18 个。
+2. `--sync-enabled` 同批次 18 个 API 全部成功。
+3. `api_config` 和覆盖矩阵同步到 18/18。
+4. `compileall` 和 `unittest discover` 通过。
 5. 不提交 `.env`、token 缓存、日志或任何敏感信息。
