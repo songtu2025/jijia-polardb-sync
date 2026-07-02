@@ -143,6 +143,14 @@
 - `dictionary_query` 响应列表字段是 `data`，无分页字段。
 - `dictionary_query` 候选主键字段是 `id`，候选日期字段是 `recordDate`。
 - `dictionary_query` 新增配置默认 `enabled: false`，单接口验证通过前不加入 `--sync-enabled`。
+- 阶段 3R 首次执行 `dictionary_query` 时触发工具超时，根因不是接口慢，而是 700 条 raw 数据逐条 SQL 写入远程 PolarDB。
+- raw item 写入改为按页批量 executemany，避免大列表接口因逐条网络往返变慢。
+- 新增 `tests/test_sync_engine_bulk_insert.py`，使用标准库 unittest 验证多条 raw item 只触发一次批量 execute。
+- 阶段 3R 已执行 `--sync-api dictionary_query`，单接口真实验证成功。
+- 阶段 3R 的 `dictionary_query` 验证批次号为 `sync_20260702_182921_619823`，请求 1 次，写入 700 条。
+- `dictionary_query` 的 `source_primary_key` 已确认从响应 `id` 写入，`data_date` 已确认从 `recordDate` 写入。
+- 阶段 3R 后 `dictionary_query` 仍保持 `enabled: false`，未加入 `--sync-enabled`。
+- 下一阶段可以将 `dictionary_query.enabled` 改为 `true`，并用 `--sync-enabled` 验证 4 个 API 同批次同步。
 
 ## Open Decisions
 

@@ -389,8 +389,7 @@ class SyncEngine:
                 request_count += attempt_count
                 last_page = page_no
                 items = self._response_items(payload, api)
-                for item in items:
-                    self._insert_raw_item(connection, api, item, batch_no)
+                self._insert_raw_items(connection, api, items, batch_no)
                 item_count += len(items)
                 total_count = self._response_total(payload, api)
                 self._sleep_between_pages(api, page_no, total_count)
@@ -434,17 +433,42 @@ class SyncEngine:
         item: dict[str, Any],
         batch_no: str,
     ) -> None:
-        """把单条接口原始数据写入 raw_api_data。
+        """兼容单条写入入口，内部复用批量写入。"""
+        self._insert_raw_items(connection, api, [item], batch_no)
+
+    def _insert_raw_items(
+        self,
+        connection: Any,
+        api: dict[str, Any],
+        items: list[dict[str, Any]],
+        batch_no: str,
+    ) -> None:
+        """把接口原始数据批量写入 raw_api_data。
 
         幂等策略分两层：如果配置了业务主键，就用 `api_code + source_primary_key`
         覆盖更新；无稳定主键时，`api_code + data_hash` 可以避免同一份 JSON
         重复插入。raw_json 始终保存完整原始数据。
         """
+        if not items:
+            return
+
         api_code = api["api_code"]
         primary_key_field = (api.get("primary_key") or {}).get("field")
-        source_primary_key = str(item.get(primary_key_field)) if primary_key_field else None
-        raw_json = json.dumps(item, ensure_ascii=False, sort_keys=True, default=str)
+        rows = []
+        for item in items:
+            source_primary_key = str(item.get(primary_key_field)) if primary_key_field else None
+            rows.append(
+                {
+                    "api_code": api_code,
+                    "source_primary_key": source_primary_key,
+                    "data_hash": self._data_hash(item),
+                    "raw_json": json.dumps(item, ensure_ascii=False, sort_keys=True, default=str),
+                    "data_date": self._data_date(api, item),
+                    "sync_batch_no": batch_no,
+                }
+            )
 
+        # SQLAlchemy 收到参数列表时会走 executemany，避免远程 PolarDB 逐条往返。
         connection.execute(
             text(
                 """
@@ -461,14 +485,7 @@ class SyncEngine:
                   sync_batch_no = VALUES(sync_batch_no)
                 """
             ),
-            {
-                "api_code": api_code,
-                "source_primary_key": source_primary_key,
-                "data_hash": self._data_hash(item),
-                "raw_json": raw_json,
-                "data_date": self._data_date(api, item),
-                "sync_batch_no": batch_no,
-            },
+            rows,
         )
 
     def _insert_api_log(

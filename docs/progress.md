@@ -2,7 +2,7 @@
 
 ## Current Stage
 
-阶段 3Q 已完成。已调研并新增第四个真实业务 API 候选 `dictionary_query`，默认不启用。
+阶段 3R 已完成。`dictionary_query` 已在保持禁用状态下完成单接口真实验证，并修复 raw 数据逐条写库导致的大批量接口超时问题。
 
 ## Completed
 
@@ -172,6 +172,23 @@
   - 已确认候选主键字段为 `id`，候选日期字段为 `recordDate`。
   - 已新增 `dictionary_query` YAML 配置，默认 `enabled: false`。
   - 本阶段未执行 `dictionary_query` 真实 API，避免未经单接口验证就扩大同步范围。
+- 阶段 3R 已完成：
+  - 已保持 `dictionary_query.enabled=false`。
+  - 首次运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api dictionary_query` 时工具超时。
+  - 已确认接口本身不慢：短 timeout 单次请求空请求体返回 700 条，文档示例请求体返回 6 条。
+  - 已确认根因是 700 条 raw 数据逐条 SQL 写入远程 PolarDB，耗时超过工具窗口。
+  - 已新增 `tests/test_sync_engine_bulk_insert.py`，用标准库 unittest 验证多条 raw item 只触发一次批量 execute。
+  - 已将 `_sync_api_in_batch()` 中 raw item 写入改为按页批量写入。
+  - 已保留 `_insert_raw_item()` 作为单条兼容入口，内部复用批量写入。
+  - 已重试 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api dictionary_query`。
+  - 验证成功，批次号 `sync_20260702_182921_619823`，请求 1 次，写入 700 条。
+  - `sync_batch.status=success`，`success_api_count=1`，`failed_api_count=0`。
+  - `sync_api_log.status=success`，`request_count=1`，`success_count=700`，`failed_count=0`。
+  - 本批次 `raw_api_data` 中 `dictionary_query` 写入 700 条，700 条都有 `source_primary_key` 和 `data_date`。
+  - `source_primary_key` 已确认来自 `id`，`data_date` 已确认来自 `recordDate`。
+  - `sync_checkpoint.last_sync_batch_no` 已更新为 `sync_20260702_182921_619823`。
+  - 已再次运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`。
+  - `--sync-enabled` 成功，批次号 `sync_20260702_182952_860680`，仍为 `apis=3`，未执行 `dictionary_query`。
 
 ## Verification
 
@@ -232,6 +249,14 @@
   - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，通过，同步配置数为 6。
   - 已查询 `api_config`，确认 `dictionary_query.enabled=0`，启用 API 仍为 3 个。
   - `.\\.venv\\Scripts\\python.exe -m app.main --test-token`，通过且没有输出 token。
+- 阶段 3R 已运行：
+  - `.\\.venv\\Scripts\\python.exe -m unittest tests.test_sync_engine_bulk_insert`，先失败，确认为缺少 `_insert_raw_items`。
+  - `.\\.venv\\Scripts\\python.exe -m unittest tests.test_sync_engine_bulk_insert`，实现后通过。
+  - `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api dictionary_query`，通过，批次 `sync_20260702_182921_619823`。
+  - 已查询数据库摘要，确认批次、API 日志、raw 主键日期和 checkpoint。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`，通过，批次 `sync_20260702_182952_860680`，`apis=3`。
+  - `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过。
 
 ## Known Issues
 
@@ -242,15 +267,15 @@
 
 ## Next Stage
 
-阶段 3R：单接口验证 `dictionary_query`。
+阶段 3S：将 `dictionary_query` 加入 enabled 批量同步。
 
 建议目标：
 
-- 保持 `dictionary_query.enabled=false`。
-- 执行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api dictionary_query`。
-- 验证写入 `sync_batch`、`sync_api_log`、`raw_api_data` 和 `sync_checkpoint`。
-- 确认 `source_primary_key` 使用 `id`。
-- 验证后再决定是否进入下一阶段启用。
+- 将 `dictionary_query.enabled` 从 `false` 改为 `true`。
+- 运行 dry-run，确认 enabled API 变为 4 个。
+- 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`。
+- 查询数据库确认同一批次下有 4 条 `sync_api_log`。
+- 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，同步数据库中的 `api_config.enabled`。
 
 验收：
 
@@ -258,10 +283,7 @@
 - `python -m app.main` dry-run 仍可用。
 - `python -m app.main --mock-sync` 仍可用。
 - `python -m app.main --test-token` 仍可用且不输出 token。
-- `python -m compileall app` 通过。
-- `python -m app.main` dry-run 仍可用。
-- `python -m app.main --mock-sync` 仍可用。
-- `python -m app.main --test-token` 仍可用且不输出 token。
-- `dictionary_query` 单接口验证成功。
-- `--sync-enabled` 仍只同步 `amazon_shop_page`、`org_manage_query` 和 `role_list`。
+- `--sync-enabled` 成功同步 4 个 API。
+- `api_config.dictionary_query.enabled=1`。
+- `python -m unittest discover -s tests -p "test_*.py"` 通过。
 - 不写入任何真实凭证到代码或文档。
