@@ -255,3 +255,30 @@ apis:
     params:
       page: 1
       pagesize: 100
+
+  # 第十个真实文档候选接口：产品品牌基础资料，已按文档 id=1752 配置，先禁用。
+  - api_code: brand_page
+    name: 查询品牌资料
+    enabled: false
+    method: POST
+    path: /purchase/goods/brand/page
+    page:
+      enabled: true
+      page_no_field: page
+      page_size_field: pagesize
+      page_size: 100
+      max_pages: 10
+      list_field: data.rows
+      total_field: data.total
+    primary_key:
+      field: id
+      required: false
+    date_field: ""
+    rate_limit:
+      sleep_seconds: 0.2
+    retry:
+      retries: 3
+      delay_seconds: 1
+    params:
+      page: 1
+      pagesize: 100

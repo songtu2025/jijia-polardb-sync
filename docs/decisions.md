@@ -252,6 +252,13 @@
 - 该批次 `total_api_count=9`、`success_api_count=9`、`failed_api_count=0`。
 - 当前 enabled API 为 `amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`。
 - 阶段 4H 已运行 `--sync-api-configs`，数据库 `api_config.category_page.enabled=1`。
+- 阶段 4I 选择“查询品牌资料”作为第十个低风险业务 API 候选，文档 id 是 `1752`。
+- `brand_page` 文档路径是 `POST /purchase/goods/brand/page`，实际请求路径是 `/api/open/purchase/goods/brand/page`。
+- `brand_page` 请求头需要 `accessToken`。
+- `brand_page` 请求体必填 `page` 和 `pagesize`，可选 `code`、`name`、`state`。
+- `brand_page` 响应列表字段是 `data.rows`，总数字段是 `data.total`。
+- `brand_page` 候选主键字段是 `id`，无明确日期字段。
+- `brand_page` 新增配置默认 `enabled: false`，单接口验证通过前不加入 `--sync-enabled`。
 
 ## Open Decisions
 
