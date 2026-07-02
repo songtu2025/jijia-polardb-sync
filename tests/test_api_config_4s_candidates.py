@@ -7,10 +7,10 @@ class Stage4SCandidateApiConfigTest(unittest.TestCase):
     def setUp(self):
         self.apis = {api["api_code"]: api for api in load_api_configs("config/api_config.example.yaml")}
 
-    def test_crm_tags_page_config_matches_doc_and_stays_disabled(self):
+    def test_crm_tags_page_config_matches_doc_and_is_enabled(self):
         api = self.apis["crm_tags_page"]
 
-        self.assertFalse(api["enabled"])
+        self.assertTrue(api["enabled"])
         self.assertEqual(api["method"], "GET")
         self.assertEqual(api["path"], "/operation/crm/tags/page")
         self.assertFalse(api["page"]["enabled"])
@@ -18,10 +18,10 @@ class Stage4SCandidateApiConfigTest(unittest.TestCase):
         self.assertEqual(api["primary_key"]["field"], "id")
         self.assertEqual(api["date_field"], "updateTime")
 
-    def test_inventory_team_query_config_matches_doc_and_stays_disabled(self):
+    def test_inventory_team_query_config_matches_doc_and_is_enabled(self):
         api = self.apis["inventory_team_query"]
 
-        self.assertFalse(api["enabled"])
+        self.assertTrue(api["enabled"])
         self.assertEqual(api["method"], "POST")
         self.assertEqual(api["path"], "/fulfillment/inventory/teamManagement/query")
         self.assertFalse(api["page"]["enabled"])

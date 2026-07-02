@@ -2,7 +2,7 @@
 
 ## Current Stage
 
-阶段 4S 已完成。`crm_tags_page` 和 `inventory_team_query` 已完成单接口验证并保持 disabled，当前 enabled API 仍为 16 个。
+阶段 4T 已完成。`crm_tags_page` 和 `inventory_team_query` 已加入 enabled 批量同步，当前 enabled API 为 18 个。
 
 ## Completed
 
@@ -772,6 +772,19 @@
   - `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary`，通过，真实配置 API 为 18 个，enabled 为 16 个。
   - `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
   - `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过，13 个测试。
+- 阶段 4T 已运行：
+  - 已将 `crm_tags_page.enabled` 和 `inventory_team_query.enabled` 从 `false` 改为 `true`。
+  - `.\\.venv\\Scripts\\python.exe -m app.main`，通过，dry-run 显示 18 个 enabled API。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`，通过，批次 `sync_20260703_020359_152948`，`apis=18`，`rows=13235`，`requests=121`。
+  - 已查询数据库摘要，确认该批次 `total_api_count=18`、`success_api_count=18`、`failed_api_count=0`。
+  - 同一批次下有十八条 `sync_api_log`，`crm_tags_page` 写入 7 条，`inventory_team_query` 写入 1 条。
+  - `crm_tags_page` checkpoint 记录 `item_count=7`、`total_count=null`，7 条 raw 数据都有 `source_primary_key` 和 `data_date`。
+  - `inventory_team_query` checkpoint 记录 `item_count=1`、`total_count=null`，1 条 raw 数据有 `source_primary_key`，`data_date` 为空符合配置。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，通过，同步配置数为 20。
+  - 已查询 `api_config`，确认 `crm_tags_page.enabled=1`、`inventory_team_query.enabled=1`，启用配置数为 18。
+  - `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary`，通过，真实配置 API 为 18 个，enabled 为 18 个。
+  - `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
+  - `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过，13 个测试。
 
 ## Review 4L-4N
 
@@ -815,13 +828,34 @@
   - 然后继续新增少量低风险直接读取接口。
   - 同时开始为依赖型接口梳理“从已同步 raw 数据提取请求参数”的最小机制。
 
+## Review 4R-4T
+
+- 已完成第三组目标模式闭环：
+  - 4R 将 `store_location_page` 和 `multi_shop_query` 加入 enabled，并完成 16 个 API 同批次验证。
+  - 4S 继续接入并单接口验证 `crm_tags_page` 和 `inventory_team_query`。
+  - 4T 将这 2 个接口加入 enabled，并完成 18 个 API 同批次验证。
+- 当前覆盖状态：
+  - 公开文档 API：185 个。
+  - 已配置真实 API：18 个。
+  - enabled API：18 个。
+  - direct_read_candidate 分类仍为 58 个，其中已配置 18 个真实 API。
+  - 依赖上游参数接口仍有 79 个，下一阶段需要开始把参数来源机制纳入主线。
+- 本组三轮发现的问题：
+  - `crm_tags_page` 和 `inventory_team_query` 都是小接口，加入 enabled 后总请求数从 119 增至 121，对批量耗时影响很小。
+  - 当前 enabled 批量同步主要耗时仍来自 `product_page` 这类大分页接口。
+  - 单纯继续接低风险直读接口能增加覆盖面，但不能解决 79 个依赖型接口的数据拉取问题。
+- 下一组三轮建议：
+  - 继续少量接入低风险直读接口，保持覆盖面增长。
+  - 同时启动依赖型接口的最小参数来源机制，例如先从已同步的 raw 数据提取店铺、仓库、产品或团队参数。
+  - 依赖型接口先做单接口、小参数集验证，再决定是否进入 enabled。
+
 ## Known Issues
 
 - `amazon_shop_page` 第一版以 `data_hash` 去重，不强行编造业务主键。
 - 各业务 API 的具体路径、字段、分页和主键需要逐个阅读文档确认。
 - 新增后续业务接口前，仍需要逐个阅读积加文档确认路径、分页、主键和日期字段。
-- 当前 enabled API 已有 16 个：`amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`、`product_page`、`parent_product_page`、`kb_product_page`、`fba_warehouse_page`、`store_location_page`、`multi_shop_query`。
-- 当前已配置真实 API 为 18 个，其中 16 个已加入 enabled，`crm_tags_page` 和 `inventory_team_query` 已验证但仍保持 disabled。
+- 当前 enabled API 已有 18 个：`amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`、`product_page`、`parent_product_page`、`kb_product_page`、`fba_warehouse_page`、`store_location_page`、`multi_shop_query`、`crm_tags_page`、`inventory_team_query`。
+- 当前已配置真实 API 为 18 个，且 18 个均已加入 enabled。
 - 覆盖矩阵是公开文档视角，不等同于当前账号真实授权可调用结果；真实可访问性仍需单接口运行验证。
 - `product_page` 当前总量为 8258 条，请求 83 页；enabled 批量同步耗时已经明显增加。
 - 后续如果继续把大接口加入 enabled，需要关注运行时长、数据库写入耗时和 cron 窗口。
@@ -829,20 +863,21 @@
 
 ## Next Stage
 
-阶段 4T：将 `crm_tags_page` 和 `inventory_team_query` 加入 enabled 批量同步。
+阶段 4U：继续接入下一批低风险直接读取接口，并开始梳理依赖型接口参数来源。
 
 建议目标：
 
-- 将 `crm_tags_page.enabled` 和 `inventory_team_query.enabled` 从 `false` 改为 `true`。
-- dry-run 确认 enabled API 变为 18 个。
-- 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`。
-- 查询数据库确认 18 个 API 同批次成功，失败数为 0。
-- 同步 `api_config` 并刷新覆盖矩阵，确认真实配置 API 为 18 个且 enabled 为 18 个。
+- 从覆盖矩阵中继续选择 1-2 个低风险 `direct_read_candidate`，默认 `enabled=false`。
+- 优先选择无敏感字段、无上游必填参数、主键和分页清晰的接口。
+- 同时只读梳理 1-2 个依赖型接口的参数来源，不急于启用。
+- 单接口同步、查库验证、同步 `api_config` 并刷新覆盖矩阵。
 
 验收：
 
-- `api_config.crm_tags_page.enabled=1`、`api_config.inventory_team_query.enabled=1`。
-- `crm_tags_page` 和 `inventory_team_query` 在 enabled 批次中均成功写入 `sync_api_log` 和 checkpoint。
-- `api_config` 与覆盖矩阵同步更新到 18/18。
+- 新增直读接口与公开文档一致，且默认不进入 `--sync-enabled`。
+- dry-run enabled API 仍为 18 个。
+- 单接口同步、数据库批次/API 日志/raw/checkpoint 验证通过。
+- `api_config` 与覆盖矩阵同步更新。
+- 依赖型接口参数来源形成最小事实清单，但不编造字段含义。
 - `compileall` 和 `unittest discover` 通过。
 - 继续保持 `.env`、token 缓存、日志和真实凭证不提交。

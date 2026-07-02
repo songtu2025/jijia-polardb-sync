@@ -8,7 +8,7 @@
     "detail_success_count": 185,
     "detail_error_count": 0,
     "configured_real_api_count": 18,
-    "configured_enabled_real_api_count": 16,
+    "configured_enabled_real_api_count": 18,
     "classification_counts": {
       "direct_read_candidate": 58,
       "requires_upstream_params": 79,
@@ -963,7 +963,7 @@
       "has_list_response": true,
       "has_sensitive_response_fields": false,
       "configured_api_code": "crm_tags_page",
-      "configured_enabled": false
+      "configured_enabled": true
     },
     {
       "doc_id": 1014,
@@ -1804,7 +1804,7 @@
       "has_list_response": true,
       "has_sensitive_response_fields": false,
       "configured_api_code": "inventory_team_query",
-      "configured_enabled": false
+      "configured_enabled": true
     },
     {
       "doc_id": 20,

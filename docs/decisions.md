@@ -352,6 +352,14 @@
 - 阶段 4S 已运行 `--sync-api-configs`，数据库中两个新接口均为 `enabled=0`，当前启用配置数仍为 16。
 - 覆盖矩阵已刷新，当前已配置真实 API 为 18 个，enabled 仍为 16 个。
 - 下一阶段可以将 `crm_tags_page.enabled` 和 `inventory_team_query.enabled` 改为 `true`，并用 `--sync-enabled` 验证 18 个 API 同批次同步。
+- 阶段 4T 已将 `crm_tags_page.enabled` 和 `inventory_team_query.enabled` 改为 `true`。
+- 阶段 4T 的 `--sync-enabled` 验证批次号为 `sync_20260703_020359_152948`。
+- 该批次 `total_api_count=18`、`success_api_count=18`、`failed_api_count=0`。
+- 同一批次中 `crm_tags_page` 请求 1 次，写入 7 条，checkpoint 记录 `item_count=7`、`total_count=null`。
+- 同一批次中 `inventory_team_query` 请求 1 次，写入 1 条，checkpoint 记录 `item_count=1`、`total_count=null`。
+- 阶段 4T 已运行 `--sync-api-configs`，数据库 `api_config.crm_tags_page.enabled=1`、`api_config.inventory_team_query.enabled=1`。
+- 当前 enabled API 为 18 个，当前覆盖矩阵中的真实配置 API 也是 18 个。
+- 4R-4T 三轮复盘结论：低风险直读接口的“默认禁用 -> 单接口验证 -> enabled 批量验证”节奏仍成立，但下一阶段需要开始推进依赖型接口参数来源机制，否则无法覆盖 79 个依赖上游参数接口。
 
 ## Open Decisions
 

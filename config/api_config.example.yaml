@@ -441,7 +441,7 @@ apis:
   # 第十七个真实文档接口：客服标签基础资料，文档 id=136，先单接口验证后再考虑启用。
   - api_code: crm_tags_page
     name: 查询标签管理信息
-    enabled: false
+    enabled: true
     method: GET
     path: /operation/crm/tags/page
     page:
@@ -461,7 +461,7 @@ apis:
   # 第十八个真实文档接口：库存团队基础资料，文档 id=5654，先单接口验证后再考虑启用。
   - api_code: inventory_team_query
     name: 查询团队信息
-    enabled: false
+    enabled: true
     method: POST
     path: /fulfillment/inventory/teamManagement/query
     page:
