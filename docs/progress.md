@@ -2,7 +2,7 @@
 
 ## Current Stage
 
-阶段 3N 已完成。已调研并新增第三个真实业务 API 候选 `role_list`，默认不启用。
+阶段 3O 已完成。`role_list` 已在保持禁用状态下完成单接口真实验证。
 
 ## Completed
 
@@ -141,6 +141,17 @@
   - 该接口响应未提供明确时间字段，`date_field` 暂为空。
   - 已新增 `role_list` YAML 配置，默认 `enabled: false`。
   - 本阶段未执行 `role_list` 真实 API，避免未经单接口验证就扩大同步范围。
+- 阶段 3O 已完成：
+  - 已保持 `role_list.enabled=false`。
+  - 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api role_list`。
+  - 验证成功，批次号 `sync_20260702_181544_620924`，请求 1 次，写入 36 条。
+  - `sync_batch.status=success`，`success_api_count=1`，`failed_api_count=0`。
+  - `sync_api_log.status=success`，`request_count=1`，`success_count=36`，`failed_count=0`。
+  - 本批次 `raw_api_data` 中 `role_list` 写入 36 条，且 36 条都有 `source_primary_key`。
+  - `source_primary_key` 已确认来自 `roleId`。
+  - `sync_checkpoint.last_sync_batch_no` 已更新为 `sync_20260702_181544_620924`。
+  - 已再次运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`。
+  - `--sync-enabled` 成功，批次号 `sync_20260702_181639_728324`，仍为 `apis=2`，未执行 `role_list`。
 
 ## Verification
 
@@ -183,6 +194,10 @@
   - 已查询 `api_config`，确认 `role_list.enabled=0`，启用 API 仍为 2 个。
   - `.\\.venv\\Scripts\\python.exe -m app.main --test-token`，通过且没有输出 token。
   - `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`，通过，批次 `sync_20260702_181417_988247`，`apis=2`。
+- 阶段 3O 已运行：
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api role_list`，通过，批次 `sync_20260702_181544_620924`。
+  - 已查询数据库摘要，确认批次、API 日志、raw 主键和 checkpoint。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`，通过，批次 `sync_20260702_181639_728324`，`apis=2`。
 
 ## Known Issues
 
@@ -190,19 +205,19 @@
 - 各业务 API 的具体路径、字段、分页和主键需要逐个阅读文档确认。
 - 新增后续业务接口前，仍需要逐个阅读积加文档确认路径、分页、主键和日期字段。
 - 当前 enabled API 已有 2 个：`amazon_shop_page`、`org_manage_query`。
-- `role_list` 已配置但未启用，也未执行真实业务 API。
+- `role_list` 已完成单接口真实验证，但仍未启用。
 
 ## Next Stage
 
-阶段 3O：单接口验证 `role_list`。
+阶段 3P：将 `role_list` 加入 enabled 批量同步。
 
 建议目标：
 
-- 保持 `role_list.enabled=false`。
-- 执行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api role_list`。
-- 验证写入 `sync_batch`、`sync_api_log`、`raw_api_data` 和 `sync_checkpoint`。
-- 确认 `source_primary_key` 使用 `roleId`。
-- 验证后再决定是否进入下一阶段启用。
+- 将 `role_list.enabled` 从 `false` 改为 `true`。
+- 运行 dry-run，确认 enabled API 变为 3 个。
+- 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`。
+- 查询数据库确认同一批次下有 3 条 `sync_api_log`。
+- 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，同步数据库中的 `api_config.enabled`。
 
 验收：
 
@@ -210,6 +225,6 @@
 - `python -m app.main` dry-run 仍可用。
 - `python -m app.main --mock-sync` 仍可用。
 - `python -m app.main --test-token` 仍可用且不输出 token。
-- `role_list` 单接口验证成功。
-- `--sync-enabled` 仍只同步 `amazon_shop_page` 和 `org_manage_query`。
+- `--sync-enabled` 成功同步 3 个 API。
+- `api_config.role_list.enabled=1`。
 - 不写入任何真实凭证到代码或文档。

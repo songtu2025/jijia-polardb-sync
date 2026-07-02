@@ -126,9 +126,14 @@
 - `role_list` 候选主键字段是 `roleId`。
 - `role_list` 响应未提供明确时间字段，`date_field` 暂为空。
 - `role_list` 新增配置默认 `enabled: false`，单接口验证通过前不加入 `--sync-enabled`。
+- 阶段 3O 已执行 `--sync-api role_list`，单接口真实验证成功。
+- 阶段 3O 的 `role_list` 验证批次号为 `sync_20260702_181544_620924`，请求 1 次，写入 36 条。
+- `role_list` 的 `source_primary_key` 已确认从响应 `roleId` 写入。
+- 阶段 3O 后 `role_list` 仍保持 `enabled: false`，未加入 `--sync-enabled`。
+- 下一阶段可以将 `role_list.enabled` 改为 `true`，并用 `--sync-enabled` 验证 3 个 API 同批次同步。
 
 ## Open Decisions
 
 - `raw_api_data.data_date` 取哪个业务时间字段，需要按每个 API 单独确认。
 - 后续是否把 `marketListVos` 拆成更细粒度记录，等待先验证 raw JSON 备份价值。
-- `role_list` 是否启用，需要等单接口真实验证成功后再决定。
+- 是否继续选择第四个基础数据 API，需要在 `role_list` 加入 enabled 并稳定后再决定。
