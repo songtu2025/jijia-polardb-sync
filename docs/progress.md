@@ -2,7 +2,7 @@
 
 ## Current Stage
 
-阶段 4J 已完成。已保持 `brand_page` 禁用，并完成单接口真实同步验证。
+阶段 4K 已完成。`brand_page` 已加入 enabled 批量同步，当前 enabled API 为 10 个。
 
 ## Completed
 
@@ -395,6 +395,16 @@
   - `sync_checkpoint.checkpoint_value` 已记录 `last_page=1`、`request_count=1`、`item_count=8`、`total_count=8`。
   - 已再次运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`。
   - `--sync-enabled` 成功，批次号 `sync_20260702_214840_754392`，仍为 `apis=9`，未执行 `brand_page`。
+- 阶段 4K 已完成：
+  - 已将 `brand_page.enabled` 从 `false` 改为 `true`。
+  - 已运行 `.\\.venv\\Scripts\\python.exe -m app.main`，dry-run 显示 enabled API 为 10 个。
+  - 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`。
+  - 验证成功，批次号 `sync_20260702_234239_362350`，`apis=10`，`rows=3687`，`requests=18`。
+  - 数据库确认该批次 `total_api_count=10`、`success_api_count=10`、`failed_api_count=0`。
+  - 同一批次下有十条 `sync_api_log`，`brand_page` 成功写入 8 条。
+  - 十个 API 的 `sync_checkpoint.last_sync_batch_no` 均已更新到该批次。
+  - 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，同步配置数为 12。
+  - 数据库确认 `api_config.brand_page.enabled=1`，当前启用配置数为 10。
 
 ## Verification
 
@@ -614,35 +624,34 @@
   - `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过。
   - `.\\.venv\\Scripts\\python.exe -m app.main`，通过，dry-run 仍显示 9 个 enabled API。
   - `.\\.venv\\Scripts\\python.exe -m app.main --mock-sync`，通过，批次 `sync_20260702_215027_511656`。
+- 阶段 4K 已运行：
+  - `.\\.venv\\Scripts\\python.exe -m app.main`，通过，dry-run 显示 10 个 enabled API。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`，通过，批次 `sync_20260702_234239_362350`，`apis=10`。
+  - 已查询数据库摘要，确认十条 API 日志、raw 写入数和 checkpoint。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，通过，同步配置数为 12。
+  - 已查询 `api_config`，确认 `brand_page.enabled=1`，启用配置数为 10。
+  - `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
+  - `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过。
 
 ## Known Issues
 
 - `amazon_shop_page` 第一版以 `data_hash` 去重，不强行编造业务主键。
 - 各业务 API 的具体路径、字段、分页和主键需要逐个阅读文档确认。
 - 新增后续业务接口前，仍需要逐个阅读积加文档确认路径、分页、主键和日期字段。
-- 当前 enabled API 已有 9 个：`amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`。
-- `brand_page` 已通过单接口验证，但当前仍未加入 enabled 批量同步。
+- 当前 enabled API 已有 10 个：`amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`。
 - 远程 PolarDB 如出现遗留睡眠未提交事务，可能导致 raw 写入锁等待超时，需要先查 `information_schema.processlist` 和 `information_schema.innodb_trx`。
 
 ## Next Stage
 
-阶段 4K：将 `brand_page` 加入 enabled 批量同步。
+阶段 4L：先确认下一步方向。
 
 建议目标：
 
-- 将 `brand_page.enabled` 从 `false` 改为 `true`。
-- 运行 dry-run，确认 enabled API 变为 10 个。
-- 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`。
-- 查询数据库确认 10 个 API 同批次成功。
-- 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，同步 `api_config` 表。
+- 如果准备部署，先做 ECS/cron 前检查，不再新增 API。
+- 如果继续扩展接口，先只读调研积加文档，新增配置默认 `enabled: false`。
+- 不要在未确认候选接口前继续扩大 enabled 范围。
 
 验收：
 
-- `python -m compileall app` 通过。
-- `python -m app.main` dry-run 仍可用。
-- `python -m app.main --mock-sync` 仍可用。
-- `python -m app.main --test-token` 仍可用且不输出 token。
-- `brand_page` 加入 enabled 后批量同步成功。
-- `--sync-enabled` 同步当前 10 个 enabled API。
-- `python -m unittest discover -s tests -p "test_*.py"` 通过。
-- 不写入任何真实凭证到代码或文档。
+- 下一步方向明确。
+- 继续保持 `.env`、token 缓存、日志和真实凭证不提交。

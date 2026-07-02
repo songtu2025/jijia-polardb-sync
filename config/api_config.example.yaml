@@ -256,10 +256,10 @@ apis:
       page: 1
       pagesize: 100
 
-  # 第十个真实文档候选接口：产品品牌基础资料，已按文档 id=1752 配置，先禁用。
+  # 第十个真实文档候选接口：产品品牌基础资料，已按文档 id=1752 配置，已启用。
   - api_code: brand_page
     name: 查询品牌资料
-    enabled: false
+    enabled: true
     method: POST
     path: /purchase/goods/brand/page
     page:
