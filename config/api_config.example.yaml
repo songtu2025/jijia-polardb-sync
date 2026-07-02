@@ -531,3 +531,29 @@ apis:
     params:
       page: 1
       pagesize: 100
+
+  # 第二十一个真实文档接口：产品详情，文档 id=211，依赖 product_page 的产品 id，小样本验证阶段保持 disabled。
+  - api_code: product_detail
+    name: 查询产品详情
+    enabled: false
+    method: GET
+    path: /purchase/goods/product/detail
+    page:
+      enabled: false
+    response:
+      item_field: data
+    primary_key:
+      field: id
+      required: false
+    date_field: ""
+    param_source:
+      source_api_code: product_page
+      source_field: source_primary_key
+      target_field: id
+      limit: 3
+    rate_limit:
+      sleep_seconds: 0.2
+    retry:
+      retries: 3
+      delay_seconds: 1
+    params: {}

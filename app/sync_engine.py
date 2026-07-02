@@ -383,6 +383,9 @@ class SyncEngine:
         total_count: int | None = None
         api_started_at = datetime.now()
 
+        if api.get("param_source"):
+            return self._sync_api_from_param_source_in_batch(connection, api, batch_no, api_client, token)
+
         try:
             for page_no, payload, attempt_count in self._paged_payloads(api, api_client, token):
                 # request_count 统计真实 HTTP 尝试次数，包含失败后的重试次数。
@@ -395,6 +398,61 @@ class SyncEngine:
                 self._sleep_between_pages(api, page_no, total_count)
 
             self._update_checkpoint(connection, api_code, batch_no, item_count, request_count, last_page, total_count)
+            self._insert_api_log(connection, batch_no, api_code, "success", request_count, item_count, 0, api_started_at)
+        except Exception as error:
+            failed_count = 1
+            if isinstance(error, ApiRequestError):
+                request_count += error.attempt_count
+                self._insert_failed_request(connection, batch_no, api_code, error)
+            self._insert_api_log(
+                connection,
+                batch_no,
+                api_code,
+                "failed",
+                request_count,
+                item_count,
+                failed_count,
+                api_started_at,
+                str(error),
+            )
+
+        return {"item_count": item_count, "request_count": request_count, "failed_count": failed_count}
+
+    def _sync_api_from_param_source_in_batch(
+        self,
+        connection: Any,
+        api: dict[str, Any],
+        batch_no: str,
+        api_client: Any,
+        token: Any,
+    ) -> dict[str, int]:
+        """同步依赖上游参数的单对象接口。
+
+        当前只实现最小闭环：从已同步的 `raw_api_data.source_primary_key`
+        取少量参数，逐个请求详情接口，再沿用原始 JSON 入库、日志和 checkpoint。
+        """
+        api_code = api["api_code"]
+        param_sets: list[dict[str, Any]] = []
+        item_count = 0
+        request_count = 0
+        failed_count = 0
+        total_count = 0
+        api_started_at = datetime.now()
+
+        try:
+            param_sets = self._source_param_sets(connection, api)
+            total_count = len(param_sets)
+            for index, source_params in enumerate(param_sets, start=1):
+                params = dict(api.get("params") or {})
+                params.update(source_params)
+                payload, attempt_count = self._request_with_retry(api, api_client, token, params)
+                request_count += attempt_count
+                items = self._response_items(payload, api)
+                self._insert_raw_items(connection, api, items, batch_no)
+                item_count += len(items)
+                self._sleep_between_param_requests(api, index, total_count)
+
+            self._update_checkpoint(connection, api_code, batch_no, item_count, request_count, total_count, total_count)
             self._insert_api_log(connection, batch_no, api_code, "success", request_count, item_count, 0, api_started_at)
         except Exception as error:
             failed_count = 1
@@ -556,10 +614,20 @@ class SyncEngine:
     def _response_items(self, payload: dict[str, Any], api: dict[str, Any]) -> list[dict[str, Any]]:
         """从接口响应中提取列表数据。
 
-        列表路径由 YAML 的 `page.list_field` 控制，例如 `data.rows`。如果接口
-        返回空或路径不存在，按空列表处理；如果路径存在但不是列表，则说明配置
-        与真实响应不匹配，直接报错。
+        列表路径由 YAML 的 `page.list_field` 控制，例如 `data.rows`。详情接口
+        可以用 `response.item_field` 把单个对象包装成一条 raw 记录。
         """
+        item_field = (api.get("response") or {}).get("item_field")
+        if item_field:
+            item = self._get_by_path(payload, item_field)
+            if item is None:
+                return []
+            if isinstance(item, dict):
+                return [item]
+            if isinstance(item, list):
+                return [row for row in item if isinstance(row, dict)]
+            raise ValueError(f"response item field is not an object or list: {item_field}")
+
         list_field = (api.get("page") or {}).get("list_field", "data.rows")
         items = self._get_by_path(payload, list_field)
         if items is None:
@@ -604,6 +672,39 @@ class SyncEngine:
             if page_no * page_size >= total:
                 break
             page_no += 1
+
+    def _source_param_sets(self, connection: Any, api: dict[str, Any]) -> list[dict[str, Any]]:
+        """从已入库的上游 raw 数据生成请求参数。
+
+        第一版只支持从 `raw_api_data.source_primary_key` 取值，满足
+        `product_detail` 从 `product_page` 产品 id 做小样本详情同步的需求。
+        """
+        param_source = api.get("param_source") or {}
+        source_api_code = param_source.get("source_api_code")
+        source_field = param_source.get("source_field")
+        target_field = param_source.get("target_field")
+        limit = int(param_source.get("limit") or 10)
+
+        if source_field != "source_primary_key":
+            raise ValueError(f"unsupported param source field: {source_field}")
+        if not source_api_code or not target_field:
+            raise ValueError(f"invalid param_source config: {api.get('api_code')}")
+
+        result = connection.execute(
+            text(
+                """
+                SELECT source_primary_key AS source_value
+                FROM raw_api_data
+                WHERE api_code = :source_api_code
+                  AND source_primary_key IS NOT NULL
+                  AND source_primary_key <> ''
+                ORDER BY source_primary_key
+                LIMIT :limit
+                """
+            ),
+            {"source_api_code": source_api_code, "limit": limit},
+        )
+        return [{target_field: str(row["source_value"])} for row in result.mappings().all()]
 
     def _request_with_retry(
         self,
@@ -656,6 +757,14 @@ class SyncEngine:
         page_config = api.get("page") or {}
         page_size = int(page_config.get("page_size") or 20)
         if total_count is None or page_no * page_size >= total_count:
+            return
+        sleep_seconds = float((api.get("rate_limit") or {}).get("sleep_seconds") or 0)
+        if sleep_seconds > 0:
+            time.sleep(sleep_seconds)
+
+    def _sleep_between_param_requests(self, api: dict[str, Any], index: int, total_count: int) -> None:
+        """依赖参数接口逐个请求时复用同一套限流配置。"""
+        if index >= total_count:
             return
         sleep_seconds = float((api.get("rate_limit") or {}).get("sleep_seconds") or 0)
         if sleep_seconds > 0:

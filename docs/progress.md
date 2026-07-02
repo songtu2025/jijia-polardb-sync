@@ -2,7 +2,7 @@
 
 ## Current Stage
 
-阶段 4V 已完成。`product_inventory_page` 和 `storage_inbound_page` 已加入 enabled 批量同步，当前 enabled API 为 20 个。
+阶段 4W 已完成。`product_detail` 已通过 `product_page` 的产品 ID 做依赖参数小样本同步，当前真实配置 API 为 21 个，enabled API 仍为 20 个。
 
 ## Completed
 
@@ -822,6 +822,23 @@
   - `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary`，通过，公开文档 API 为 185 个，真实配置 API 为 20 个，enabled 为 20 个。
   - `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
   - `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过，15 个测试。
+- 阶段 4W 已运行：
+  - 已新增 `product_detail` YAML 配置，默认 `enabled=false`，文档 id=211，路径为 `GET /purchase/goods/product/detail`。
+  - 已新增 `tests/test_product_detail_param_source.py`，先失败，确认缺少 `product_detail` 配置、单对象响应提取和参数来源读取。
+  - 已实现最小依赖参数来源机制：从 `raw_api_data.source_primary_key` 提取上游参数，生成详情接口请求参数。
+  - 已支持 `response.item_field`，用于把 `product_detail` 的 `data` 单对象包装成一条 raw 记录。
+  - 已查询 `product_page` 上游 raw 数据，确认有 8258 条可用主键；小样本 ID 为 `1`、`10`、`100`。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api product_detail`，当前配置下通过，批次 `sync_20260703_060306_472537`，`rows=3`，`requests=3`。
+  - 已查询数据库摘要，确认该批次 `total_api_count=1`、`success_api_count=1`、`failed_api_count=0`。
+  - 同一批次 `sync_api_log` 记录 `request_count=3`、`success_count=3`、`failed_count=0`。
+  - 同一批次 `raw_api_data` 写入 3 条 `product_detail`，3 条都有 `source_primary_key` 和 `data_hash`，主键为 `1`、`10`、`100`。
+  - 已只查询 `product_detail` raw JSON 顶层字段名，确认响应没有 `lastDate`，因此 `product_detail.date_field` 保持为空，`data_date` 为空符合当前真实响应。
+  - `product_detail` checkpoint 更新到批次 `sync_20260703_060306_472537`，记录 `item_count=3`、`total_count=3`。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，通过，同步配置数为 23。
+  - 已查询 `api_config`，确认总配置数为 23，启用配置数为 20，`product_detail.enabled=0`。
+  - `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary`，通过，公开文档 API 为 185 个，真实配置 API 为 21 个，enabled 为 20 个。
+  - `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
+  - `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过，19 个测试。
 
 ## Review 4L-4N
 
@@ -886,13 +903,35 @@
   - 同时启动依赖型接口的最小参数来源机制，例如先从已同步的 raw 数据提取店铺、仓库、产品或团队参数。
   - 依赖型接口先做单接口、小参数集验证，再决定是否进入 enabled。
 
+## Review 4U-4W
+
+- 已完成第四组目标模式闭环：
+  - 4U 单接口完整验证 `product_inventory_page` 和 `storage_inbound_page` 两个大库存接口。
+  - 4V 将这两个大接口加入 enabled，并完成 20 个 API 同批次验证。
+  - 4W 启动依赖型接口最小参数来源机制，并用 `product_detail` 做 3 个产品 ID 小样本验证。
+- 当前覆盖状态：
+  - 公开文档 API：185 个。
+  - 已配置真实 API：21 个。
+  - enabled API：20 个。
+  - `product_detail` 已验证但保持 disabled。
+  - 依赖上游参数接口仍有 79 个，当前只打通了最小 `source_primary_key` 参数来源。
+- 本组三轮发现的问题：
+  - 两个库存大接口加入 enabled 后，20 个 API 批量同步达到 3052 次请求，生产定时窗口必须按长任务处理。
+  - `product_detail` 文档属于依赖型接口，不能用普通静态 YAML 全量跑；需要从已同步的 `product_page` 取产品 ID。
+  - `product_detail` 真实响应顶层没有 `lastDate`，因此不能沿用产品列表的日期字段，`data_date` 目前为空。
+- 下一组三轮建议：
+  - 继续扩展依赖参数来源机制，优先支持从 `raw_json` 提取多个字段组成请求参数。
+  - 下一轮可从 `market_inventory_query` 开始，因为它需要 `sku` 和 `warehouseId`，参数可来自已同步的 `product_inventory_page`。
+  - 依赖型接口仍先小样本验证，默认保持 disabled，确认请求量和失败粒度后再讨论是否进入 enabled。
+
 ## Known Issues
 
 - `amazon_shop_page` 第一版以 `data_hash` 去重，不强行编造业务主键。
 - 各业务 API 的具体路径、字段、分页和主键需要逐个阅读文档确认。
 - 新增后续业务接口前，仍需要逐个阅读积加文档确认路径、分页、主键和日期字段。
 - 当前 enabled API 已有 20 个：`amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`、`product_page`、`parent_product_page`、`kb_product_page`、`fba_warehouse_page`、`store_location_page`、`multi_shop_query`、`crm_tags_page`、`inventory_team_query`、`product_inventory_page`、`storage_inbound_page`。
-- 当前已配置真实 API 为 20 个，20 个均已加入 enabled。
+- 当前已配置真实 API 为 21 个，其中 20 个已加入 enabled，`product_detail` 已完成 3 条小样本验证但保持 disabled。
+- 当前依赖参数来源机制只支持从 `raw_api_data.source_primary_key` 取单个参数，尚未支持从 `raw_json` 提取多个字段。
 - 覆盖矩阵是公开文档视角，不等同于当前账号真实授权可调用结果；真实可访问性仍需单接口运行验证。
 - `product_page` 当前总量为 8258 条，请求 83 页；`product_inventory_page` 当前总量为 118653 条，请求 1187 页；`storage_inbound_page` 当前总量为 174286 条，请求 1743 页。当前 20 个 enabled API 的真实批量同步约 3052 次请求，必须按长耗时任务安排 cron 窗口。
 - 后续如果继续增加大分页接口或依赖型批量接口，需要关注运行时长、数据库写入耗时和 cron 窗口。
@@ -900,21 +939,21 @@
 
 ## Next Stage
 
-阶段 4W：启动依赖型接口的最小参数来源机制，先围绕 `product_detail` 做小样本验证。
+阶段 4X：扩展依赖参数来源机制，先围绕 `market_inventory_query` 做小样本验证。
 
 建议目标：
 
-- 阅读现有 `SyncEngine`、`api_client`、`raw_api_data` 写入逻辑，确认最小改动点。
-- 先为 `product_detail` 增加配置和测试，保持 `enabled=false`。
-- 从已同步的 `product_page` raw 数据中提取少量 `id` 作为请求参数来源，先做小样本单接口验证，不进入 20 个 enabled 批量同步。
-- 小样本验证必须写入 `sync_batch`、`sync_api_log`、`raw_api_data` 和 checkpoint，失败请求仍进入 `failed_request_log`。
+- 阅读 `product_inventory_page` raw JSON 的字段结构，只输出字段名和计数，不输出完整业务数据。
+- 为 `market_inventory_query` 增加 YAML 配置和测试，默认保持 `enabled=false`。
+- 扩展 `param_source`，支持从上游 `raw_json` 中提取 `sku` 和 `warehouseId` 组成请求参数。
+- 先取少量去重参数对做真实小样本同步，不进入 20 个 enabled 生产批量同步。
 - 验证通过后同步 `api_config` 并刷新覆盖矩阵。
 
 验收：
 
-- `product_detail` 能基于 `product_page` 的真实产品 `id` 运行小样本同步。
+- `market_inventory_query` 能基于 `product_inventory_page` 的真实 `sku` 和 `warehouseId` 运行小样本同步。
 - 小样本同步批次成功，`sync_api_log` 成功数、raw 写入数和 checkpoint 可核验。
-- `product_detail` 默认保持 disabled，不影响现有 20 个 enabled API 的生产批量同步。
-- `api_config` 与覆盖矩阵同步更新到 21 个真实配置 API，其中 enabled 仍为 20 个。
+- `market_inventory_query` 默认保持 disabled，不影响现有 20 个 enabled API 的生产批量同步。
+- `api_config` 与覆盖矩阵同步更新到 22 个真实配置 API，其中 enabled 仍为 20 个。
 - `compileall` 和 `unittest discover` 通过。
 - 继续保持 `.env`、token 缓存、日志和真实凭证不提交。

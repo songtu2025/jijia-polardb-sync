@@ -390,3 +390,10 @@
 - 阶段 4V 已同步 `api_config`，当前数据库总配置 22 条，启用 20 条；`product_inventory_page.enabled=1`、`storage_inbound_page.enabled=1`，两者 `config_json.enabled=true`。
 - 阶段 4V 覆盖矩阵已刷新为公开文档 API 185 个、真实配置 API 20 个、enabled 20 个。
 - 后续 4W 不应继续只追求 direct_read 数量增长，应开始实现依赖型接口的最小参数来源机制；优先从 `product_detail` 开始，因为它只依赖 `product_page` 已同步的产品 `id`，参数边界最小。
+- 阶段 4W 新增 `product_detail`，文档 id 为 `211`，路径为 `GET /purchase/goods/product/detail`，默认保持 `enabled=false`。
+- 阶段 4W 的依赖参数来源第一版只支持从 `raw_api_data.source_primary_key` 提取单个参数；这是为了先打通 `product_page.id -> product_detail.id`，不是完整依赖调度框架。
+- 阶段 4W 已用 `product_page` 的三个真实产品 ID `1`、`10`、`100` 验证 `product_detail`，批次号为 `sync_20260703_060306_472537`，请求 3 次，写入 3 条，失败 0。
+- `product_detail` 真实响应顶层没有 `lastDate`，因此该接口 `date_field` 保持为空，`data_date` 为空是当前正确行为。
+- 阶段 4W 已同步 `api_config`，当前数据库总配置 23 条，启用 20 条；`product_detail.enabled=0`。
+- 阶段 4W 覆盖矩阵已刷新为公开文档 API 185 个、真实配置 API 21 个、enabled 20 个。
+- 4U-4W 复盘结论：大分页直读接口已经能进入 enabled，但依赖型接口必须继续扩展参数来源；下一步优先支持从上游 `raw_json` 提取多字段参数，例如 `market_inventory_query` 需要 `sku` 和 `warehouseId`。

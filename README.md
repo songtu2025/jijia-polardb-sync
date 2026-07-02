@@ -141,6 +141,8 @@ python -m app.main --sync-api amazon_shop_page
 
 `--sync-api` 复用分页、`sync_checkpoint`、重试、失败日志和 token 缓存能力。
 
+依赖上游参数的接口也先用 `--sync-api` 做小样本验证。例如 `product_detail` 会从已入库的 `product_page` 原始数据中取少量产品 ID 请求详情，但默认保持 `enabled: false`，不进入每天的 enabled 批量同步。
+
 同步 YAML 中已启用的真实业务 API：
 
 ```bash
