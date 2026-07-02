@@ -2,7 +2,7 @@
 
 ## Current Stage
 
-阶段 3V 已完成。`rate_page` 已加入 enabled 批量同步，当前 enabled API 为 5 个。
+阶段 3W 已完成。已调研并新增第六个真实业务 API 候选 `continent_country_tree`，默认不启用。
 
 ## Completed
 
@@ -232,6 +232,18 @@
   - 五个 API 的 `sync_checkpoint.last_sync_batch_no` 均已更新到该批次。
   - 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，同步配置数为 7。
   - 数据库确认 `api_config.rate_page.enabled=1`。
+- 阶段 3W 已完成：
+  - 已调研“获取国家省州信息”，文档 id 为 `5066`，但其请求体 `countryCode` 必填，不适合当前单次 YAML 配置直接全量同步，暂不接入。
+  - 已调研“查询所有用户列表”，文档 id 为 `25`，字段包含 phone/email，当前阶段不作为低风险候选。
+  - 已通过公开文档站只读接口 `/api/openAdmin/doc/detail?id=4943` 调研“获取大洲国家关系”。
+  - 已选择“获取大洲国家关系”作为第六个低风险业务 API 候选。
+  - 已确认文档路径为 `POST /middle/base/continentCountryTree/page`，实际请求路径将是 `/api/open/middle/base/continentCountryTree/page`。
+  - 已确认请求头需要 `accessToken`。
+  - 已确认请求体为空 `{}`。
+  - 已确认响应列表字段为 `data`，无分页字段。
+  - 文档未展开 `data` 元素字段，因此不编造主键，第一版使用 `data_hash` 去重。
+  - 已新增 `continent_country_tree` YAML 配置，默认 `enabled: false`。
+  - 本阶段未执行 `continent_country_tree` 真实 API。
 
 ## Verification
 
@@ -331,6 +343,14 @@
   - 已查询 `api_config`，确认 `rate_page.enabled=1`。
   - `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
   - `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过。
+- 阶段 3W 已运行：
+  - `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
+  - `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过。
+  - `.\\.venv\\Scripts\\python.exe -m app.main`，dry-run 仍只加载 5 个 enabled API。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --mock-sync`，通过，批次 `sync_20260702_185215_255044`。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，通过，同步配置数为 8。
+  - 已查询 `api_config`，确认 `continent_country_tree.enabled=0`，启用 API 仍为 5 个。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --test-token`，通过且没有输出 token。
 
 ## Known Issues
 
@@ -341,15 +361,15 @@
 
 ## Next Stage
 
-阶段 3W：调研第六个真实业务 API 候选。
+阶段 3X：单接口验证 `continent_country_tree`。
 
 建议目标：
 
-- 先只做文档调研和候选选择。
-- 优先选择基础数据或低风险只读接口。
-- 明确接口路径、请求体、分页字段、列表字段、总数字段、主键字段和日期字段。
-- 如果新增 YAML 配置，默认 `enabled: false`。
-- 不直接加入 `--sync-enabled`。
+- 保持 `continent_country_tree.enabled=false`。
+- 执行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api continent_country_tree`。
+- 验证写入 `sync_batch`、`sync_api_log`、`raw_api_data` 和 `sync_checkpoint`。
+- 因文档未提供稳定主键，确认该接口使用 `data_hash` 去重，`source_primary_key` 可为空。
+- 验证后再决定是否进入下一阶段启用。
 
 验收：
 
@@ -357,6 +377,7 @@
 - `python -m app.main` dry-run 仍可用。
 - `python -m app.main --mock-sync` 仍可用。
 - `python -m app.main --test-token` 仍可用且不输出 token。
-- 若新增第六个 API 配置，必须默认 `enabled: false`。
+- `continent_country_tree` 单接口验证成功。
+- `--sync-enabled` 仍只同步当前 5 个 enabled API。
 - `python -m unittest discover -s tests -p "test_*.py"` 通过。
 - 不写入任何真实凭证到代码或文档。

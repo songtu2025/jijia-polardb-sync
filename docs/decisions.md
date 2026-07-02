@@ -175,6 +175,15 @@
 - 该批次 `total_api_count=5`、`success_api_count=5`、`failed_api_count=0`。
 - 当前 enabled API 为 `amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`。
 - 阶段 3V 已运行 `--sync-api-configs`，数据库 `api_config.rate_page.enabled=1`。
+- 阶段 3W 调研过“获取国家省州信息”，文档 id 是 `5066`，因 `countryCode` 必填，暂不接入当前单次配置模型。
+- 阶段 3W 调研过“查询所有用户列表”，文档 id 是 `25`，因包含 phone/email，暂不作为低风险候选。
+- 阶段 3W 选择“获取大洲国家关系”作为第六个低风险业务 API 候选，文档 id 是 `4943`。
+- `continent_country_tree` 文档路径是 `POST /middle/base/continentCountryTree/page`，实际请求路径是 `/api/open/middle/base/continentCountryTree/page`。
+- `continent_country_tree` 请求头需要 `accessToken`。
+- `continent_country_tree` 请求体为空 `{}`。
+- `continent_country_tree` 响应列表字段是 `data`，无分页字段。
+- `continent_country_tree` 文档未展开 `data` 元素字段，不编造主键，先使用 `data_hash` 去重。
+- `continent_country_tree` 新增配置默认 `enabled: false`，单接口验证通过前不加入 `--sync-enabled`。
 
 ## Open Decisions
 
