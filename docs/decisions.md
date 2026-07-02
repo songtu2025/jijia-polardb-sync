@@ -194,6 +194,16 @@
 - 该批次 `total_api_count=6`、`success_api_count=6`、`failed_api_count=0`。
 - 当前 enabled API 为 `amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`。
 - 阶段 3Y 已运行 `--sync-api-configs`，数据库 `api_config.continent_country_tree.enabled=1`。
+- 阶段 3Z 调研过“根据亚马逊店铺id查询仓库信息”，文档 id 是 `1179`，因需要店铺 ID 集合入参，暂不接入当前单次全量配置模型。
+- 阶段 3Z 调研过“根据亚马逊店铺id查询店铺名称”，文档 id 是 `1177`，因需要店铺 ID 集合入参且响应 `data` 为字符串，暂不接入。
+- 阶段 3Z 调研过“查询仓库信息列表”，文档 id 是 `1035`，因响应字段包含联系人、电话、邮箱、地址和第三方仓 token 字段，暂不作为低风险候选。
+- 阶段 3Z 选择“查询物流方式列表”作为第七个低风险业务 API 候选，文档 id 是 `3059`。
+- `ship_transport_list` 文档路径是 `POST /fulfillment/ship/transport/list`，实际请求路径是 `/api/open/fulfillment/ship/transport/list`。
+- `ship_transport_list` 请求头需要 `accessToken`。
+- `ship_transport_list` 请求体必填 `page` 和 `pagesize`，可选 `name`、`status`、`shipperCountry`。
+- `ship_transport_list` 响应列表字段是 `data.rows`，总数字段是 `data.total`。
+- `ship_transport_list` 候选主键字段是 `id`，无明确日期字段。
+- `ship_transport_list` 新增配置默认 `enabled: false`，单接口验证通过前不加入 `--sync-enabled`。
 
 ## Open Decisions
 

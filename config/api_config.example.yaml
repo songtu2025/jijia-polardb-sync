@@ -181,3 +181,30 @@ apis:
       retries: 3
       delay_seconds: 1
     params: {}
+
+  # 第七个真实文档候选接口：物流方式基础配置，已按文档 id=3059 配置，先禁用。
+  - api_code: ship_transport_list
+    name: 查询物流方式列表
+    enabled: false
+    method: POST
+    path: /fulfillment/ship/transport/list
+    page:
+      enabled: true
+      page_no_field: page
+      page_size_field: pagesize
+      page_size: 100
+      max_pages: 10
+      list_field: data.rows
+      total_field: data.total
+    primary_key:
+      field: id
+      required: false
+    date_field: ""
+    rate_limit:
+      sleep_seconds: 0.2
+    retry:
+      retries: 3
+      delay_seconds: 1
+    params:
+      page: 1
+      pagesize: 100
