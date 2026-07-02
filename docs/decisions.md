@@ -360,6 +360,22 @@
 - 阶段 4T 已运行 `--sync-api-configs`，数据库 `api_config.crm_tags_page.enabled=1`、`api_config.inventory_team_query.enabled=1`。
 - 当前 enabled API 为 18 个，当前覆盖矩阵中的真实配置 API 也是 18 个。
 - 4R-4T 三轮复盘结论：低风险直读接口的“默认禁用 -> 单接口验证 -> enabled 批量验证”节奏仍成立，但下一阶段需要开始推进依赖型接口参数来源机制，否则无法覆盖 79 个依赖上游参数接口。
+- 阶段 4U 选择 `product_inventory_page` 和 `storage_inbound_page` 作为下一批低风险直接读取接口。
+- `product_inventory_page` 文档 id 是 `15`，文档路径是 `POST /purchase/store/inventory/page`，实际请求路径是 `/api/open/purchase/store/inventory/page`。
+- `product_inventory_page` 响应列表字段是 `data.rows`，总数字段是 `data.total`，候选主键字段是 `id`，候选日期字段是 `updateTime`。
+- `product_inventory_page` 首次单接口验证被 `max_pages=100` 截断；checkpoint 显示 `total_count=118653`，因此将 `max_pages` 调整为 1300。
+- 阶段 4U 的 `product_inventory_page` 完整验证批次号为 `sync_20260703_022246_265049`，请求 1187 次，写入 118653 条。
+- `product_inventory_page` 的 `source_primary_key` 已确认从响应 `id` 写入，`data_date` 已确认从 `updateTime` 写入。
+- `storage_inbound_page` 文档 id 是 `234`，文档路径是 `POST /purchase/inventory/storageInbound/page`，实际请求路径是 `/api/open/purchase/inventory/storageInbound/page`。
+- `storage_inbound_page` 响应列表字段是 `data.rows`，总数字段是 `data.total`，候选主键字段是 `id`，候选日期字段是 `createdAt`。
+- `storage_inbound_page` 首次单接口验证被 `max_pages=100` 截断；checkpoint 显示 `total_count=174286`，因此将 `max_pages` 调整为 1800。
+- 阶段 4U 的 `storage_inbound_page` 完整验证批次号为 `sync_20260703_030024_100310`，请求 1743 次，写入 174286 条。
+- `storage_inbound_page` 的 `source_primary_key` 已确认从响应 `id` 写入，`data_date` 已确认从 `createdAt` 写入。
+- 阶段 4U 后 `product_inventory_page` 和 `storage_inbound_page` 仍保持 `enabled=false`，未加入 enabled 批量同步。
+- 阶段 4U 已运行 `--sync-api-configs`，数据库中两个新接口均为 `enabled=0`，当前启用配置数仍为 18。
+- 覆盖矩阵已刷新，当前已配置真实 API 为 20 个，enabled 仍为 18 个。
+- 依赖型接口只读梳理结论：`product_detail` 需要 `id`，可来自 `product_page` 已同步的 8258 个产品主键；`market_inventory_query` 需要 `sku` 和 `warehouseId`，可来自 `product_inventory_page` 已同步的 118653 行库存 raw 数据。
+- 下一阶段若将这两个大接口加入 enabled，批量同步会新增约 2930 次请求和约 292939 条 raw 写入，必须按长耗时任务验证。
 
 ## Open Decisions
 
@@ -367,4 +383,4 @@
 - 后续是否把 `marketListVos` 拆成更细粒度记录，等待先验证 raw JSON 备份价值。
 - 后续新增业务 API 仍需要逐个阅读覆盖矩阵和文档详情后再选择，新增配置应先默认 `enabled: false`。
 - 对没有单字段主键的接口，是否继续使用 `data_hash`，或在 YAML 中支持复合业务主键，仍需在接入 `amazon_msku_page` 等接口前确认。
-- 对依赖型接口，参数来源、批次边界和失败日志粒度还需要单独设计。
+- 对依赖型接口，参数来源、批次边界和失败日志粒度还需要单独设计；当前仅确认了 `product_detail` 和 `market_inventory_query` 的最小参数来源。
