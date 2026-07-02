@@ -22,34 +22,31 @@
 
 当前要执行的阶段：
 
-阶段 4H：将 `category_page` 加入 enabled 批量同步。
+阶段 4I：调研第十个低风险业务 API 候选。
 
 当前事实：
 
-- 当前 enabled API 有 8 个：`amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`。
-- `category_page` 已在阶段 4G 完成单接口真实验证。
-- 阶段 4G 成功批次：`sync_20260702_213741_496366`。
-- `category_page` 单接口验证结果：请求 1 次，写入 42 条，`source_primary_key` 来自 `id`，`data_date` 为空。
-- 阶段 4G 后 `category_page.enabled=false`，未加入 enabled 批量同步。
-- 最近一次 enabled 批次：`sync_20260702_213820_543116`，`apis=8`，八个 API 均成功。
+- 当前 enabled API 有 9 个：`amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`。
+- 阶段 4H 已将 `category_page.enabled=true`。
+- 阶段 4H enabled 批次：`sync_20260702_214124_796101`，`apis=9`，`rows=3679`，`requests=17`。
+- `category_page` 在 enabled 批次中写入 42 条，数据库 `api_config.category_page.enabled=1`。
+- 近期排除过这些候选：`warehouseIds/query` 需要店铺 ID，`marketNames/query` 需要店铺 ID 且响应为字符串，`multiTypeWarehouse/page` 包含联系人、电话、邮箱、地址和第三方仓 token 字段，`allUser/list` 包含 phone/email，`vcMarket/page` 响应包含 publicToken/refreshToken。
 
 建议目标：
 
-1. 阅读现有 `config/api_config.example.yaml`、`docs/progress.md`、`docs/decisions.md`。
-2. 将 `category_page.enabled` 从 `false` 改为 `true`。
-3. 运行 `.\\.venv\\Scripts\\python.exe -m app.main`，确认 enabled API 变为 9 个。
-4. 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`。
-5. 查询数据库确认 `sync_batch`、`sync_api_log`、`raw_api_data`、`sync_checkpoint`。
-6. 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，同步 `api_config` 表。
-7. 查询 `api_config`，确认 `category_page.enabled=1`。
+1. 使用公开文档站只读接口或浏览器调研新的低风险 API。
+2. 优先选择无敏感字段、无需上游业务 ID、响应为列表或分页列表的接口。
+3. 确认文档 id、业务路径、实际请求路径、请求头、请求体、列表字段、分页字段、候选主键和日期字段。
+4. 在 `config/api_config.example.yaml` 中新增配置，默认 `enabled: false`。
+5. 不执行新 API 真实同步，下一阶段再做单接口验证。
+6. 运行 dry-run、mock-sync、sync-api-configs 和基础测试，确认当前 9 个 enabled API 不受影响。
 
 验收：
 
 1. `.\\.venv\\Scripts\\python.exe -m compileall app tests` 通过。
 2. `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"` 通过。
-3. dry-run 显示 enabled API 为 9 个。
-4. `--sync-enabled` 成功同步 9 个 API。
-5. `category_page` 在 enabled 批次中成功写入 42 条。
-6. `--sync-api-configs` 成功，同步配置数为 11。
-7. 数据库 `api_config.category_page.enabled=1`。
-8. 不输出任何真实凭证或 accessToken。
+3. `.\\.venv\\Scripts\\python.exe -m app.main` dry-run 仍显示 9 个 enabled API。
+4. `.\\.venv\\Scripts\\python.exe -m app.main --mock-sync` 通过。
+5. `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs` 通过，配置数应变为 12。
+6. 数据库中新候选 API 的 `enabled=0`。
+7. 不输出任何真实凭证或 accessToken。

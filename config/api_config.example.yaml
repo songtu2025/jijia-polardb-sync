@@ -229,10 +229,10 @@ apis:
       delay_seconds: 1
     params: {}
 
-  # 第九个真实文档候选接口：产品品类基础资料，已按文档 id=54 配置，先禁用。
+  # 第九个真实文档接口：产品品类基础资料，已通过单接口验证并加入 enabled 批量同步。
   - api_code: category_page
     name: 查询品类信息
-    enabled: false
+    enabled: true
     method: POST
     path: /purchase/goods/category/page
     page:
