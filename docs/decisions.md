@@ -131,9 +131,14 @@
 - `role_list` 的 `source_primary_key` 已确认从响应 `roleId` 写入。
 - 阶段 3O 后 `role_list` 仍保持 `enabled: false`，未加入 `--sync-enabled`。
 - 下一阶段可以将 `role_list.enabled` 改为 `true`，并用 `--sync-enabled` 验证 3 个 API 同批次同步。
+- 阶段 3P 已将 `role_list.enabled` 改为 `true`。
+- 阶段 3P 的 `--sync-enabled` 验证批次号为 `sync_20260702_181854_408493`。
+- 该批次 `total_api_count=3`、`success_api_count=3`、`failed_api_count=0`。
+- 当前 enabled API 为 `amazon_shop_page`、`org_manage_query`、`role_list`。
+- 阶段 3P 已运行 `--sync-api-configs`，数据库 `api_config.role_list.enabled=1`。
 
 ## Open Decisions
 
 - `raw_api_data.data_date` 取哪个业务时间字段，需要按每个 API 单独确认。
 - 后续是否把 `marketListVos` 拆成更细粒度记录，等待先验证 raw JSON 备份价值。
-- 是否继续选择第四个基础数据 API，需要在 `role_list` 加入 enabled 并稳定后再决定。
+- 第四个业务 API 仍需要逐个阅读文档后再选择，新增配置应先默认 `enabled: false`。

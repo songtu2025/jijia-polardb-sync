@@ -97,7 +97,7 @@ apis:
   # 第三个真实文档候选接口：已按文档 id=2885 配置，先禁用，单接口验证通过后再考虑启用。
   - api_code: role_list
     name: 查询角色列表
-    enabled: false
+    enabled: true
     method: POST
     path: /middle/base/role/list
     page:
