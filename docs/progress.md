@@ -2,7 +2,7 @@
 
 ## Current Stage
 
-阶段 4B 已完成。已将 `ship_transport_list` 加入 enabled 批量同步，并完成 7 个 API 同批次验证。
+阶段 4C 已完成。已调研并新增第八个真实业务 API 候选 `country_tree`，默认不启用。
 
 ## Completed
 
@@ -306,6 +306,17 @@
   - `sync_checkpoint.last_sync_batch_no` 已更新为 `sync_20260702_211510_012826`。
   - 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，同步配置数为 9。
   - 数据库确认 `api_config.ship_transport_list.enabled=1`，当前 `api_config` 启用数为 7。
+- 阶段 4C 已完成：
+  - 已通过公开文档站只读接口 `/api/openAdmin/doc/tree` 查看文档目录。
+  - 已对比基础数据、产品、库存、物流、财务、报表等模块候选。
+  - 已选择“获取已授权店铺区域国家”作为第八个低风险业务 API 候选，文档 id 是 `4563`。
+  - 已确认文档路径为 `GET /middle/base/countryTree/page`，实际请求路径将是 `/api/open/middle/base/countryTree/page`。
+  - 已确认请求头需要 `accessToken`。
+  - 已确认请求体示例为空 `{}`。
+  - 已确认响应列表字段为 `data`，无分页字段。
+  - 文档未展开 `data` 元素字段，因此不编造主键，第一版使用 `data_hash` 去重。
+  - 已新增 `country_tree` YAML 配置，默认 `enabled: false`。
+  - 本阶段未执行 `country_tree` 真实 API，避免未经单接口验证就扩大真实同步范围。
 
 ## Verification
 
@@ -428,7 +439,6 @@
   - `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
   - `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过。
   - `.\\.venv\\Scripts\\python.exe -m app.main --test-token`，通过且没有输出 token。
-  - `.\\.venv\\Scripts\\python.exe -m app.main --mock-sync`，通过，批次 `sync_20260702_211806_637915`。
   - `.\\.venv\\Scripts\\python.exe -m app.main --mock-sync`，通过，批次 `sync_20260702_205805_616907`。
 - 阶段 3Z 已运行：
   - `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
@@ -457,6 +467,14 @@
   - `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
   - `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过。
   - `.\\.venv\\Scripts\\python.exe -m app.main --test-token`，通过且没有输出 token。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --mock-sync`，通过，批次 `sync_20260702_211806_637915`。
+- 阶段 4C 已运行：
+  - `.\\.venv\\Scripts\\python.exe -m app.main`，通过，dry-run 仍显示 7 个 enabled API。
+  - `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
+  - `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --mock-sync`，通过，批次 `sync_20260702_212135_869237`。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，通过，同步配置数为 10。
+  - 已查询 `api_config`，确认 `country_tree.enabled=0`，当前启用配置数仍为 7。
 
 ## Known Issues
 
@@ -464,18 +482,20 @@
 - 各业务 API 的具体路径、字段、分页和主键需要逐个阅读文档确认。
 - 新增后续业务接口前，仍需要逐个阅读积加文档确认路径、分页、主键和日期字段。
 - 当前 enabled API 已有 7 个：`amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`。
+- `country_tree` 已配置为第八个候选接口，但当前仍未加入 enabled 批量同步。
 - 远程 PolarDB 如出现遗留睡眠未提交事务，可能导致 raw 写入锁等待超时，需要先查 `information_schema.processlist` 和 `information_schema.innodb_trx`。
 
 ## Next Stage
 
-阶段 4C：调研第八个低风险业务 API 候选。
+阶段 4D：单接口验证 `country_tree`。
 
 建议目标：
 
-- 继续通过公开文档站只读接口调研候选 API。
-- 优先选择无敏感字段、无需上游业务 ID、响应为列表或分页列表的接口。
-- 新增 YAML 配置时默认 `enabled: false`。
-- 本阶段只做文档调研和配置，不执行新 API 真实同步。
+- 保持 `country_tree.enabled=false`。
+- 执行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api country_tree`。
+- 验证写入 `sync_batch`、`sync_api_log`、`raw_api_data` 和 `sync_checkpoint`。
+- 确认无稳定主键时按 `data_hash` 去重。
+- 验证后再决定是否进入下一阶段启用。
 
 验收：
 
@@ -483,7 +503,7 @@
 - `python -m app.main` dry-run 仍可用。
 - `python -m app.main --mock-sync` 仍可用。
 - `python -m app.main --test-token` 仍可用且不输出 token。
-- 新候选 API 配置已添加且默认禁用。
-- `--sync-enabled` 仍同步当前 7 个 enabled API。
+- `country_tree` 单接口验证成功。
+- `--sync-enabled` 仍只同步当前 7 个 enabled API。
 - `python -m unittest discover -s tests -p "test_*.py"` 通过。
 - 不写入任何真实凭证到代码或文档。

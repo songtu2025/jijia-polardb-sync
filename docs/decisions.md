@@ -218,6 +218,13 @@
 - 当前 enabled API 为 `amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`。
 - 阶段 4B 已运行 `--sync-api-configs`，数据库 `api_config.ship_transport_list.enabled=1`。
 - `ship_transport_list` 在 enabled 批次中 `request_count=5`，但写入 286 条且无失败；后续只在再次出现失败或明显变慢时再深入处理。
+- 阶段 4C 选择“获取已授权店铺区域国家”作为第八个低风险业务 API 候选，文档 id 是 `4563`。
+- `country_tree` 文档路径是 `GET /middle/base/countryTree/page`，实际请求路径是 `/api/open/middle/base/countryTree/page`。
+- `country_tree` 请求头需要 `accessToken`。
+- `country_tree` 请求体示例为空 `{}`。
+- `country_tree` 响应列表字段是 `data`，无分页字段。
+- `country_tree` 文档未展开 `data` 元素字段，不编造主键，先使用 `data_hash` 去重。
+- `country_tree` 新增配置默认 `enabled: false`，单接口验证通过前不加入 `--sync-enabled`。
 
 ## Open Decisions
 

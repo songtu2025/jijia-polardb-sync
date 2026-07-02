@@ -22,24 +22,27 @@
 
 当前要执行的阶段：
 
-阶段 4C：调研第八个低风险业务 API 候选。
+阶段 4D：单接口验证 `country_tree`。
 
 当前事实：
 
 - 当前 enabled API 有 7 个：`amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`。
-- 阶段 4B 已将 `ship_transport_list.enabled=true`。
-- 阶段 4B enabled 批次：`sync_20260702_211510_012826`，`apis=7`，`rows=3633`，`requests=17`。
-- `ship_transport_list` 在 enabled 批次中写入 286 条，数据库 `api_config.ship_transport_list.enabled=1`。
-- 近期排除过这些候选：`warehouseIds/query` 需要店铺 ID，`marketNames/query` 需要店铺 ID 且响应为字符串，`multiTypeWarehouse/page` 包含联系人、电话、邮箱、地址和第三方仓 token 字段。
+- `country_tree` 已在阶段 4C 添加为第八个候选接口，默认 `enabled=false`。
+- `country_tree` 对应文档 id `4563`，名称是“获取已授权店铺区域国家”。
+- 文档路径为 `GET /middle/base/countryTree/page`，实际请求路径为 `/api/open/middle/base/countryTree/page`。
+- 请求头需要 `accessToken`，请求体示例为空 `{}`。
+- 响应列表字段为 `data`，文档未展开 `data` 元素字段，因此第一版使用 `data_hash` 去重。
+- 阶段 4C 已运行 `--sync-api-configs`，数据库配置总数为 10，`country_tree.enabled=0`。
 
 建议目标：
 
-1. 使用公开文档站只读接口或浏览器调研新的低风险 API。
-2. 优先选择无敏感字段、无需上游业务 ID、响应为列表或分页列表的接口。
-3. 确认文档 id、业务路径、实际请求路径、请求头、请求体、列表字段、分页字段、候选主键和日期字段。
-4. 在 `config/api_config.example.yaml` 中新增配置，默认 `enabled: false`。
-5. 不执行新 API 真实同步，下一阶段再做单接口验证。
-6. 运行 dry-run、mock-sync、sync-api-configs 和基础测试，确认当前 7 个 enabled API 不受影响。
+1. 阅读现有 `config/api_config.example.yaml`、`docs/progress.md`、`docs/decisions.md`。
+2. 保持 `country_tree.enabled=false`。
+3. 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api country_tree` 做单接口验证。
+4. 查询数据库确认 `sync_batch`、`sync_api_log`、`raw_api_data`、`sync_checkpoint`。
+5. 确认无稳定主键时使用 `data_hash` 去重。
+6. 再运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`，确认仍只同步已启用的 7 个 API。
+7. 验证通过后，下一阶段再决定是否把 `country_tree` 加入 `--sync-enabled`。
 
 验收：
 
@@ -47,6 +50,7 @@
 2. `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"` 通过。
 3. `.\\.venv\\Scripts\\python.exe -m app.main` dry-run 仍显示 7 个 enabled API。
 4. `.\\.venv\\Scripts\\python.exe -m app.main --mock-sync` 通过。
-5. `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs` 通过，配置数应变为 10。
-6. 数据库中新候选 API 的 `enabled=0`。
-7. 不输出任何真实凭证或 accessToken。
+5. `country_tree` 单接口验证成功。
+6. `--sync-enabled` 仍只同步当前 7 个 enabled API。
+7. 数据库 `api_config.country_tree.enabled=0`。
+8. 不输出任何真实凭证或 accessToken。
