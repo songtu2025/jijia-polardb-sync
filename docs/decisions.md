@@ -288,9 +288,20 @@
 - 阶段 4M 已运行 `--sync-api-configs`，数据库中两个新接口均为 `enabled=0`，当前启用配置数仍为 10。
 - 覆盖矩阵已刷新，当前已配置真实 API 为 12 个，enabled 仍为 10 个。
 - `amazon_msku_page` 暂缓到后续阶段，因为文档响应行未提供单独 `id`，需要继续使用 `data_hash` 或引入复合业务主键策略。
+- 阶段 4N 已将 `product_page.enabled` 和 `parent_product_page.enabled` 改为 `true`。
+- 阶段 4N 的 `--sync-enabled` 验证批次号为 `sync_20260703_005314_970429`。
+- 该批次 `total_api_count=12`、`success_api_count=12`、`failed_api_count=0`。
+- 同一批次中 `product_page` 请求 83 次，写入 8258 条，checkpoint 记录 `item_count=8258`、`total_count=8258`。
+- 同一批次中 `parent_product_page` 请求 3 次，写入 124 条，checkpoint 记录 `item_count=124`、`total_count=124`。
+- 阶段 4N 已运行 `--sync-api-configs`，数据库 `api_config.product_page.enabled=1`、`api_config.parent_product_page.enabled=1`。
+- 当前 enabled API 为 12 个，当前覆盖矩阵中的真实配置 API 也是 12 个。
+- 4L-4N 三轮复盘结论：覆盖矩阵和低风险接口接入路径成立，但大分页接口会显著拉长 enabled 批量同步耗时；后续接入大接口前需要关注 `max_pages`、总量和定时任务窗口。
+- 4L-4N 三轮复盘结论：依赖上游参数接口数量较多，后续不能只靠静态 YAML，需要设计从已同步 raw 数据生成请求参数的机制。
 
 ## Open Decisions
 
 - `raw_api_data.data_date` 取哪个业务时间字段，需要按每个 API 单独确认。
 - 后续是否把 `marketListVos` 拆成更细粒度记录，等待先验证 raw JSON 备份价值。
 - 后续新增业务 API 仍需要逐个阅读覆盖矩阵和文档详情后再选择，新增配置应先默认 `enabled: false`。
+- 对没有单字段主键的接口，是否继续使用 `data_hash`，或在 YAML 中支持复合业务主键，仍需在接入 `amazon_msku_page` 等接口前确认。
+- 对依赖型接口，参数来源、批次边界和失败日志粒度还需要单独设计。

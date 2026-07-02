@@ -24,37 +24,40 @@
 
 当前阶段：
 
-阶段 4M 已完成。下一阶段 4N 将 `product_page` 和 `parent_product_page` 加入 enabled 批量同步。
+阶段 4N 已完成。4L-4N 三轮复盘已写入 `docs/progress.md`。下一阶段 4O 开启第二组目标，继续接入下一批低风险 direct_read_candidate。
 
 当前事实：
 
-- 当前 enabled API 有 10 个：`amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`。
-- 当前已配置真实 API 有 12 个，`product_page` 和 `parent_product_page` 已通过单接口验证但仍为 `enabled=false`。
-- `product_page` 文档路径：`POST /purchase/goods/product/page`。
-- `product_page` 单接口完整验证批次：`sync_20260703_004233_884329`，请求 83 次，写入 8258 条，`item_count=total_count=8258`。
-- `product_page.page.max_pages` 已调整为 100，避免当前总量被截断。
-- `parent_product_page` 文档路径：`POST /purchase/goods/parentProduct/page`。
-- `parent_product_page` 单接口验证批次：`sync_20260703_004505_706770`，请求 3 次，写入 124 条，`item_count=total_count=124`。
-- `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs` 已同步配置数 14；数据库中两个新接口 `enabled=0`。
-- `config/jijia_api_catalog.generated.json` 已刷新，公开文档 API 仍为 185 个，当前真实配置 API 为 12 个，enabled 为 10 个。
+- 当前 enabled API 有 12 个：`amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`、`product_page`、`parent_product_page`。
+- 当前已配置真实 API 有 12 个，且 12 个均已 enabled。
+- 阶段 4N 成功批次：`sync_20260703_005314_970429`。
+- 该批次 `total_api_count=12`、`success_api_count=12`、`failed_api_count=0`。
+- `product_page` 在 enabled 批次中请求 83 次，写入 8258 条，`item_count=total_count=8258`。
+- `parent_product_page` 在 enabled 批次中请求 3 次，写入 124 条，`item_count=total_count=124`。
+- `api_config.product_page.enabled=1`、`api_config.parent_product_page.enabled=1`。
+- 覆盖矩阵仍显示公开文档 API 185 个，真实配置 API 12 个，enabled 12 个。
+
+复盘结论：
+
+- 覆盖矩阵 -> 默认禁用配置 -> 单接口验证 -> enabled 批量验证，这条路径有效。
+- `product_page` 暴露了 `max_pages` 截断风险，后续大分页接口必须先看 `total_count` 和 checkpoint。
+- enabled 批量同步已有 105 次请求，后续继续加大接口前要关注运行时长。
+- 依赖上游参数接口有 79 个，后续需要设计依赖参数来源，不能全部靠静态 YAML。
 
 建议目标：
 
-1. 将 `product_page.enabled` 和 `parent_product_page.enabled` 从 `false` 改为 `true`。
-2. 运行 `.\\.venv\\Scripts\\python.exe -m app.main`，确认 enabled API 变为 12 个。
-3. 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`。
-4. 查询数据库确认 12 个 API 同批次成功，`product_page` 未截断。
-5. 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`。
-6. 查询 `api_config.product_page.enabled=1` 和 `api_config.parent_product_page.enabled=1`。
+1. 从 `config/jijia_api_catalog.generated.json` 中选择 1-2 个新的低风险 `direct_read_candidate`。
+2. 优先选择分页清晰、有稳定 `id` 或明确业务主键、无敏感字段的接口。
+3. 暂缓 `amazon_msku_page` 这类无单字段 id 的接口，除非先明确 data_hash 或复合主键策略。
+4. 新接口新增 YAML 配置时默认 `enabled=false`。
+5. 单接口运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api <api_code>` 并查库验证。
+6. 单接口验证通过后再进入下一轮 enabled。
 
 验收：
 
-1. dry-run 显示 enabled API 为 12 个。
-2. `--sync-enabled` 成功同步 12 个 API。
-3. `product_page` 在 enabled 批次中 `item_count=total_count`。
-4. 数据库 `api_config.product_page.enabled=1`、`api_config.parent_product_page.enabled=1`。
-5. `.\\.venv\\Scripts\\python.exe -m compileall app tests` 通过。
-6. `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"` 通过。
-7. 不提交 `.env`、token 缓存、日志或任何敏感信息。
-
-完成 4N 后，目标模式已完成三轮子目标：4L、4M、4N。下一阶段应做一次全面复盘。
+1. 新增配置与公开文档一致，且默认不进入 `--sync-enabled`。
+2. dry-run enabled API 仍为 12 个。
+3. 单接口同步成功并可查库验证。
+4. `.\\.venv\\Scripts\\python.exe -m compileall app tests` 通过。
+5. `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"` 通过。
+6. 不提交 `.env`、token 缓存、日志或任何敏感信息。

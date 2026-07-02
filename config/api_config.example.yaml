@@ -283,10 +283,10 @@ apis:
       page: 1
       pagesize: 100
 
-  # 第十一个真实文档接口：产品基础资料，文档 id=53，先单接口验证后再考虑启用。
+  # 第十一个真实文档接口：产品基础资料，文档 id=53，已通过单接口验证并加入 enabled 批量同步。
   - api_code: product_page
     name: 查询产品列表
-    enabled: false
+    enabled: true
     method: POST
     path: /purchase/goods/product/page
     page:
@@ -310,10 +310,10 @@ apis:
       page: 1
       pagesize: 100
 
-  # 第十二个真实文档接口：父产品基础资料，文档 id=4835，先单接口验证后再考虑启用。
+  # 第十二个真实文档接口：父产品基础资料，文档 id=4835，已通过单接口验证并加入 enabled 批量同步。
   - api_code: parent_product_page
     name: 查询父产品信息
-    enabled: false
+    enabled: true
     method: POST
     path: /purchase/goods/parentProduct/page
     page:
