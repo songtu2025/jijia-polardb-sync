@@ -1,6 +1,6 @@
 # jijia-polardb-sync
 
-这是“积加开放平台 -> 阿里云 PolarDB MySQL”的 Python 数据同步项目。当前阶段已支持 dry-run、mock 落库验证、accessToken 获取，以及 `amazon_shop_page` 单接口真实同步。
+这是“积加开放平台 -> 阿里云 PolarDB MySQL”的 Python 数据同步项目。当前阶段已支持 dry-run、mock 落库验证、accessToken 获取，以及多个已验证接口的同步。
 
 ## 目录结构
 
@@ -147,7 +147,7 @@ python -m app.main --sync-api amazon_shop_page
 python -m app.main --sync-enabled
 ```
 
-`--sync-enabled` 会读取 `config/api_config.example.yaml` 中 `enabled: true` 的接口，并在同一个 `sync_batch` 下逐个写入 `sync_api_log`。当前启用了 `amazon_shop_page` 和 `org_manage_query`。
+`--sync-enabled` 会读取 `config/api_config.example.yaml` 中 `enabled: true` 的接口，并在同一个 `sync_batch` 下逐个写入 `sync_api_log`。当前启用了 `amazon_shop_page` 和 `org_manage_query`。`role_list` 已按真实文档配置，但默认禁用。
 
 ## ECS 部署
 
@@ -187,7 +187,7 @@ logs/sync.log
 
 ### 当前支持哪些真实积加 API？
 
-当前已验证并启用 `amazon_shop_page` 和 `org_manage_query`。后续接口需要逐个阅读积加开放平台文档后再接入。
+当前已验证并启用 `amazon_shop_page` 和 `org_manage_query`。`role_list` 已按文档 `id=2885` 配置为第三个候选接口，但尚未真实请求验证，默认不启用。
 
 ### accessToken 如何获取？
 
@@ -197,7 +197,7 @@ logs/sync.log
 
 ### 当前接入了哪个业务 API？
 
-当前配置了 `amazon_shop_page` 和 `org_manage_query`。`amazon_shop_page` 对应文档 `id=153` 的“查询亚马逊店铺信息”；`org_manage_query` 对应文档 `id=2537` 的“查询部门列表”。
+当前配置了 `amazon_shop_page`、`org_manage_query` 和 `role_list`。`amazon_shop_page` 对应文档 `id=153` 的“查询亚马逊店铺信息”；`org_manage_query` 对应文档 `id=2537` 的“查询部门列表”；`role_list` 对应文档 `id=2885` 的“查询角色列表”，默认禁用。
 
 ### 示例 API 字段是否可以直接用于生产？
 

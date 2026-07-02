@@ -22,17 +22,17 @@
 
 当前要执行的阶段：
 
-阶段 3N：调研第三个真实业务 API 候选。
+阶段 3O：单接口验证 `role_list`。
 
 建议目标：
 
 1. 阅读现有 `config/api_config.example.yaml`、`docs/progress.md`、`docs/decisions.md`。
-2. 先向用户说明 3N 的小方案并获得确认。
-3. 从积加开放平台文档中选择第三个低风险业务 API 候选。
-4. 先只做文档调研和候选选择。
-5. 明确接口路径、请求体、分页字段、列表字段、总数字段、主键字段和日期字段。
-6. 如果新增 YAML 配置，默认 `enabled: false`。
-7. 不直接加入 `--sync-enabled`。
+2. 保持 `role_list.enabled=false`。
+3. 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api role_list` 做单接口验证。
+4. 查询数据库确认 `sync_batch`、`sync_api_log`、`raw_api_data`、`sync_checkpoint`。
+5. 确认 `raw_api_data.source_primary_key` 来自 `roleId`。
+6. 再运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`，确认仍只同步已启用的 2 个 API。
+7. 验证通过后，下一阶段再决定是否把 `role_list` 加入 `--sync-enabled`。
 
 验收：
 
@@ -42,7 +42,7 @@
 4. `--test-api amazon_shop_page` 仍可分页请求并写入日志。
 5. `--sync-api amazon_shop_page` 仍可完成真实单接口同步。
 6. `--sync-enabled` 仍可完成 enabled API 同步。
-7. 若新增第三个 API 配置，必须默认 `enabled: false`。
+7. `role_list` 当前必须保持 `enabled: false`。
 8. 不输出任何真实凭证或 accessToken。
 
 当前阶段 3M 已完成内容：
@@ -154,3 +154,9 @@
 - `amazon_shop_page` 和 `org_manage_query` 为启用状态。
 - `order_list` 和 `product_list` 为禁用状态。
 - 本阶段未新增第三个业务 API，也未请求真实业务接口。
+- 已通过公开文档站只读接口调研“查询角色列表”，文档 id 为 `2885`。
+- 已确认 `role_list` 路径为 `POST /middle/base/role/list`。
+- 已确认请求头需要 `accessToken`，请求体示例为 `{}`。
+- 已确认响应列表字段为 `data`，候选主键字段为 `roleId`，无分页字段，无明确时间字段。
+- 已新增 `role_list` YAML 配置，默认 `enabled: false`。
+- 阶段 3N 未执行 `role_list` 真实业务 API。

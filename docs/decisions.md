@@ -117,8 +117,18 @@
 - `api_config` 中 `amazon_shop_page`、`org_manage_query` 为启用状态，`order_list`、`product_list` 为禁用状态。
 - 阶段 3M 不请求真实业务接口，只写配置元数据。
 - 下一阶段如接第三个 API，仍应先做文档调研，新增配置默认 `enabled: false`。
+- 阶段 3N 使用公开文档站只读接口 `/api/openAdmin/doc/tree` 和 `/api/openAdmin/doc/detail` 辅助调研，不需要登录，也不使用项目凭证。
+- 阶段 3N 选择“查询角色列表”作为第三个低风险业务 API 候选，文档 id 是 `2885`。
+- `role_list` 文档路径是 `POST /middle/base/role/list`，实际请求路径是 `/api/open/middle/base/role/list`。
+- `role_list` 请求头需要 `accessToken`。
+- `role_list` 请求体示例是 `{}`，无必填请求体字段。
+- `role_list` 响应列表字段是 `data`，无分页字段。
+- `role_list` 候选主键字段是 `roleId`。
+- `role_list` 响应未提供明确时间字段，`date_field` 暂为空。
+- `role_list` 新增配置默认 `enabled: false`，单接口验证通过前不加入 `--sync-enabled`。
 
 ## Open Decisions
 
 - `raw_api_data.data_date` 取哪个业务时间字段，需要按每个 API 单独确认。
 - 后续是否把 `marketListVos` 拆成更细粒度记录，等待先验证 raw JSON 备份价值。
+- `role_list` 是否启用，需要等单接口真实验证成功后再决定。
