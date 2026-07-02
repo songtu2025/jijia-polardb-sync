@@ -2,7 +2,7 @@
 
 ## Current Stage
 
-阶段 4K 已完成。`brand_page` 已加入 enabled 批量同步，当前 enabled API 为 10 个。
+阶段 4L 已完成。已生成积加公开文档 API 覆盖矩阵，当前公开文档接口数为 185 个。
 
 ## Completed
 
@@ -405,6 +405,15 @@
   - 十个 API 的 `sync_checkpoint.last_sync_batch_no` 均已更新到该批次。
   - 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，同步配置数为 12。
   - 数据库确认 `api_config.brand_page.enabled=1`，当前启用配置数为 10。
+- 阶段 4L 已完成：
+  - 已新增 `app/doc_catalog.py`，用于只读拉取积加公开文档目录和详情。
+  - 已新增 `tests/test_doc_catalog.py`，覆盖接口分类规则。
+  - 已生成 `config/jijia_api_catalog.generated.json`，作为公开文档 API 覆盖矩阵。
+  - 覆盖矩阵来自 `/api/openAdmin/doc/tree` 和 `/api/openAdmin/doc/detail?id=...`，不读取 `.env`，不请求真实业务 API。
+  - 当前公开文档 API 共 185 个，详情拉取成功 185 个，失败 0 个。
+  - 当前本地真实配置 API 为 10 个，且 10 个均已 enabled。
+  - 分类统计：`direct_read_candidate=58`、`requires_upstream_params=79`、`sensitive_review=23`、`write_or_mutation=24`、`unsupported_shape_review=1`。
+  - 第一批未配置的直接读取候选集中在产品、库存、报表、物流等模块。
 
 ## Verification
 
@@ -632,6 +641,12 @@
   - 已查询 `api_config`，确认 `brand_page.enabled=1`，启用配置数为 10。
   - `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
   - `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过。
+- 阶段 4L 已运行：
+  - `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_doc_catalog.py" -v`，通过，4 个测试。
+  - `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary`，通过，生成 185 个 API 的覆盖矩阵。
+  - `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
+  - `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过，5 个测试。
+  - `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --summary`，通过，确认公开文档接口数仍为 185 个。
 
 ## Known Issues
 
@@ -639,19 +654,22 @@
 - 各业务 API 的具体路径、字段、分页和主键需要逐个阅读文档确认。
 - 新增后续业务接口前，仍需要逐个阅读积加文档确认路径、分页、主键和日期字段。
 - 当前 enabled API 已有 10 个：`amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`。
+- 覆盖矩阵是公开文档视角，不等同于当前账号真实授权可调用结果；真实可访问性仍需单接口运行验证。
 - 远程 PolarDB 如出现遗留睡眠未提交事务，可能导致 raw 写入锁等待超时，需要先查 `information_schema.processlist` 和 `information_schema.innodb_trx`。
 
 ## Next Stage
 
-阶段 4L：先确认下一步方向。
+阶段 4M：从未配置的直接读取候选中接入下一批低风险接口。
 
 建议目标：
 
-- 如果准备部署，先做 ECS/cron 前检查，不再新增 API。
-- 如果继续扩展接口，先只读调研积加文档，新增配置默认 `enabled: false`。
-- 不要在未确认候选接口前继续扩大 enabled 范围。
+- 优先从产品基础数据开始，例如 `product_page`、`amazon_msku_page`、`kb_product_page`、`parent_product_page`。
+- 每个新接口仍按老流程：YAML 默认 `enabled: false`，单接口真实验证通过后再决定是否加入 enabled。
+- 如果接口返回量较大，先检查分页字段和 `max_pages`，避免截断或长时间运行。
 
 验收：
 
-- 下一步方向明确。
+- 新增接口配置与公开文档一致。
+- 单接口同步、数据库批次/API 日志/raw/checkpoint 验证通过。
+- `compileall` 和 `unittest discover` 通过。
 - 继续保持 `.env`、token 缓存、日志和真实凭证不提交。

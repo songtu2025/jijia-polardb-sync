@@ -1,0 +1,3950 @@
+{
+  "source": {
+    "tree_url": "https://open.gerpgo.com/api/openAdmin/doc/tree",
+    "detail_url_template": "https://open.gerpgo.com/api/openAdmin/doc/detail?id={doc_id}"
+  },
+  "summary": {
+    "tree_api_count": 185,
+    "detail_success_count": 185,
+    "detail_error_count": 0,
+    "configured_real_api_count": 10,
+    "configured_enabled_real_api_count": 10,
+    "classification_counts": {
+      "direct_read_candidate": 58,
+      "requires_upstream_params": 79,
+      "sensitive_review": 23,
+      "unsupported_shape_review": 1,
+      "write_or_mutation": 24
+    },
+    "menu_counts": {
+      "产品": 18,
+      "仓库": 6,
+      "基础数据": 16,
+      "多平台": 6,
+      "客服": 4,
+      "广告": 23,
+      "库存": 14,
+      "报表": 8,
+      "物流": 19,
+      "统计": 17,
+      "订单": 3,
+      "财务": 13,
+      "采购": 23,
+      "销售": 15
+    }
+  },
+  "apis": [
+    {
+      "doc_id": 1,
+      "menu_path": "产品",
+      "api_name": "修改产品资料",
+      "api_url": "/purchase/goods/product/update",
+      "method": "POST",
+      "op_type": "update",
+      "classification": "write_or_mutation",
+      "required_body_fields": [
+        "product"
+      ],
+      "business_required_fields": [
+        "product"
+      ],
+      "has_page_response": false,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 3,
+      "menu_path": "产品",
+      "api_name": "新增产品资料",
+      "api_url": "/purchase/goods/product/create",
+      "method": "POST",
+      "op_type": "create",
+      "classification": "write_or_mutation",
+      "required_body_fields": [
+        "product"
+      ],
+      "business_required_fields": [
+        "product"
+      ],
+      "has_page_response": false,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 53,
+      "menu_path": "产品",
+      "api_name": "查询产品列表",
+      "api_url": "/purchase/goods/product/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "direct_read_candidate",
+      "required_body_fields": [],
+      "business_required_fields": [],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 54,
+      "menu_path": "产品",
+      "api_name": "查询品类信息",
+      "api_url": "/purchase/goods/category/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "direct_read_candidate",
+      "required_body_fields": [
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "category_page",
+      "configured_enabled": true
+    },
+    {
+      "doc_id": 59,
+      "menu_path": "产品",
+      "api_name": "同步产品到仓库",
+      "api_url": "/purchase/base/productToStore/sync",
+      "method": "POST",
+      "op_type": "sync",
+      "classification": "write_or_mutation",
+      "required_body_fields": [
+        "productIds",
+        "warehouseIds"
+      ],
+      "business_required_fields": [
+        "productIds",
+        "warehouseIds"
+      ],
+      "has_page_response": false,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 211,
+      "menu_path": "产品",
+      "api_name": "查询产品详情",
+      "api_url": "/purchase/goods/product/detail",
+      "method": "GET",
+      "op_type": "detail",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "id"
+      ],
+      "business_required_fields": [
+        "id"
+      ],
+      "has_page_response": false,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 935,
+      "menu_path": "产品",
+      "api_name": "录入品类信息",
+      "api_url": "/purchase/goods/category/create",
+      "method": "POST",
+      "op_type": "create",
+      "classification": "write_or_mutation",
+      "required_body_fields": [
+        "value",
+        "name",
+        "state"
+      ],
+      "business_required_fields": [
+        "value",
+        "name",
+        "state"
+      ],
+      "has_page_response": false,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 936,
+      "menu_path": "产品",
+      "api_name": "修改品类信息",
+      "api_url": "/purchase/goods/category/update",
+      "method": "POST",
+      "op_type": "update",
+      "classification": "write_or_mutation",
+      "required_body_fields": [
+        "value",
+        "name",
+        "state"
+      ],
+      "business_required_fields": [
+        "value",
+        "name",
+        "state"
+      ],
+      "has_page_response": false,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 1019,
+      "menu_path": "产品",
+      "api_name": "录入父产品信息",
+      "api_url": "/purchase/goods/parentProduct/create",
+      "method": "POST",
+      "op_type": "create",
+      "classification": "write_or_mutation",
+      "required_body_fields": [
+        "code",
+        "name"
+      ],
+      "business_required_fields": [
+        "code",
+        "name"
+      ],
+      "has_page_response": false,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 1752,
+      "menu_path": "产品",
+      "api_name": "查询品牌资料",
+      "api_url": "/purchase/goods/brand/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "direct_read_candidate",
+      "required_body_fields": [
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "brand_page",
+      "configured_enabled": true
+    },
+    {
+      "doc_id": 1753,
+      "menu_path": "产品",
+      "api_name": "保存品牌资料",
+      "api_url": "/purchase/goods/brand/save",
+      "method": "POST",
+      "op_type": "save",
+      "classification": "write_or_mutation",
+      "required_body_fields": [
+        "code",
+        "name",
+        "state"
+      ],
+      "business_required_fields": [
+        "code",
+        "name",
+        "state"
+      ],
+      "has_page_response": false,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 1921,
+      "menu_path": "产品",
+      "api_name": "查询SKU关联亚马逊MSKU",
+      "api_url": "/purchase/goods/amazonMsku/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "direct_read_candidate",
+      "required_body_fields": [],
+      "business_required_fields": [],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 1956,
+      "menu_path": "产品",
+      "api_name": "查询捆绑产品列表",
+      "api_url": "/purchase/goods/kbProduct/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "direct_read_candidate",
+      "required_body_fields": [
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 2898,
+      "menu_path": "产品",
+      "api_name": "查询SKU关联多平台MSKU",
+      "api_url": "/platform/base/platformMsku/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "direct_read_candidate",
+      "required_body_fields": [
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 4835,
+      "menu_path": "产品",
+      "api_name": "查询父产品信息",
+      "api_url": "/purchase/goods/parentProduct/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "direct_read_candidate",
+      "required_body_fields": [
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 5067,
+      "menu_path": "产品",
+      "api_name": "添加变体属性",
+      "api_url": "/purchase/goods/attribute/create",
+      "method": "POST",
+      "op_type": "create",
+      "classification": "write_or_mutation",
+      "required_body_fields": [
+        "attributeName",
+        "attributeItemCreateDTOS"
+      ],
+      "business_required_fields": [
+        "attributeName",
+        "attributeItemCreateDTOS"
+      ],
+      "has_page_response": false,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 5070,
+      "menu_path": "产品",
+      "api_name": "查询变体属性",
+      "api_url": "/purchase/goods/attribute/detail",
+      "method": "GET",
+      "op_type": "detail",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "attributeName"
+      ],
+      "business_required_fields": [
+        "attributeName"
+      ],
+      "has_page_response": false,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 5071,
+      "menu_path": "产品",
+      "api_name": "关联产品变体属性",
+      "api_url": "/purchase/goods/attributeSku/create",
+      "method": "POST",
+      "op_type": "create",
+      "classification": "write_or_mutation",
+      "required_body_fields": [
+        "openParamArray"
+      ],
+      "business_required_fields": [
+        "openParamArray"
+      ],
+      "has_page_response": false,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 63,
+      "menu_path": "仓库",
+      "api_name": "查询仓库-FBA仓",
+      "api_url": "/purchase/inventory/fbaWarehouse/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "direct_read_candidate",
+      "required_body_fields": [
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 64,
+      "menu_path": "仓库",
+      "api_name": "查询仓库-供应商仓",
+      "api_url": "/purchase/inventory/supplierWarehouse/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "sensitive_review",
+      "required_body_fields": [
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": true,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 141,
+      "menu_path": "仓库",
+      "api_name": "查询库位信息",
+      "api_url": "/fulfillment/store/location/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "direct_read_candidate",
+      "required_body_fields": [
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 212,
+      "menu_path": "仓库",
+      "api_name": "查询仓库-自营仓",
+      "api_url": "/purchase/inventory/selfWarehouse/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "sensitive_review",
+      "required_body_fields": [
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": true,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 1035,
+      "menu_path": "仓库",
+      "api_name": "查询仓库信息列表",
+      "api_url": "/purchase/store/multiTypeWarehouse/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "model",
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [
+        "model"
+      ],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": true,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 1449,
+      "menu_path": "仓库",
+      "api_name": "查询入库单列表V2",
+      "api_url": "/fulfillment/store/selfInboundListAndDetail/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "rnType",
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [
+        "rnType"
+      ],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 25,
+      "menu_path": "基础数据",
+      "api_name": "查询所有用户列表",
+      "api_url": "/middle/base/allUser/list",
+      "method": "GET",
+      "op_type": "list",
+      "classification": "sensitive_review",
+      "required_body_fields": [],
+      "business_required_fields": [],
+      "has_page_response": false,
+      "has_list_response": true,
+      "has_sensitive_response_fields": true,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 61,
+      "menu_path": "基础数据",
+      "api_name": "修改汇率设置",
+      "api_url": "/middle/base/rate/update",
+      "method": "POST",
+      "op_type": "update",
+      "classification": "write_or_mutation",
+      "required_body_fields": [
+        "currency",
+        "customRate",
+        "monthDate"
+      ],
+      "business_required_fields": [
+        "currency",
+        "customRate",
+        "monthDate"
+      ],
+      "has_page_response": false,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 66,
+      "menu_path": "基础数据",
+      "api_name": "获取本位币币种",
+      "api_url": "/middle/base/baseCurrency/query",
+      "method": "GET",
+      "op_type": "query",
+      "classification": "direct_read_candidate",
+      "required_body_fields": [],
+      "business_required_fields": [],
+      "has_page_response": false,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 139,
+      "menu_path": "基础数据",
+      "api_name": "查询汇率设置",
+      "api_url": "/middle/base/rate/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "direct_read_candidate",
+      "required_body_fields": [
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "rate_page",
+      "configured_enabled": true
+    },
+    {
+      "doc_id": 153,
+      "menu_path": "基础数据",
+      "api_name": "查询亚马逊店铺信息",
+      "api_url": "/middle/base/market/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "sensitive_review",
+      "required_body_fields": [
+        "page",
+        "pagesize",
+        "condition"
+      ],
+      "business_required_fields": [],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": true,
+      "configured_api_code": "amazon_shop_page",
+      "configured_enabled": true
+    },
+    {
+      "doc_id": 596,
+      "menu_path": "基础数据",
+      "api_name": "获取accessToken",
+      "api_url": "/api_token",
+      "method": "POST",
+      "op_type": "query",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "appId",
+        "appKey"
+      ],
+      "business_required_fields": [
+        "appId",
+        "appKey"
+      ],
+      "has_page_response": false,
+      "has_list_response": false,
+      "has_sensitive_response_fields": true,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 694,
+      "menu_path": "基础数据",
+      "api_name": "附件信息链接",
+      "api_url": "/middle/base/fileFileUrl/query",
+      "method": "GET",
+      "op_type": "query",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "id"
+      ],
+      "business_required_fields": [
+        "id"
+      ],
+      "has_page_response": false,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 1177,
+      "menu_path": "基础数据",
+      "api_name": "根据亚马逊店铺id查询店铺名称",
+      "api_url": "/middle/base/marketNames/query",
+      "method": "GET",
+      "op_type": "query",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "markerIds"
+      ],
+      "business_required_fields": [
+        "markerIds"
+      ],
+      "has_page_response": false,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 1179,
+      "menu_path": "基础数据",
+      "api_name": "根据亚马逊店铺id查询仓库信息",
+      "api_url": "/middle/base/warehouseIds/query",
+      "method": "GET",
+      "op_type": "query",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "marketIdList"
+      ],
+      "business_required_fields": [
+        "marketIdList"
+      ],
+      "has_page_response": false,
+      "has_list_response": true,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 2537,
+      "menu_path": "基础数据",
+      "api_name": "查询部门列表",
+      "api_url": "/middle/base/orgManage/query",
+      "method": "POST",
+      "op_type": "query",
+      "classification": "direct_read_candidate",
+      "required_body_fields": [],
+      "business_required_fields": [],
+      "has_page_response": false,
+      "has_list_response": true,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "org_manage_query",
+      "configured_enabled": true
+    },
+    {
+      "doc_id": 2538,
+      "menu_path": "基础数据",
+      "api_name": "查询字典管理列表",
+      "api_url": "/middle/base/dictionary/query",
+      "method": "POST",
+      "op_type": "query",
+      "classification": "direct_read_candidate",
+      "required_body_fields": [],
+      "business_required_fields": [],
+      "has_page_response": false,
+      "has_list_response": true,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "dictionary_query",
+      "configured_enabled": true
+    },
+    {
+      "doc_id": 2885,
+      "menu_path": "基础数据",
+      "api_name": "查询角色列表",
+      "api_url": "/middle/base/role/list",
+      "method": "GET",
+      "op_type": "list",
+      "classification": "direct_read_candidate",
+      "required_body_fields": [],
+      "business_required_fields": [],
+      "has_page_response": false,
+      "has_list_response": true,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "role_list",
+      "configured_enabled": true
+    },
+    {
+      "doc_id": 3095,
+      "menu_path": "基础数据",
+      "api_name": "查询亚马逊VC店铺信息",
+      "api_url": "/middle/base/vcMarket/page",
+      "method": "GET",
+      "op_type": "page",
+      "classification": "sensitive_review",
+      "required_body_fields": [],
+      "business_required_fields": [],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": true,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 4563,
+      "menu_path": "基础数据",
+      "api_name": "获取已授权店铺区域国家",
+      "api_url": "/middle/base/countryTree/page",
+      "method": "GET",
+      "op_type": "page",
+      "classification": "direct_read_candidate",
+      "required_body_fields": [],
+      "business_required_fields": [],
+      "has_page_response": false,
+      "has_list_response": true,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "country_tree",
+      "configured_enabled": true
+    },
+    {
+      "doc_id": 4943,
+      "menu_path": "基础数据",
+      "api_name": "获取大洲国家关系",
+      "api_url": "/middle/base/continentCountryTree/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "direct_read_candidate",
+      "required_body_fields": [],
+      "business_required_fields": [],
+      "has_page_response": false,
+      "has_list_response": true,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "continent_country_tree",
+      "configured_enabled": true
+    },
+    {
+      "doc_id": 5066,
+      "menu_path": "基础数据",
+      "api_name": "获取国家省州信息",
+      "api_url": "/middle/base/countryProvince/query",
+      "method": "GET",
+      "op_type": "query",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "countryCode"
+      ],
+      "business_required_fields": [
+        "countryCode"
+      ],
+      "has_page_response": false,
+      "has_list_response": true,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 67,
+      "menu_path": "多平台",
+      "api_name": "查询多平台店铺信息",
+      "api_url": "/platform/multiplatform/multiShop/query",
+      "method": "GET",
+      "op_type": "query",
+      "classification": "direct_read_candidate",
+      "required_body_fields": [],
+      "business_required_fields": [],
+      "has_page_response": false,
+      "has_list_response": true,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 137,
+      "menu_path": "多平台",
+      "api_name": "沃尔玛销售订单",
+      "api_url": "/platform/multiplatform/walmartOrder/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "model",
+        "current",
+        "size"
+      ],
+      "business_required_fields": [
+        "model"
+      ],
+      "has_page_response": false,
+      "has_list_response": false,
+      "has_sensitive_response_fields": true,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 138,
+      "menu_path": "多平台",
+      "api_name": "沃尔玛退货订单",
+      "api_url": "/platform/multiplatform/walmartReturnOrder/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "model",
+        "current",
+        "size"
+      ],
+      "business_required_fields": [
+        "model"
+      ],
+      "has_page_response": false,
+      "has_list_response": false,
+      "has_sensitive_response_fields": true,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 1377,
+      "menu_path": "多平台",
+      "api_name": "查询多平台销售订单",
+      "api_url": "/platform/multiplatform/commonOrder/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "sensitive_review",
+      "required_body_fields": [
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [],
+      "has_page_response": false,
+      "has_list_response": false,
+      "has_sensitive_response_fields": true,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 5592,
+      "menu_path": "多平台",
+      "api_name": "沃尔玛销售订单主列表",
+      "api_url": "/platform/multiplatform/walmartOrderSimple/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "direct_read_candidate",
+      "required_body_fields": [],
+      "business_required_fields": [],
+      "has_page_response": false,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 6013,
+      "menu_path": "多平台",
+      "api_name": "获取多平台仓库列表",
+      "api_url": "/platform/multiplatform/multiShopWarehouse/query",
+      "method": "POST",
+      "op_type": "query",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "pageCurrent",
+        "pageSize",
+        "platformCode"
+      ],
+      "business_required_fields": [
+        "pageCurrent",
+        "platformCode"
+      ],
+      "has_page_response": false,
+      "has_list_response": false,
+      "has_sensitive_response_fields": true,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 116,
+      "menu_path": "客服",
+      "api_name": "Feedback",
+      "api_url": "/operation/crm/feedback/page",
+      "method": "GET",
+      "op_type": "page",
+      "classification": "sensitive_review",
+      "required_body_fields": [
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": true,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 136,
+      "menu_path": "客服",
+      "api_name": "查询标签管理信息",
+      "api_url": "/operation/crm/tags/page",
+      "method": "GET",
+      "op_type": "page",
+      "classification": "direct_read_candidate",
+      "required_body_fields": [],
+      "business_required_fields": [],
+      "has_page_response": false,
+      "has_list_response": true,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 1014,
+      "menu_path": "客服",
+      "api_name": "买家之声列表",
+      "api_url": "/operation/crm/customerVoice/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "direct_read_candidate",
+      "required_body_fields": [
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 1092,
+      "menu_path": "客服",
+      "api_name": "Review",
+      "api_url": "/operation/crm/review/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "sensitive_review",
+      "required_body_fields": [
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": true,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 98,
+      "menu_path": "广告",
+      "api_name": "ASIN分析",
+      "api_url": "/operation/ads/adsAsinAnalytical/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "marketId",
+        "startDateData",
+        "endDateData",
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [
+        "marketId",
+        "startDateData",
+        "endDateData"
+      ],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": true,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 99,
+      "menu_path": "广告",
+      "api_name": "关键词表现",
+      "api_url": "/operation/ads/adsKeywordAnalytical/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "page",
+        "pagesize",
+        "marketId",
+        "startDateData",
+        "endDateData"
+      ],
+      "business_required_fields": [
+        "marketId",
+        "startDateData",
+        "endDateData"
+      ],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 100,
+      "menu_path": "广告",
+      "api_name": "搜索词表现",
+      "api_url": "/operation/ads/adsKeywordAnalytical/query",
+      "method": "POST",
+      "op_type": "query",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "page",
+        "pagesize",
+        "marketId",
+        "startDateData",
+        "endDateData"
+      ],
+      "business_required_fields": [
+        "marketId",
+        "startDateData",
+        "endDateData"
+      ],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 101,
+      "menu_path": "广告",
+      "api_name": "优惠券",
+      "api_url": "/operation/ads/coupon/query",
+      "method": "POST",
+      "op_type": "query",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "marketId",
+        "count"
+      ],
+      "business_required_fields": [
+        "marketId",
+        "count"
+      ],
+      "has_page_response": false,
+      "has_list_response": true,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 102,
+      "menu_path": "广告",
+      "api_name": "分时策略NEW",
+      "api_url": "/operation/ads/strategyTemplate/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "direct_read_candidate",
+      "required_body_fields": [
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [],
+      "has_page_response": false,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 104,
+      "menu_path": "广告",
+      "api_name": "秒杀",
+      "api_url": "/operation/ads/deal/query",
+      "method": "POST",
+      "op_type": "query",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "marketId",
+        "count"
+      ],
+      "business_required_fields": [
+        "marketId",
+        "count"
+      ],
+      "has_page_response": false,
+      "has_list_response": true,
+      "has_sensitive_response_fields": true,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 287,
+      "menu_path": "广告",
+      "api_name": "商品广告-商品报表(V3)",
+      "api_url": "/operation/ads/adsSpProduct/query",
+      "method": "POST",
+      "op_type": "query",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "marketId",
+        "count"
+      ],
+      "business_required_fields": [
+        "marketId",
+        "count"
+      ],
+      "has_page_response": false,
+      "has_list_response": true,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 288,
+      "menu_path": "广告",
+      "api_name": "商品广告-广告活动(V3)",
+      "api_url": "/operation/ads/adsSpCampaigns/query",
+      "method": "POST",
+      "op_type": "query",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "marketId",
+        "count"
+      ],
+      "business_required_fields": [
+        "marketId",
+        "count"
+      ],
+      "has_page_response": false,
+      "has_list_response": true,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 291,
+      "menu_path": "广告",
+      "api_name": "展示广告-商品报表(V3)",
+      "api_url": "/operation/ads/adsSdProduct/query",
+      "method": "POST",
+      "op_type": "query",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "marketId",
+        "count"
+      ],
+      "business_required_fields": [
+        "marketId",
+        "count"
+      ],
+      "has_page_response": false,
+      "has_list_response": true,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 292,
+      "menu_path": "广告",
+      "api_name": "展示广告-广告活动(V3）",
+      "api_url": "/operation/ads/adsSdCampaigns/query",
+      "method": "POST",
+      "op_type": "query",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "marketId",
+        "count"
+      ],
+      "business_required_fields": [
+        "marketId",
+        "count"
+      ],
+      "has_page_response": false,
+      "has_list_response": true,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 293,
+      "menu_path": "广告",
+      "api_name": "品牌广告-商品投放报表(V3)",
+      "api_url": "/operation/ads/adsSbTargeting/query",
+      "method": "POST",
+      "op_type": "query",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "marketId",
+        "count"
+      ],
+      "business_required_fields": [
+        "marketId",
+        "count"
+      ],
+      "has_page_response": false,
+      "has_list_response": true,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 295,
+      "menu_path": "广告",
+      "api_name": "品牌广告-广告活动(V3)",
+      "api_url": "/operation/ads/adsSbCampaign/query",
+      "method": "POST",
+      "op_type": "query",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "marketId",
+        "count"
+      ],
+      "business_required_fields": [
+        "marketId",
+        "count"
+      ],
+      "has_page_response": false,
+      "has_list_response": true,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 575,
+      "menu_path": "广告",
+      "api_name": "查询会员折扣列表",
+      "api_url": "/operation/ads/openPrimeDiscount/query",
+      "method": "POST",
+      "op_type": "query",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "marketId",
+        "count"
+      ],
+      "business_required_fields": [
+        "marketId",
+        "count"
+      ],
+      "has_page_response": false,
+      "has_list_response": true,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 576,
+      "menu_path": "广告",
+      "api_name": "查询管理促销列表",
+      "api_url": "/operation/ads/openManagePromotion/query",
+      "method": "POST",
+      "op_type": "query",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "marketId",
+        "count"
+      ],
+      "business_required_fields": [
+        "marketId",
+        "count"
+      ],
+      "has_page_response": false,
+      "has_list_response": true,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 656,
+      "menu_path": "广告",
+      "api_name": "品牌广告-关键词报表(V3)",
+      "api_url": "/operation/ads/sbKeywordsPage/query",
+      "method": "POST",
+      "op_type": "query",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "marketId",
+        "count"
+      ],
+      "business_required_fields": [
+        "marketId",
+        "count"
+      ],
+      "has_page_response": false,
+      "has_list_response": true,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 657,
+      "menu_path": "广告",
+      "api_name": "商品广告-关键词报表(V3)",
+      "api_url": "/operation/ads/spKeywordsPage/query",
+      "method": "POST",
+      "op_type": "query",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "marketId",
+        "count"
+      ],
+      "business_required_fields": [
+        "marketId",
+        "count"
+      ],
+      "has_page_response": false,
+      "has_list_response": true,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 658,
+      "menu_path": "广告",
+      "api_name": "品牌广告-广告位(V3)",
+      "api_url": "/operation/ads/sbPlacementPage/query",
+      "method": "POST",
+      "op_type": "query",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "marketId",
+        "count"
+      ],
+      "business_required_fields": [
+        "marketId",
+        "count"
+      ],
+      "has_page_response": false,
+      "has_list_response": true,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 1375,
+      "menu_path": "广告",
+      "api_name": "品牌广告-广告创意(V3)",
+      "api_url": "/operation/ads/adsSbCreative/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "marketId",
+        "count"
+      ],
+      "business_required_fields": [
+        "marketId",
+        "count"
+      ],
+      "has_page_response": false,
+      "has_list_response": true,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 2450,
+      "menu_path": "广告",
+      "api_name": "品牌广告-用户搜索词(V3)",
+      "api_url": "/operation/ads/sbSearchKeywordsReport/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "marketId",
+        "count"
+      ],
+      "business_required_fields": [
+        "marketId",
+        "count"
+      ],
+      "has_page_response": false,
+      "has_list_response": true,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 2451,
+      "menu_path": "广告",
+      "api_name": "商品广告-用户搜索词-投放(V3)",
+      "api_url": "/operation/ads/spSearchTargetingReport/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "marketId",
+        "count"
+      ],
+      "business_required_fields": [
+        "marketId",
+        "count"
+      ],
+      "has_page_response": false,
+      "has_list_response": true,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 2452,
+      "menu_path": "广告",
+      "api_name": "商品广告-用户搜索词-关键词(V3)",
+      "api_url": "/operation/ads/spSearchKeywordsReport/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "marketId",
+        "count"
+      ],
+      "business_required_fields": [
+        "marketId",
+        "count"
+      ],
+      "has_page_response": false,
+      "has_list_response": true,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 2897,
+      "menu_path": "广告",
+      "api_name": "商品广告-广告位(V3)",
+      "api_url": "/operation/ads/adsSpPlacement/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "marketId",
+        "count"
+      ],
+      "business_required_fields": [
+        "marketId",
+        "count"
+      ],
+      "has_page_response": false,
+      "has_list_response": true,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 3106,
+      "menu_path": "广告",
+      "api_name": "商品广告-投放(V3)",
+      "api_url": "/operation/ads/adsSpProductTargeting/query",
+      "method": "POST",
+      "op_type": "query",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "marketId",
+        "count"
+      ],
+      "business_required_fields": [
+        "marketId",
+        "count"
+      ],
+      "has_page_response": false,
+      "has_list_response": true,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 15,
+      "menu_path": "库存",
+      "api_name": "查询产品库存",
+      "api_url": "/purchase/store/inventory/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "direct_read_candidate",
+      "required_body_fields": [
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 18,
+      "menu_path": "库存",
+      "api_name": "创建其他出库单-已完成状态",
+      "api_url": "/purchase/store/otherOut/create",
+      "method": "POST",
+      "op_type": "create",
+      "classification": "write_or_mutation",
+      "required_body_fields": [
+        "warehouseId",
+        "operationType",
+        "outboundRule"
+      ],
+      "business_required_fields": [
+        "warehouseId",
+        "operationType",
+        "outboundRule"
+      ],
+      "has_page_response": false,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 19,
+      "menu_path": "库存",
+      "api_name": "创建其他入库单-已完成状态",
+      "api_url": "/purchase/store/otherIn/create",
+      "method": "POST",
+      "op_type": "create",
+      "classification": "write_or_mutation",
+      "required_body_fields": [
+        "warehouseId",
+        "operationType",
+        "itemList"
+      ],
+      "business_required_fields": [
+        "warehouseId",
+        "operationType",
+        "itemList"
+      ],
+      "has_page_response": false,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 84,
+      "menu_path": "库存",
+      "api_name": "查询站点库存分布",
+      "api_url": "/purchase/inventory/marketInventory/query",
+      "method": "GET",
+      "op_type": "query",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "sku",
+        "warehouseId"
+      ],
+      "business_required_fields": [
+        "sku",
+        "warehouseId"
+      ],
+      "has_page_response": false,
+      "has_list_response": true,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 172,
+      "menu_path": "库存",
+      "api_name": "查询FBA库存列表（旧）",
+      "api_url": "/purchase/store/fbaInventory/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "direct_read_candidate",
+      "required_body_fields": [
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 234,
+      "menu_path": "库存",
+      "api_name": "出入库记录V2",
+      "api_url": "/purchase/inventory/storageInbound/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "direct_read_candidate",
+      "required_body_fields": [
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 235,
+      "menu_path": "库存",
+      "api_name": "出入库明细V2",
+      "api_url": "/purchase/inventory/storageInbound/detail",
+      "method": "GET",
+      "op_type": "detail",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "code"
+      ],
+      "business_required_fields": [
+        "code"
+      ],
+      "has_page_response": false,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 1020,
+      "menu_path": "库存",
+      "api_name": "查询调拨单列表",
+      "api_url": "/fulfillment/inventory/transfer/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "direct_read_candidate",
+      "required_body_fields": [
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 1021,
+      "menu_path": "库存",
+      "api_name": "查询调拨单详情",
+      "api_url": "/fulfillment/inventory/transfer/detail",
+      "method": "POST",
+      "op_type": "detail",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "code"
+      ],
+      "business_required_fields": [
+        "code"
+      ],
+      "has_page_response": false,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 1022,
+      "menu_path": "库存",
+      "api_name": "查询自营仓进销存列表(旧)",
+      "api_url": "/purchase/inventory/purchaseSaleStorageSelf/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "direct_read_candidate",
+      "required_body_fields": [
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 1557,
+      "menu_path": "库存",
+      "api_name": "创建其他出库单-草稿状态",
+      "api_url": "/purchase/store/draftOtherOutbound/create",
+      "method": "POST",
+      "op_type": "create",
+      "classification": "write_or_mutation",
+      "required_body_fields": [
+        "warehouseId",
+        "operationType",
+        "outboundRule"
+      ],
+      "business_required_fields": [
+        "warehouseId",
+        "operationType",
+        "outboundRule"
+      ],
+      "has_page_response": false,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 1559,
+      "menu_path": "库存",
+      "api_name": "创建其他入库单-草稿状态",
+      "api_url": "/purchase/store/draftOtherInbound/create",
+      "method": "POST",
+      "op_type": "create",
+      "classification": "write_or_mutation",
+      "required_body_fields": [
+        "warehouseId",
+        "operationType",
+        "itemList"
+      ],
+      "business_required_fields": [
+        "warehouseId",
+        "operationType",
+        "itemList"
+      ],
+      "has_page_response": false,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 5136,
+      "menu_path": "库存",
+      "api_name": "查询FBA库存列表V2",
+      "api_url": "/purchase/store/fbaInventory/page/V2",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "direct_read_candidate",
+      "required_body_fields": [
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 5654,
+      "menu_path": "库存",
+      "api_name": "查询团队信息",
+      "api_url": "/fulfillment/inventory/teamManagement/query",
+      "method": "POST",
+      "op_type": "query",
+      "classification": "direct_read_candidate",
+      "required_body_fields": [],
+      "business_required_fields": [],
+      "has_page_response": false,
+      "has_list_response": true,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 20,
+      "menu_path": "报表",
+      "api_name": "查询FBA盘库列表",
+      "api_url": "/purchase/store/inventoryAdjustments/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "direct_read_candidate",
+      "required_body_fields": [
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 21,
+      "menu_path": "报表",
+      "api_name": "查询已接收库存列表",
+      "api_url": "/purchase/store/inventoryReceipts/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "direct_read_candidate",
+      "required_body_fields": [
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 232,
+      "menu_path": "报表",
+      "api_name": "查询FBA进销存列表",
+      "api_url": "/purchase/inventory/purchaseSaleStorageFba/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "direct_read_candidate",
+      "required_body_fields": [
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 773,
+      "menu_path": "报表",
+      "api_name": "FBA库存分类账-详细视图列表查询",
+      "api_url": "/purchase/inventory/storageLedgerDetail/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "model",
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [
+        "model"
+      ],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 1036,
+      "menu_path": "报表",
+      "api_name": "查询库存动作列表",
+      "api_url": "/purchase/store/inventoryEvent/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "direct_read_candidate",
+      "required_body_fields": [
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 1436,
+      "menu_path": "报表",
+      "api_name": "FBA库存分类账-一览视图-按日维度列表查询",
+      "api_url": "/fulfillment/inventory/storageLedger/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "model",
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [
+        "model"
+      ],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 2542,
+      "menu_path": "报表",
+      "api_name": "查询FBA库龄列表",
+      "api_url": "/fulfillment/inventory/inventoryAge/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "direct_read_candidate",
+      "required_body_fields": [
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 2658,
+      "menu_path": "报表",
+      "api_name": "FBA库存分类账-一览视图-按月维度列表查询",
+      "api_url": "/fulfillment/inventory/storageLedgerMonth/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "monthList",
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [
+        "monthList"
+      ],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 256,
+      "menu_path": "物流",
+      "api_name": "物流-查看费用",
+      "api_url": "/fulfillment/ship/deliveryCost/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "direct_read_candidate",
+      "required_body_fields": [
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 709,
+      "menu_path": "物流",
+      "api_name": "查询自定义物流商列表",
+      "api_url": "/fulfillment/ship/customSupplier/page",
+      "method": "GET",
+      "op_type": "page",
+      "classification": "sensitive_review",
+      "required_body_fields": [
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": true,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 1027,
+      "menu_path": "物流",
+      "api_name": "查询发货单列表",
+      "api_url": "/fulfillment/ship/delivery/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "direct_read_candidate",
+      "required_body_fields": [
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 1028,
+      "menu_path": "物流",
+      "api_name": "查询发货单明细",
+      "api_url": "/fulfillment/ship/delivery/query",
+      "method": "POST",
+      "op_type": "query",
+      "classification": "direct_read_candidate",
+      "required_body_fields": [],
+      "business_required_fields": [],
+      "has_page_response": false,
+      "has_list_response": true,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 1029,
+      "menu_path": "物流",
+      "api_name": "发货单-查看实际费用",
+      "api_url": "/fulfillment/ship/deliveryActualFee/query",
+      "method": "GET",
+      "op_type": "query",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "code"
+      ],
+      "business_required_fields": [
+        "code"
+      ],
+      "has_page_response": false,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 1030,
+      "menu_path": "物流",
+      "api_name": "发货单-查看分摊费用",
+      "api_url": "/fulfillment/ship/deliveryCostShareFee/query",
+      "method": "GET",
+      "op_type": "query",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "code"
+      ],
+      "business_required_fields": [
+        "code"
+      ],
+      "has_page_response": false,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 1032,
+      "menu_path": "物流",
+      "api_name": "发货单-查看预估费用",
+      "api_url": "/fulfillment/ship/deliveryFee/query",
+      "method": "GET",
+      "op_type": "query",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "code"
+      ],
+      "business_required_fields": [
+        "code"
+      ],
+      "has_page_response": false,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 1033,
+      "menu_path": "物流",
+      "api_name": "查询FBA货件列表",
+      "api_url": "/fulfillment/ship/shipment/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "sensitive_review",
+      "required_body_fields": [
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": true,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 1034,
+      "menu_path": "物流",
+      "api_name": "查询FBA货件看板",
+      "api_url": "/fulfillment/ship/shipmentData/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "direct_read_candidate",
+      "required_body_fields": [
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 1778,
+      "menu_path": "物流",
+      "api_name": "查询物流费用金额明细",
+      "api_url": "/fulfillment/ship/cost/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "direct_read_candidate",
+      "required_body_fields": [],
+      "business_required_fields": [],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 1779,
+      "menu_path": "物流",
+      "api_name": "查询物流费用分摊明细",
+      "api_url": "/fulfillment/ship/costShare/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "direct_read_candidate",
+      "required_body_fields": [
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 2453,
+      "menu_path": "物流",
+      "api_name": "查询发货单详情-装箱清单",
+      "api_url": "/fulfillment/ship/deliveryCarton/query",
+      "method": "POST",
+      "op_type": "query",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "itemType",
+        "relateCode"
+      ],
+      "business_required_fields": [
+        "itemType",
+        "relateCode"
+      ],
+      "has_page_response": false,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 2539,
+      "menu_path": "物流",
+      "api_name": "查询FBA货件装箱清单",
+      "api_url": "/fulfillment/ship/shipmentAttachment/query",
+      "method": "POST",
+      "op_type": "query",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "shipmentItemQueryDTOS"
+      ],
+      "business_required_fields": [
+        "shipmentItemQueryDTOS"
+      ],
+      "has_page_response": false,
+      "has_list_response": true,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 2732,
+      "menu_path": "物流",
+      "api_name": "批量新增发货单物流轨迹",
+      "api_url": "/fulfillment/ship/deliveryTrack/create",
+      "method": "POST",
+      "op_type": "create",
+      "classification": "write_or_mutation",
+      "required_body_fields": [],
+      "business_required_fields": [],
+      "has_page_response": false,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 3004,
+      "menu_path": "物流",
+      "api_name": "查询API物流商列表",
+      "api_url": "/fulfillment/ship/apiSupplier/list",
+      "method": "POST",
+      "op_type": "list",
+      "classification": "sensitive_review",
+      "required_body_fields": [],
+      "business_required_fields": [],
+      "has_page_response": false,
+      "has_list_response": true,
+      "has_sensitive_response_fields": true,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 3059,
+      "menu_path": "物流",
+      "api_name": "查询物流方式列表",
+      "api_url": "/fulfillment/ship/transport/list",
+      "method": "GET",
+      "op_type": "list",
+      "classification": "direct_read_candidate",
+      "required_body_fields": [
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "ship_transport_list",
+      "configured_enabled": true
+    },
+    {
+      "doc_id": 4624,
+      "menu_path": "物流",
+      "api_name": "发货单编辑",
+      "api_url": "/fulfillment/ship/delivery/update",
+      "method": "POST",
+      "op_type": "update",
+      "classification": "write_or_mutation",
+      "required_body_fields": [
+        "dlCode"
+      ],
+      "business_required_fields": [
+        "dlCode"
+      ],
+      "has_page_response": false,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 5516,
+      "menu_path": "物流",
+      "api_name": "批量查询包裹单详情及费用",
+      "api_url": "/fulfillment/ship/units/detail",
+      "method": "POST",
+      "op_type": "detail",
+      "classification": "direct_read_candidate",
+      "required_body_fields": [],
+      "business_required_fields": [],
+      "has_page_response": false,
+      "has_list_response": true,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 4443,
+      "menu_path": "物流 > STA货件",
+      "api_name": "查询STA货件装箱清单",
+      "api_url": "/fulfillment/ship/staShipmentBoxInfo/query",
+      "method": "POST",
+      "op_type": "query",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "shipmentItemQueryDTOS"
+      ],
+      "business_required_fields": [
+        "shipmentItemQueryDTOS"
+      ],
+      "has_page_response": false,
+      "has_list_response": true,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 122,
+      "menu_path": "统计",
+      "api_name": "流量统计-ASIN",
+      "api_url": "/operation/sts/traffic/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "currency",
+        "beginDate",
+        "endDate",
+        "page",
+        "pagesize",
+        "viewType"
+      ],
+      "business_required_fields": [
+        "currency",
+        "beginDate",
+        "endDate",
+        "viewType"
+      ],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": true,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 123,
+      "menu_path": "统计",
+      "api_name": "流量统计-msku",
+      "api_url": "/operation/sts/trafficSku/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "currency",
+        "beginDate",
+        "endDate",
+        "page",
+        "pagesize",
+        "viewType"
+      ],
+      "business_required_fields": [
+        "currency",
+        "beginDate",
+        "endDate",
+        "viewType"
+      ],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": true,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 128,
+      "menu_path": "统计",
+      "api_name": "财务利润分析-分摊记录",
+      "api_url": "/finance/sts/allocationDetail/page",
+      "method": "GET",
+      "op_type": "page",
+      "classification": "direct_read_candidate",
+      "required_body_fields": [
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 129,
+      "menu_path": "统计",
+      "api_name": "采购/到库成本分析",
+      "api_url": "/finance/sts/profitCostAnalysis/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "beginDate",
+        "endDate",
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [
+        "beginDate",
+        "endDate"
+      ],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 130,
+      "menu_path": "统计",
+      "api_name": "商品统计",
+      "api_url": "/operation/sts/listingAnalyze/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "groupByType",
+        "viewType",
+        "showCurrencyType",
+        "beginDate",
+        "endDate",
+        "page",
+        "pagesize",
+        "target"
+      ],
+      "business_required_fields": [
+        "groupByType",
+        "viewType",
+        "showCurrencyType",
+        "beginDate",
+        "endDate",
+        "target"
+      ],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": true,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 131,
+      "menu_path": "统计",
+      "api_name": "产品表现",
+      "api_url": "/operation/sts/productAnalyzeMultiIndex/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "showCurrencyType",
+        "beginDate",
+        "endDate",
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [
+        "showCurrencyType",
+        "beginDate",
+        "endDate"
+      ],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": true,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 132,
+      "menu_path": "统计",
+      "api_name": "店铺表现",
+      "api_url": "/operation/sts/storeSalesPerformance/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "showCurrencyType",
+        "beginDate",
+        "endDate",
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [
+        "showCurrencyType",
+        "beginDate",
+        "endDate"
+      ],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": true,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 133,
+      "menu_path": "统计",
+      "api_name": "店铺统计",
+      "api_url": "/operation/sts/marketAnalyze/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "target",
+        "showCurrencyType",
+        "beginDate",
+        "endDate",
+        "viewType"
+      ],
+      "business_required_fields": [
+        "target",
+        "showCurrencyType",
+        "beginDate",
+        "endDate",
+        "viewType"
+      ],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 140,
+      "menu_path": "统计",
+      "api_name": "商品表现",
+      "api_url": "/operation/sts/listingAnalyzeMultiIndex/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "groupByType",
+        "showCurrencyType",
+        "beginDate",
+        "endDate",
+        "isShowTotal",
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [
+        "groupByType",
+        "showCurrencyType",
+        "beginDate",
+        "endDate",
+        "isShowTotal"
+      ],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": true,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 309,
+      "menu_path": "统计",
+      "api_name": "财务利润分析-结算明细",
+      "api_url": "/finance/sts/financialProfitAnalysis/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "page",
+        "pagesize",
+        "startDate",
+        "endDate",
+        "currency"
+      ],
+      "business_required_fields": [
+        "startDate",
+        "endDate",
+        "currency"
+      ],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 1016,
+      "menu_path": "统计",
+      "api_name": "销售利润分析",
+      "api_url": "/operation/sts/saleProfit/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "showCurrencyType",
+        "page",
+        "pagesize",
+        "type"
+      ],
+      "business_required_fields": [
+        "showCurrencyType",
+        "type"
+      ],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": true,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 1017,
+      "menu_path": "统计",
+      "api_name": "流量数据-msku",
+      "api_url": "/operation/sts/trafficSkuAnalysis/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "currency",
+        "beginDate",
+        "endDate",
+        "page",
+        "pagesize",
+        "viewType"
+      ],
+      "business_required_fields": [
+        "currency",
+        "beginDate",
+        "endDate",
+        "viewType"
+      ],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": true,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 1018,
+      "menu_path": "统计",
+      "api_name": "流量数据-ASIN",
+      "api_url": "/operation/sts/trafficAnalysis/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "currency",
+        "beginDate",
+        "endDate",
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [
+        "currency",
+        "beginDate",
+        "endDate"
+      ],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": true,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 2256,
+      "menu_path": "统计",
+      "api_name": "查询财务利润分析V2",
+      "api_url": "/finance/sts/financialAnalysis/page/V2",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "queryType",
+        "costValues",
+        "page",
+        "pagesize",
+        "currency",
+        "dateType"
+      ],
+      "business_required_fields": [
+        "queryType",
+        "costValues",
+        "currency",
+        "dateType"
+      ],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 2280,
+      "menu_path": "统计",
+      "api_name": "查询财务利润分析V2-自定义字段",
+      "api_url": "/finance/sts/colData/query",
+      "method": "GET",
+      "op_type": "query",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "dimension"
+      ],
+      "business_required_fields": [
+        "dimension"
+      ],
+      "has_page_response": false,
+      "has_list_response": true,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 2284,
+      "menu_path": "统计",
+      "api_name": "财务利润分析-月度查询V2",
+      "api_url": "/finance/sts/financialAnalysisMonth/query/V2",
+      "method": "POST",
+      "op_type": "query",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "costValues",
+        "startDate",
+        "endDate",
+        "currency"
+      ],
+      "business_required_fields": [
+        "costValues",
+        "startDate",
+        "endDate",
+        "currency"
+      ],
+      "has_page_response": false,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 3375,
+      "menu_path": "统计",
+      "api_name": "销售表现",
+      "api_url": "/operation/sts/salesAnalysis/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "groupByType",
+        "showCurrencyType",
+        "beginDate",
+        "endDate",
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [
+        "groupByType",
+        "showCurrencyType",
+        "beginDate",
+        "endDate"
+      ],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": true,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 71,
+      "menu_path": "订单",
+      "api_name": "查询自配送订单列表",
+      "api_url": "/fulfillment/order/mfnOrder/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "sensitive_review",
+      "required_body_fields": [
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": true,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 118,
+      "menu_path": "订单",
+      "api_name": "自发货订单-销售订单列表",
+      "api_url": "/fulfillment/order/soOrder/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "sensitive_review",
+      "required_body_fields": [
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": true,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 1366,
+      "menu_path": "订单",
+      "api_name": "自发货订单-配货单列表",
+      "api_url": "/fulfillment/order/foOrder/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "sensitive_review",
+      "required_body_fields": [
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": true,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 27,
+      "menu_path": "财务",
+      "api_name": "查询日期范围报告",
+      "api_url": "/finance/asset/dateRangeReports/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "direct_read_candidate",
+      "required_body_fields": [
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 29,
+      "menu_path": "财务",
+      "api_name": "查询长期仓储费",
+      "api_url": "/finance/asset/storageLongFee/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "sensitive_review",
+      "required_body_fields": [
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": true,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 30,
+      "menu_path": "财务",
+      "api_name": "查询月度仓储费",
+      "api_url": "/finance/asset/storageFee/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "sensitive_review",
+      "required_body_fields": [
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": true,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 31,
+      "menu_path": "财务",
+      "api_name": "查询付款单列表",
+      "api_url": "/finance/asset/paymentbill/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "direct_read_candidate",
+      "required_body_fields": [
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 111,
+      "menu_path": "财务",
+      "api_name": "查询退款单列表",
+      "api_url": "/finance/asset/paymentRefund/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "direct_read_candidate",
+      "required_body_fields": [
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 112,
+      "menu_path": "财务",
+      "api_name": "查询销售回款分析",
+      "api_url": "/finance/asset/financialEventGroup/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "direct_read_candidate",
+      "required_body_fields": [
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 113,
+      "menu_path": "财务",
+      "api_name": "查询月结算",
+      "api_url": "/finance/asset/monthlyStatementAmount/query",
+      "method": "POST",
+      "op_type": "query",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "typeCode",
+        "beginDate",
+        "endDate"
+      ],
+      "business_required_fields": [
+        "typeCode",
+        "beginDate",
+        "endDate"
+      ],
+      "has_page_response": false,
+      "has_list_response": true,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 301,
+      "menu_path": "财务",
+      "api_name": "广告发票历史记录",
+      "api_url": "/finance/asset/adsInvoice/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "page",
+        "pagesize",
+        "queryCurrency"
+      ],
+      "business_required_fields": [
+        "queryCurrency"
+      ],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 600,
+      "menu_path": "财务",
+      "api_name": "查询赔偿列表",
+      "api_url": "/operation/asset/compensateInfo/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "direct_read_candidate",
+      "required_body_fields": [
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 1038,
+      "menu_path": "财务",
+      "api_name": "FBA进销存-成本",
+      "api_url": "/finance/asset/fbaPsi/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "page",
+        "pagesize",
+        "month"
+      ],
+      "business_required_fields": [
+        "month"
+      ],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 1039,
+      "menu_path": "财务",
+      "api_name": "FBA进销存-数量",
+      "api_url": "/finance/asset/fbaPsiQuantity/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "page",
+        "pagesize",
+        "month"
+      ],
+      "business_required_fields": [
+        "month"
+      ],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 1040,
+      "menu_path": "财务",
+      "api_name": "查询仓库进销存",
+      "api_url": "/finance/asset/selfPsi/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "dateType",
+        "defective",
+        "page",
+        "pagesize",
+        "type",
+        "zeroNotDisplay"
+      ],
+      "business_required_fields": [
+        "dateType",
+        "defective",
+        "type",
+        "zeroNotDisplay"
+      ],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 2388,
+      "menu_path": "财务",
+      "api_name": "查询其他费用分摊列表",
+      "api_url": "/finance/asset/allocationDashboard/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "direct_read_candidate",
+      "required_body_fields": [
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 43,
+      "menu_path": "采购",
+      "api_name": "查询供应商信息",
+      "api_url": "/purchase/srm/supplier/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "sensitive_review",
+      "required_body_fields": [
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": true,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 86,
+      "menu_path": "采购",
+      "api_name": "查询采购订单列表",
+      "api_url": "/purchase/srm/procure/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "pageInfo"
+      ],
+      "business_required_fields": [
+        "pageInfo"
+      ],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 87,
+      "menu_path": "采购",
+      "api_name": "查询采购计划列表",
+      "api_url": "/purchase/srm/plan/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "direct_read_candidate",
+      "required_body_fields": [
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 88,
+      "menu_path": "采购",
+      "api_name": "查询采购计划明细",
+      "api_url": "/purchase/srm/plan/detail",
+      "method": "POSTPARAM",
+      "op_type": "detail",
+      "classification": "sensitive_review",
+      "required_body_fields": [],
+      "business_required_fields": [],
+      "has_page_response": false,
+      "has_list_response": false,
+      "has_sensitive_response_fields": true,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 90,
+      "menu_path": "采购",
+      "api_name": "查询关联采购订单信息",
+      "api_url": "/purchase/srm/relevancePoInfo/query",
+      "method": "GET",
+      "op_type": "query",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "code"
+      ],
+      "business_required_fields": [
+        "code"
+      ],
+      "has_page_response": false,
+      "has_list_response": true,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 91,
+      "menu_path": "采购",
+      "api_name": "查询供应商产品列表",
+      "api_url": "/purchase/srm/supplierSkuQuote/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "sensitive_review",
+      "required_body_fields": [
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": true,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 92,
+      "menu_path": "采购",
+      "api_name": "新增供应商产品",
+      "api_url": "/purchase/srm/supplierSkuQuote/create",
+      "method": "POST",
+      "op_type": "create",
+      "classification": "write_or_mutation",
+      "required_body_fields": [
+        "supplierCode",
+        "defaultSupplier",
+        "product",
+        "deliveryDays",
+        "moq",
+        "includePackage",
+        "currency",
+        "taxRate",
+        "invoiceType",
+        "invoiceTaxRate",
+        "gradientQuote",
+        "supplierGradientQuotes",
+        "syncDeliveryDays"
+      ],
+      "business_required_fields": [
+        "supplierCode",
+        "defaultSupplier",
+        "product",
+        "deliveryDays",
+        "moq",
+        "includePackage",
+        "currency",
+        "taxRate",
+        "invoiceType",
+        "invoiceTaxRate",
+        "gradientQuote",
+        "supplierGradientQuotes",
+        "syncDeliveryDays"
+      ],
+      "has_page_response": false,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 93,
+      "menu_path": "采购",
+      "api_name": "修改供应商产品",
+      "api_url": "/purchase/srm/supplierSkuQuote/update",
+      "method": "POST",
+      "op_type": "update",
+      "classification": "write_or_mutation",
+      "required_body_fields": [
+        "bucklePackage",
+        "currency",
+        "defaultSupplier",
+        "deliveryDays",
+        "gradientQuote",
+        "id",
+        "includePackage",
+        "invoiceTaxRate",
+        "invoiceType",
+        "moq",
+        "product",
+        "status",
+        "supplierCode",
+        "supplierGradientQuotes",
+        "syncDeliveryDays",
+        "taxRate"
+      ],
+      "business_required_fields": [
+        "bucklePackage",
+        "currency",
+        "defaultSupplier",
+        "deliveryDays",
+        "gradientQuote",
+        "id",
+        "includePackage",
+        "invoiceTaxRate",
+        "invoiceType",
+        "moq",
+        "product",
+        "status",
+        "supplierCode",
+        "supplierGradientQuotes",
+        "syncDeliveryDays",
+        "taxRate"
+      ],
+      "has_page_response": false,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 152,
+      "menu_path": "采购",
+      "api_name": "查询采购退货单列表V2",
+      "api_url": "/fulfillment/store/storageReturn/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "direct_read_candidate",
+      "required_body_fields": [
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 689,
+      "menu_path": "采购",
+      "api_name": "采购订单变更单新增+自动审核",
+      "api_url": "/purchase/srm/procureChange/create",
+      "method": "POST",
+      "op_type": "create",
+      "classification": "write_or_mutation",
+      "required_body_fields": [
+        "poCode",
+        "memo",
+        "procureChangeItems"
+      ],
+      "business_required_fields": [
+        "poCode",
+        "memo",
+        "procureChangeItems"
+      ],
+      "has_page_response": false,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 931,
+      "menu_path": "采购",
+      "api_name": "录入供应商信息",
+      "api_url": "/purchase/srm/supplier/create",
+      "method": "POST",
+      "op_type": "create",
+      "classification": "write_or_mutation",
+      "required_body_fields": [
+        "code",
+        "name",
+        "buyerManagerId",
+        "paymentType",
+        "paymentRuleCode",
+        "state",
+        "contact",
+        "phone1",
+        "supplierWarehouse"
+      ],
+      "business_required_fields": [
+        "code",
+        "name",
+        "buyerManagerId",
+        "paymentType",
+        "paymentRuleCode",
+        "state",
+        "contact",
+        "phone1",
+        "supplierWarehouse"
+      ],
+      "has_page_response": false,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 932,
+      "menu_path": "采购",
+      "api_name": "修改供应商信息",
+      "api_url": "/purchase/srm/supplier/update",
+      "method": "POST",
+      "op_type": "update",
+      "classification": "write_or_mutation",
+      "required_body_fields": [
+        "code",
+        "name",
+        "paymentType",
+        "paymentRuleCode",
+        "state",
+        "contact",
+        "phone1",
+        "supplierWarehouse"
+      ],
+      "business_required_fields": [
+        "code",
+        "name",
+        "paymentType",
+        "paymentRuleCode",
+        "state",
+        "contact",
+        "phone1",
+        "supplierWarehouse"
+      ],
+      "has_page_response": false,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 1024,
+      "menu_path": "采购",
+      "api_name": "查询采购订单详情",
+      "api_url": "/purchase/srm/procure/detail",
+      "method": "GET",
+      "op_type": "detail",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "poCode"
+      ],
+      "business_required_fields": [
+        "poCode"
+      ],
+      "has_page_response": false,
+      "has_list_response": false,
+      "has_sensitive_response_fields": true,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 1025,
+      "menu_path": "采购",
+      "api_name": "查询交货单列表",
+      "api_url": "/purchase/srm/lotno/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "direct_read_candidate",
+      "required_body_fields": [
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 1026,
+      "menu_path": "采购",
+      "api_name": "查询交货单明细",
+      "api_url": "/purchase/srm/lotNo/detail",
+      "method": "GET",
+      "op_type": "detail",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "code"
+      ],
+      "business_required_fields": [
+        "code"
+      ],
+      "has_page_response": false,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 1060,
+      "menu_path": "采购",
+      "api_name": "采购订单快捷入库-确认入库",
+      "api_url": "/purchase/srm/quickInbound/confirm",
+      "method": "POST",
+      "op_type": "confirm",
+      "classification": "unsupported_shape_review",
+      "required_body_fields": [],
+      "business_required_fields": [],
+      "has_page_response": false,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 1080,
+      "menu_path": "采购",
+      "api_name": "采购订单快捷入库-查询待入库列表",
+      "api_url": "/purchase/srm/quickInbound/query",
+      "method": "POST",
+      "op_type": "query",
+      "classification": "direct_read_candidate",
+      "required_body_fields": [],
+      "business_required_fields": [],
+      "has_page_response": false,
+      "has_list_response": true,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 1082,
+      "menu_path": "采购",
+      "api_name": "交货单（待发货状态）快捷入库",
+      "api_url": "/purchase/srm/quickInboundByCode/confirm",
+      "method": "GET",
+      "op_type": "confirm",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "code"
+      ],
+      "business_required_fields": [
+        "code"
+      ],
+      "has_page_response": false,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 1434,
+      "menu_path": "采购",
+      "api_name": "创建采购交货单",
+      "api_url": "/purchase/srm/lotNo/create",
+      "method": "POST",
+      "op_type": "create",
+      "classification": "write_or_mutation",
+      "required_body_fields": [
+        "arrivalMarketId",
+        "createLotNoViewItemVos",
+        "deliveryDate",
+        "deliveryWarehouseId",
+        "fid",
+        "isDelivery",
+        "isQc"
+      ],
+      "business_required_fields": [
+        "arrivalMarketId",
+        "createLotNoViewItemVos",
+        "deliveryDate",
+        "deliveryWarehouseId",
+        "fid",
+        "isDelivery",
+        "isQc"
+      ],
+      "has_page_response": false,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 1593,
+      "menu_path": "采购",
+      "api_name": "创建采购订单-草稿状态",
+      "api_url": "/purchase/srm/order/create",
+      "method": "POST",
+      "op_type": "create",
+      "classification": "write_or_mutation",
+      "required_body_fields": [
+        "outerNo",
+        "poItems",
+        "supplierCode"
+      ],
+      "business_required_fields": [
+        "outerNo",
+        "poItems",
+        "supplierCode"
+      ],
+      "has_page_response": false,
+      "has_list_response": true,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 2611,
+      "menu_path": "采购",
+      "api_name": "采购订单-确认待交货",
+      "api_url": "/purchase/srm/order/confirm",
+      "method": "POST",
+      "op_type": "confirm",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "poCodeList"
+      ],
+      "business_required_fields": [
+        "poCodeList"
+      ],
+      "has_page_response": false,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 3100,
+      "menu_path": "采购",
+      "api_name": "采购订单快捷入库-确认入库V2",
+      "api_url": "/purchase/srm/quickInbound/confirm/V2",
+      "method": "POST",
+      "op_type": "confirm",
+      "classification": "direct_read_candidate",
+      "required_body_fields": [],
+      "business_required_fields": [],
+      "has_page_response": false,
+      "has_list_response": true,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 5262,
+      "menu_path": "采购",
+      "api_name": "查询采购主体",
+      "api_url": "/purchase/srm/purchaseSubject/list",
+      "method": "POST",
+      "op_type": "list",
+      "classification": "sensitive_review",
+      "required_body_fields": [],
+      "business_required_fields": [],
+      "has_page_response": false,
+      "has_list_response": true,
+      "has_sensitive_response_fields": true,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 8,
+      "menu_path": "销售",
+      "api_name": "查询订单详情",
+      "api_url": "/operation/sale/order/detail",
+      "method": "GET",
+      "op_type": "detail",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "marketId",
+        "orderId"
+      ],
+      "business_required_fields": [
+        "marketId",
+        "orderId"
+      ],
+      "has_page_response": false,
+      "has_list_response": false,
+      "has_sensitive_response_fields": true,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 9,
+      "menu_path": "销售",
+      "api_name": "查询退货订单列表",
+      "api_url": "/operation/sale/returnOrder/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "direct_read_candidate",
+      "required_body_fields": [
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 10,
+      "menu_path": "销售",
+      "api_name": "查询订单费用明细详情",
+      "api_url": "/operation/sale/orderFee/detail",
+      "method": "GET",
+      "op_type": "detail",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "fid"
+      ],
+      "business_required_fields": [
+        "fid"
+      ],
+      "has_page_response": false,
+      "has_list_response": true,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 16,
+      "menu_path": "销售",
+      "api_name": "查询FBA移除订单详情",
+      "api_url": "/purchase/sale/storageRemovalOrder/detail",
+      "method": "POST",
+      "op_type": "detail",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "warehouseId",
+        "orderId"
+      ],
+      "business_required_fields": [
+        "warehouseId",
+        "orderId"
+      ],
+      "has_page_response": false,
+      "has_list_response": false,
+      "has_sensitive_response_fields": true,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 17,
+      "menu_path": "销售",
+      "api_name": "查询FBA移除订单列表",
+      "api_url": "/purchase/sale/storageRemovalOrder/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "direct_read_candidate",
+      "required_body_fields": [
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 69,
+      "menu_path": "销售",
+      "api_name": "查询商品信息列表",
+      "api_url": "/operation/sale/selling/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "sensitive_review",
+      "required_body_fields": [
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": true,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 70,
+      "menu_path": "销售",
+      "api_name": "查询订单列表",
+      "api_url": "/operation/sale/order/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "sensitive_review",
+      "required_body_fields": [
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": true,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 96,
+      "menu_path": "销售",
+      "api_name": "查询FBA配送信息列表",
+      "api_url": "/operation/sale/fbaShipment/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "dateType",
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [
+        "dateType"
+      ],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": true,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 119,
+      "menu_path": "销售",
+      "api_name": "查询订单发货信息",
+      "api_url": "/operation/sale/orderFbaShipmentInfo/detail",
+      "method": "GET",
+      "op_type": "detail",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "orderId"
+      ],
+      "business_required_fields": [
+        "orderId"
+      ],
+      "has_page_response": false,
+      "has_list_response": true,
+      "has_sensitive_response_fields": true,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 120,
+      "menu_path": "销售",
+      "api_name": "查询推广费用列表",
+      "api_url": "/operation/sale/openPromotionFee/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "direct_read_candidate",
+      "required_body_fields": [
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 1011,
+      "menu_path": "销售",
+      "api_name": "查询退款订单列表",
+      "api_url": "/operation/sale/refundOrder/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "dateType",
+        "startDate",
+        "endDate",
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [
+        "dateType",
+        "startDate",
+        "endDate"
+      ],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 1382,
+      "menu_path": "销售",
+      "api_name": "查询推广资源列表",
+      "api_url": "/operation/sale/resource/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "sensitive_review",
+      "required_body_fields": [
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": true,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 2033,
+      "menu_path": "销售",
+      "api_name": "保存推广资源",
+      "api_url": "/operation/sale/resource/save",
+      "method": "POST",
+      "op_type": "save",
+      "classification": "write_or_mutation",
+      "required_body_fields": [
+        "codeType",
+        "name",
+        "paymentType",
+        "state"
+      ],
+      "business_required_fields": [
+        "codeType",
+        "name",
+        "paymentType",
+        "state"
+      ],
+      "has_page_response": false,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 2541,
+      "menu_path": "销售",
+      "api_name": "查询换货订单列表",
+      "api_url": "/operation/sale/replaceOrder/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "direct_read_candidate",
+      "required_body_fields": [
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    },
+    {
+      "doc_id": 3003,
+      "menu_path": "销售",
+      "api_name": "查询FBA移除订单-物流信息",
+      "api_url": "/purchase/sale/storageRemovalOrderWithShipment/page",
+      "method": "POST",
+      "op_type": "page",
+      "classification": "direct_read_candidate",
+      "required_body_fields": [
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false
+    }
+  ],
+  "errors": []
+}

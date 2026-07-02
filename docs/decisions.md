@@ -268,10 +268,17 @@
 - 该批次 `total_api_count=10`、`success_api_count=10`、`failed_api_count=0`。
 - 当前 enabled API 为 `amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`。
 - 阶段 4K 已运行 `--sync-api-configs`，数据库 `api_config.brand_page.enabled=1`。
-- 下一阶段先确认方向：进入部署前检查，或继续只读调研第 11 个低风险 API；确认前不继续扩大 enabled 范围。
+- 阶段 4L 已新增公开文档覆盖矩阵生成能力。
+- 覆盖矩阵通过 `python -m app.doc_catalog --output config/jijia_api_catalog.generated.json --summary` 生成。
+- 覆盖矩阵只访问公开文档接口 `/api/openAdmin/doc/tree` 和 `/api/openAdmin/doc/detail`，不读取 `.env`，不请求真实业务接口。
+- 阶段 4L 确认公开文档 API 共 185 个，详情拉取成功 185 个，失败 0 个。
+- 阶段 4L 分类口径为：可直接读取、依赖上游参数、敏感字段复核、写操作、响应形态待复核。
+- 阶段 4L 当前分类结果为 `direct_read_candidate=58`、`requires_upstream_params=79`、`sensitive_review=23`、`write_or_mutation=24`、`unsupported_shape_review=1`。
+- 覆盖矩阵是公开文档视角，不等同于当前账号真实授权可调用结果；真实可访问性仍以 `--sync-api` 单接口验证为准。
+- 下一阶段优先从未配置的 `direct_read_candidate` 中选择低风险产品基础数据接口，新增配置仍默认 `enabled: false`。
 
 ## Open Decisions
 
 - `raw_api_data.data_date` 取哪个业务时间字段，需要按每个 API 单独确认。
 - 后续是否把 `marketListVos` 拆成更细粒度记录，等待先验证 raw JSON 备份价值。
-- 后续新增业务 API 仍需要逐个阅读文档后再选择，新增配置应先默认 `enabled: false`。
+- 后续新增业务 API 仍需要逐个阅读覆盖矩阵和文档详情后再选择，新增配置应先默认 `enabled: false`。

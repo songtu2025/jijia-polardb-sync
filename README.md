@@ -149,6 +149,14 @@ python -m app.main --sync-enabled
 
 `--sync-enabled` 会读取 `config/api_config.example.yaml` 中 `enabled: true` 的接口，并在同一个 `sync_batch` 下逐个写入 `sync_api_log`。当前启用了 `amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page` 和 `brand_page`。
 
+生成积加公开文档 API 覆盖矩阵：
+
+```bash
+python -m app.doc_catalog --output config/jijia_api_catalog.generated.json --summary
+```
+
+该命令只读取公开文档目录和详情，不读取 `.env`，不请求真实业务接口。输出文件只保存公开接口元数据、分类结果和本地配置覆盖状态。
+
 ## ECS 部署
 
 1. 在 ECS 安装 Python 3.11+ 和 MySQL 客户端。
