@@ -337,10 +337,10 @@ apis:
       page: 1
       pagesize: 100
 
-  # 第十三个真实文档接口：捆绑产品基础资料，文档 id=1956，先单接口验证后再考虑启用。
+  # 第十三个真实文档接口：捆绑产品基础资料，文档 id=1956，已通过单接口验证并加入 enabled 批量同步。
   - api_code: kb_product_page
     name: 查询捆绑产品列表
-    enabled: false
+    enabled: true
     method: POST
     path: /purchase/goods/kbProduct/page
     page:
@@ -364,10 +364,10 @@ apis:
       page: 1
       pagesize: 100
 
-  # 第十四个真实文档接口：FBA仓基础资料，文档 id=63，先单接口验证后再考虑启用。
+  # 第十四个真实文档接口：FBA仓基础资料，文档 id=63，已通过单接口验证并加入 enabled 批量同步。
   - api_code: fba_warehouse_page
     name: 查询仓库-FBA仓
-    enabled: false
+    enabled: true
     method: POST
     path: /purchase/inventory/fbaWarehouse/page
     page:

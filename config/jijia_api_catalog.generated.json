@@ -8,7 +8,7 @@
     "detail_success_count": 185,
     "detail_error_count": 0,
     "configured_real_api_count": 14,
-    "configured_enabled_real_api_count": 12,
+    "configured_enabled_real_api_count": 14,
     "classification_counts": {
       "direct_read_candidate": 58,
       "requires_upstream_params": 79,
@@ -297,7 +297,7 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "kb_product_page",
-      "configured_enabled": false
+      "configured_enabled": true
     },
     {
       "doc_id": 2898,
@@ -416,7 +416,7 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "fba_warehouse_page",
-      "configured_enabled": false
+      "configured_enabled": true
     },
     {
       "doc_id": 64,

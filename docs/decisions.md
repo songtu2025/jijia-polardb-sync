@@ -310,6 +310,14 @@
 - 阶段 4O 已运行 `--sync-api-configs`，数据库中两个新接口均为 `enabled=0`，当前启用配置数仍为 12。
 - 覆盖矩阵已刷新，当前已配置真实 API 为 14 个，enabled 仍为 12 个。
 - 下一阶段可以将 `kb_product_page.enabled` 和 `fba_warehouse_page.enabled` 改为 `true`，并用 `--sync-enabled` 验证 14 个 API 同批次同步。
+- 阶段 4P 已将 `kb_product_page.enabled` 和 `fba_warehouse_page.enabled` 改为 `true`。
+- 阶段 4P 的 `--sync-enabled` 验证批次号为 `sync_20260703_011758_883247`。
+- 该批次 `total_api_count=14`、`success_api_count=14`、`failed_api_count=0`。
+- 同一批次中 `kb_product_page` 请求 1 次，写入 0 条，checkpoint 记录 `item_count=0`、`total_count=0`。
+- 同一批次中 `fba_warehouse_page` 请求 1 次，写入 36 条，checkpoint 记录 `item_count=36`、`total_count=36`。
+- 阶段 4P 已运行 `--sync-api-configs`，数据库 `api_config.kb_product_page.enabled=1`、`api_config.fba_warehouse_page.enabled=1`。
+- 当前 enabled API 为 14 个，当前覆盖矩阵中的真实配置 API 也是 14 个。
+- 下一阶段继续新增低风险直接读取候选，并在完成 4Q 后做 4O-4Q 三轮复盘。
 
 ## Open Decisions
 

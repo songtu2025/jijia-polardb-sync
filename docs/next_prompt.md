@@ -24,36 +24,36 @@
 
 当前阶段：
 
-阶段 4O 已完成。下一阶段 4P 将已单接口验证通过的两个低风险接口加入 enabled 批量同步。
+阶段 4P 已完成。下一阶段 4Q 继续接入下一批低风险 `direct_read_candidate`，并在完成后做 4O-4Q 三轮复盘。
 
 当前事实：
 
-- 当前 enabled API 有 12 个：`amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`、`product_page`、`parent_product_page`。
-- 当前已配置真实 API 有 14 个，其中 `kb_product_page` 和 `fba_warehouse_page` 仍为 `enabled=false`。
-- 阶段 4O 中 `kb_product_page` 单接口验证成功，批次 `sync_20260703_010426_080352`，`rows=0`，`requests=1`。
-- 数据库确认该批次 `total_api_count=1`、`success_api_count=1`、`failed_api_count=0`，checkpoint 记录 `item_count=0`、`total_count=0`。
-- 阶段 4O 中 `fba_warehouse_page` 单接口验证成功，批次 `sync_20260703_010654_343796`，`rows=36`，`requests=1`。
-- 数据库确认该批次 `total_api_count=1`、`success_api_count=1`、`failed_api_count=0`，36 条 raw 数据都有 `source_primary_key` 和 `data_date`。
-- `api_config` 已同步到 16 条，enabled 仍为 12。
-- `api_config.kb_product_page.enabled=0`、`api_config.fba_warehouse_page.enabled=0`。
-- 覆盖矩阵仍显示公开文档 API 185 个，真实配置 API 14 个，enabled 12 个。
+- 当前 enabled API 有 14 个：`amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`、`product_page`、`parent_product_page`、`kb_product_page`、`fba_warehouse_page`。
+- 当前已配置真实 API 有 14 个，且 14 个均已 enabled。
+- 阶段 4P 成功批次：`sync_20260703_011758_883247`。
+- 该批次 `total_api_count=14`、`success_api_count=14`、`failed_api_count=0`。
+- `kb_product_page` 在 enabled 批次中请求 1 次，写入 0 条，checkpoint 记录 `item_count=0`、`total_count=0`。
+- `fba_warehouse_page` 在 enabled 批次中请求 1 次，写入 36 条，36 条 raw 数据都有 `source_primary_key` 和 `data_date`。
+- `api_config.kb_product_page.enabled=1`、`api_config.fba_warehouse_page.enabled=1`。
+- 覆盖矩阵仍显示公开文档 API 185 个，真实配置 API 14 个，enabled 14 个。
 
 建议目标：
 
-1. 将 `kb_product_page.enabled` 和 `fba_warehouse_page.enabled` 从 `false` 改为 `true`。
-2. 运行 `.\\.venv\\Scripts\\python.exe -m app.main`，确认 enabled API 变为 14 个。
-3. 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`。
-4. 查询数据库确认 14 个 API 同批次成功，`failed_api_count=0`。
-5. 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`。
-6. 查询 `api_config.kb_product_page.enabled=1` 和 `api_config.fba_warehouse_page.enabled=1`。
-7. 运行 `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary`，确认真实配置 API 为 14 个、enabled 为 14 个。
+1. 从 `config/jijia_api_catalog.generated.json` 中选择 1-2 个新的低风险 `direct_read_candidate`。
+2. 优先选择分页清晰、有稳定 `id` 或明确业务主键、无敏感字段的接口。
+3. 暂缓 `amazon_msku_page` 这类无单字段 id 的接口，除非先明确 data_hash 或复合主键策略。
+4. 新接口新增 YAML 配置时默认 `enabled=false`。
+5. 单接口运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api <api_code>` 并查库验证。
+6. 单接口验证通过后，同步 `api_config` 并刷新覆盖矩阵。
+7. 完成 4Q 后写入 4O-4Q 三轮复盘。
 8. 运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests`。
 9. 运行 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`。
 
 验收：
 
-1. 14 个 enabled API 同批次同步成功。
-2. `kb_product_page` 和 `fba_warehouse_page` 的批量同步日志与单接口验证口径一致。
-3. 数据库 `api_config` 中两个新接口均为 enabled。
-4. 覆盖矩阵、测试和文档同步更新。
-5. 不提交 `.env`、token 缓存、日志或任何敏感信息。
+1. 新增配置与公开文档一致，且默认不进入 `--sync-enabled`。
+2. dry-run enabled API 仍为 14 个。
+3. 单接口同步成功并可查库验证。
+4. `api_config` 和覆盖矩阵同步到新配置状态。
+5. `docs/progress.md` 写入 4O-4Q 三轮复盘。
+6. 不提交 `.env`、token 缓存、日志或任何敏感信息。
