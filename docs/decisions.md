@@ -443,3 +443,11 @@
 - 阶段 5C 覆盖矩阵保持公开文档 API 185 个、真实配置 API 23 个、enabled 20 个。
 - 5A-5C 复盘结论：依赖型接口的小窗口自动推进已在多字段 raw_json、单字段 raw_json 两种来源上验证成立，但仍不应直接加入 enabled 批量同步。
 - 下一阶段优先为 `product_detail` 开启 `auto_advance`，补齐 `source_primary_key` 参数来源分支的连续窗口验证。
+- 阶段 5D 已将 `product_detail.param_source.auto_advance=true`，同时保持 `product_detail.enabled=0`、`limit=3`。
+- 阶段 5D 的 `product_detail` 自动推进从旧 checkpoint 兼容计算 offset=3；第一批产品 ID 为 `1`、`10`、`100`，第二批产品 ID 为 `1000`、`1001`、`1002`。
+- 阶段 5D 已用第二批产品 ID 验证 `product_detail`，批次号为 `sync_20260703_072627_252050`，请求 3 次，写入 3 条，失败 0。
+- `product_detail` 详情响应顶层仍没有日期字段，`data_date` 为空是当前正确行为。
+- 阶段 5D 后 `product_detail` checkpoint 记录 `param_offset=3`、`param_limit=3`、`next_param_offset=6`。
+- 阶段 5D 已同步 `api_config`，当前数据库总配置 25 条，启用 20 条；`product_detail.enabled=0`、`param_source.auto_advance=true`。
+- 阶段 5D 覆盖矩阵保持公开文档 API 185 个、真实配置 API 23 个、enabled 20 个。
+- 下一阶段不改 YAML，继续验证 `product_detail` 从 `next_param_offset=6` 连续推进到第三批产品 ID。

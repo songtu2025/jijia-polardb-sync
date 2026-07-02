@@ -2,7 +2,7 @@
 
 ## Current Stage
 
-阶段 5C 已完成。`storage_inbound_detail` 已开启 checkpoint 自动窗口推进并完成第二批 code 小样本同步，当前真实配置 API 为 23 个，enabled API 仍为 20 个。
+阶段 5D 已完成。`product_detail` 已开启 checkpoint 自动窗口推进并完成第二批产品 ID 小样本同步，当前真实配置 API 为 23 个，enabled API 仍为 20 个。
 
 ## Completed
 
@@ -939,6 +939,23 @@
   - `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary`，通过，公开文档 API 为 185 个，真实配置 API 为 23 个，enabled 为 20 个。
   - `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
   - `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过，25 个测试。
+- 阶段 5D 已运行：
+  - 已测试先行约束 `product_detail.param_source.auto_advance=true`；测试先失败于缺少该字段，再通过。
+  - 已将 `product_detail.param_source.auto_advance` 设置为 `true`，同时保持 `enabled=false` 和 `limit=3` 不变。
+  - 已只读确认 `product_detail` 旧 checkpoint 为 `{"last_page":3,"request_count":3,"item_count":3,"total_count":3}`，自动推进兼容逻辑会计算 offset=3。
+  - 已按程序真实排序确认 offset=0 的第一批产品 ID 为 `1`、`10`、`100`。
+  - 已按程序真实排序确认 offset=3 的第二批产品 ID 为 `1000`、`1001`、`1002`，不重复第一批。
+  - `.\\.venv\\Scripts\\python.exe -m app.main`，通过，dry-run 仍显示 20 个 enabled API。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api product_detail`，通过，批次 `sync_20260703_072627_252050`，`rows=3`，`requests=3`。
+  - 已查询数据库摘要，确认该批次 `total_api_count=1`、`success_api_count=1`、`failed_api_count=0`。
+  - 同一批次 `sync_api_log` 记录 `request_count=3`、`success_count=3`、`failed_count=0`，`failed_request_log` 为 0 条。
+  - 同一批次 `raw_api_data` 写入 3 条，主键为 `1000`、`1001`、`1002`，三条都有 `source_primary_key` 和 `data_hash`；`data_date` 仍为空，符合该接口未配置日期字段的预期。
+  - `product_detail` checkpoint 更新到批次 `sync_20260703_072627_252050`，记录 `param_offset=3`、`param_limit=3`、`next_param_offset=6`。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，通过，同步配置数为 25。
+  - 已查询 `api_config`，确认 `product_detail.enabled=0`、`param_source.source_field=source_primary_key`、`param_source.limit=3`、`param_source.auto_advance=true`，数据库配置总数 25、启用 20。
+  - `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary`，通过，公开文档 API 为 185 个，真实配置 API 为 23 个，enabled 为 20 个。
+  - `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
+  - `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过，25 个测试。
 
 ## Review 4L-4N
 
@@ -1081,20 +1098,19 @@
 
 ## Next Stage
 
-阶段 5D：为 `product_detail` 开启 checkpoint 自动窗口推进，并验证第二批产品 ID 小样本。
+阶段 5E：不修改 YAML，复用 `product_detail` checkpoint 自动推进到第三批产品 ID 小样本。
 
 建议目标：
 
-- 将 `product_detail.param_source.auto_advance` 设置为 `true`，继续保持 `enabled=false`。
-- 不修改 `limit=3`，用 `product_detail` 既有 checkpoint 推进到第二批产品 ID。
-- 先只读查询第二批 `product_page.source_primary_key`，确认不重复第一批 `1`、`10`、`100`。
-- 运行 `product_detail` 第二批小样本真实同步，确认批次、日志、raw 和 checkpoint 可追踪。
+- 不修改 YAML，复用 `product_detail` checkpoint 中的 `next_param_offset=6`。
+- 先只读查询第三批 `product_page.source_primary_key`，确认不重复前两批 `1`、`10`、`100`、`1000`、`1001`、`1002`。
+- 运行 `product_detail` 第三批小样本真实同步，确认批次、日志、raw 和 checkpoint 可追踪。
 - 完成后同步 `api_config`、刷新覆盖矩阵。
 
 验收：
 
-- `product_detail` 能从 checkpoint 自动推进到第二批产品 ID 小样本。
-- 第二批产品 ID 不重复第一批，且同步批次成功。
+- `product_detail` 能从 checkpoint 自动推进到第三批产品 ID 小样本。
+- 第三批产品 ID 不重复前两批，且同步批次成功。
 - `product_detail` 默认保持 disabled，不影响现有 20 个 enabled API。
 - `api_config` 与覆盖矩阵保持真实配置 API 23 个、enabled 20 个。
 - `compileall` 和 `unittest discover` 通过。

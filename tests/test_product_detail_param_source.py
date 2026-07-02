@@ -43,6 +43,8 @@ class ProductDetailParamSourceTest(unittest.TestCase):
         self.assertEqual(api["param_source"]["source_field"], "source_primary_key")
         self.assertEqual(api["param_source"]["target_field"], "id")
         self.assertEqual(api["param_source"]["limit"], 3)
+        self.assertIn("auto_advance", api["param_source"])
+        self.assertTrue(api["param_source"]["auto_advance"])
 
     def test_response_items_accepts_single_dict_item_field(self):
         engine = SyncEngine([])

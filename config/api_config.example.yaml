@@ -551,6 +551,7 @@ apis:
       source_field: source_primary_key
       target_field: id
       limit: 3
+      auto_advance: true
     rate_limit:
       sleep_seconds: 0.2
     retry:
