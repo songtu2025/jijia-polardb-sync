@@ -458,3 +458,12 @@
 - 阶段 5E 已同步 `api_config`，当前数据库总配置 25 条，启用 20 条；`product_detail.enabled=0`、`param_source.auto_advance=true`。
 - 阶段 5E 覆盖矩阵保持公开文档 API 185 个、真实配置 API 23 个、enabled 20 个。
 - `source_primary_key` 参数来源分支已完成连续窗口验证；下一阶段应回到覆盖矩阵，选择新的依赖型接口继续扩大覆盖，而不是继续重复同一接口小窗口。
+- 阶段 5F 新增 `country_province_query`，文档 id 为 `5066`，路径为 `GET /middle/base/countryProvince/query`，默认保持 `enabled=false`。
+- `country_province_query` 依赖参数为必填 `countryCode`，可从已同步的 `fba_warehouse_page.raw_json.country` 提取；当前该上游有 36 条 raw 具备 `country`，去重国家/区域码为 6 个。
+- 阶段 5F 复用 `param_source.fields`，不新增代码机制；测试约束该接口使用 `raw_json.country -> countryCode`，并保持 disabled。
+- 阶段 5F 已用前三个真实国家/区域码 `CA`、`EU`、`JP` 验证 `country_province_query`，批次号为 `sync_20260703_074515_363198`，请求 5 次，写入 60 条，失败 0。
+- `country_province_query` 响应主键使用 `id`，日期字段为空；首批 raw 中 `CA` 和 `JP` 返回省州数据，`EU` 未返回省州数据但接口未失败。
+- 阶段 5F 后 `country_province_query` checkpoint 记录 `param_offset=0`、`param_limit=3`、`next_param_offset=3`。
+- 阶段 5F 已同步 `api_config`，当前数据库总配置 26 条，启用 20 条；`country_province_query.enabled=0`、`param_source.source_api_code=fba_warehouse_page`、`param_source.auto_advance=true`。
+- 阶段 5F 覆盖矩阵已刷新为公开文档 API 185 个、真实配置 API 24 个、enabled 20 个。
+- 5D-5F 复盘结论：依赖型接口的小窗口机制已覆盖 `source_primary_key`、单字段 `raw_json`、多字段 `raw_json` 三种来源；下一阶段优先不改 YAML，验证 `country_province_query` 从 `next_param_offset=3` 连续推进。

@@ -2,7 +2,7 @@
 
 ## Current Stage
 
-阶段 5E 已完成。`product_detail` 已不改 YAML 连续推进到第三批产品 ID 小样本，当前真实配置 API 为 23 个，enabled API 仍为 20 个。
+阶段 5F 已完成。已新增并验证 `country_province_query`，当前真实配置 API 为 24 个，enabled API 仍为 20 个；5D-5F 三轮复盘已完成。
 
 ## Completed
 
@@ -970,6 +970,23 @@
   - `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary`，通过，公开文档 API 为 185 个，真实配置 API 为 23 个，enabled 为 20 个。
   - `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
   - `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过，25 个测试。
+- 阶段 5F 已运行：
+  - 已从覆盖矩阵 `requires_upstream_params` 中选择 `country_province_query`，文档 id=5066，路径为 `GET /middle/base/countryProvince/query`。
+  - 已读取公开文档详情，确认必填参数为 `countryCode`，响应 `data` 为省州数组，响应字段包含 `id`、`countryCode`、`name`、`code`。
+  - 已只读查询 `fba_warehouse_page.raw_json.country`，确认 36 条 FBA 仓 raw 均有国家字段，去重国家/区域码为 6 个。
+  - 已新增 `tests/test_country_province_param_source.py`，先失败后通过，约束该接口默认 disabled，并复用 `param_source.fields` 从 `raw_json.country` 生成 `countryCode`。
+  - 已新增 `country_province_query` YAML 配置，默认 `enabled=false`，小样本 `limit=3`，`primary_key.field=id`，`date_field` 为空。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --dry-run` 不存在；已用配置加载脚本确认真实配置 API 为 24 个、enabled API 仍为 20 个。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api country_province_query`，通过，批次 `sync_20260703_074515_363198`，`rows=60`，`requests=5`。
+  - 已查询数据库摘要，确认该批次 `total_api_count=1`、`success_api_count=1`、`failed_api_count=0`。
+  - 同一批次 `sync_api_log` 记录 `request_count=5`、`success_count=60`、`failed_count=0`，`failed_request_log` 为 0 条。
+  - 同一批次 `raw_api_data` 写入 60 条，60 条都有 `source_primary_key` 和 `data_hash`；首批参数 `CA`、`EU`、`JP` 中 `CA` 和 `JP` 返回省州数据，`EU` 未返回省州数据但接口未失败。
+  - `country_province_query` checkpoint 更新到批次 `sync_20260703_074515_363198`，记录 `param_offset=0`、`param_limit=3`、`next_param_offset=3`。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，通过，同步配置数为 26。
+  - 已查询 `api_config`，确认 `country_province_query.enabled=0`、`param_source.source_api_code=fba_warehouse_page`、`param_source.limit=3`、`param_source.auto_advance=true`。
+  - `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary`，通过，公开文档 API 为 185 个，真实配置 API 为 24 个，enabled 为 20 个。
+  - `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
+  - `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过，27 个测试。
 
 ## Review 4L-4N
 
@@ -1097,13 +1114,34 @@
   - 继续保持依赖型接口 disabled，用 `--sync-api` 做小窗口验证。
   - 之后再选择新的依赖型接口，或开始设计依赖型窗口接口的生产级调度策略。
 
+## Review 5D-5F
+
+- 已完成第七组目标模式闭环：
+  - 5D 为 `product_detail` 开启 `auto_advance`，验证 `source_primary_key` 参数来源可从旧 checkpoint 推进到第二批。
+  - 5E 不改 YAML 继续验证 `product_detail` 第三批，确认 `source_primary_key` 分支可连续自动推进。
+  - 5F 新增 `country_province_query`，复用 `raw_json.country -> countryCode` 完成基础数据依赖接口小样本。
+- 当前覆盖状态：
+  - 公开文档 API：185 个。
+  - 已配置真实 API：24 个。
+  - enabled API：20 个。
+  - `product_detail`、`market_inventory_query`、`storage_inbound_detail`、`country_province_query` 已验证但保持 disabled。
+  - 当前依赖参数来源已覆盖 `source_primary_key`、单字段 `raw_json`、多字段 `raw_json` 三类小窗口。
+- 本组三轮发现的问题：
+  - `product_detail` 无日期字段，`data_date` 为空是事实，不应为了统一而编造日期。
+  - `country_province_query` 的上游 `fba_warehouse_page.country` 包含 `EU` 这类区域码，接口可成功但不会产生省州 raw；参数窗口成功与返回数据多少仍要分开判断。
+  - 依赖型接口继续保持 disabled 是正确边界；它们需要独立窗口调度，不应混进 20 个 enabled 日常全量批次。
+- 下一组三轮建议：
+  - 先不改 YAML，继续运行 `country_province_query`，验证 `next_param_offset=3` 自动推进到第二批国家码。
+  - 之后选择另一个参数来源更干净的依赖型接口，或者开始为依赖型接口设计独立的批量窗口命令。
+  - 继续每轮用数据库查询证明参数来源、批次日志、raw、checkpoint，而不是只看命令返回成功。
+
 ## Known Issues
 
 - `amazon_shop_page` 第一版以 `data_hash` 去重，不强行编造业务主键。
 - 各业务 API 的具体路径、字段、分页和主键需要逐个阅读文档确认。
 - 新增后续业务接口前，仍需要逐个阅读积加文档确认路径、分页、主键和日期字段。
 - 当前 enabled API 已有 20 个：`amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`、`product_page`、`parent_product_page`、`kb_product_page`、`fba_warehouse_page`、`store_location_page`、`multi_shop_query`、`crm_tags_page`、`inventory_team_query`、`product_inventory_page`、`storage_inbound_page`。
-- 当前已配置真实 API 为 23 个，其中 20 个已加入 enabled，`product_detail`、`market_inventory_query` 和 `storage_inbound_detail` 已完成小样本验证但保持 disabled。
+- 当前已配置真实 API 为 24 个，其中 20 个已加入 enabled，`product_detail`、`market_inventory_query`、`storage_inbound_detail` 和 `country_province_query` 已完成小样本验证但保持 disabled。
 - 当前依赖参数来源机制支持从 `raw_api_data.source_primary_key` 取单个参数，也支持从 `raw_json` 顶层字段提取多个参数，并可用 `param_source.auto_advance` 基于 checkpoint 推进小窗口；尚未把 111307 个参数对纳入生产级调度。
 - 覆盖矩阵是公开文档视角，不等同于当前账号真实授权可调用结果；真实可访问性仍需单接口运行验证。
 - `product_page` 当前总量为 8258 条，请求 83 页；`product_inventory_page` 当前总量为 118653 条，请求 1187 页；`storage_inbound_page` 当前总量为 174286 条，请求 1743 页。当前 20 个 enabled API 的真实批量同步约 3052 次请求，必须按长耗时任务安排 cron 窗口。
@@ -1112,23 +1150,21 @@
 
 ## Next Stage
 
-阶段 5F：从覆盖矩阵中选择下一个依赖型接口，继续验证参数来源机制的复用性。
+阶段 5G：不改 YAML，继续验证 `country_province_query` 的 checkpoint 自动推进。
 
 建议目标：
 
-- 只读读取覆盖矩阵，筛选 `requires_upstream_params` 中尚未配置、参数可从现有 enabled raw 数据获得、且不涉及敏感字段或写操作的候选接口。
-- 阅读候选接口公开文档详情，确认路径、方法、必填参数、响应形态、主键和日期字段。
-- 只读查询数据库，证明所需参数来源真实存在。
-- 新增一个依赖型 API 配置，默认 `enabled=false`，小样本 `limit` 控制在 3 左右。
-- 如果现有 `param_source.source_primary_key` 或 `param_source.fields` 足够，优先不改代码；如果不够，必须测试先行做最小扩展。
-- 运行新接口小样本真实同步，确认批次、日志、raw 和 checkpoint 可追踪。
-- 完成后同步 `api_config`、刷新覆盖矩阵。
+- 只读确认 `country_province_query` 当前 checkpoint 为 `next_param_offset=3`。
+- 按程序 SQL 预览 offset=3 的第二批 `countryCode`，确认不会重复第一批 `CA`、`EU`、`JP`。
+- 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api country_province_query`。
+- 查询数据库确认第二批批次成功，`sync_api_log`、`raw_api_data`、checkpoint 都可追踪。
+- 如果第二批出现无数据国家码，记录事实即可，不要把无数据等同失败。
+- 完成后同步 `api_config`、刷新覆盖矩阵并运行编译与单测。
 
 验收：
 
-- 新依赖型接口完成文档确认和小样本真实同步，默认保持 disabled。
-- 参数来源由数据库只读查询证明，不靠猜测字段。
-- 新接口同步批次成功，`sync_api_log`、`raw_api_data` 和 checkpoint 可核验。
-- `api_config` 与覆盖矩阵显示真实配置 API 增加 1 个，enabled 仍为 20 个。
+- `country_province_query` 不改 YAML 自动推进到第二批参数窗口。
+- 第二批同步成功，`sync_api_log`、`raw_api_data` 和 checkpoint 可核验。
+- `api_config` 与覆盖矩阵显示真实配置 API 仍为 24 个，enabled 仍为 20 个。
 - `compileall` 和 `unittest discover` 通过。
 - 继续保持 `.env`、token 缓存、日志和真实凭证不提交。
