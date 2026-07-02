@@ -151,6 +151,11 @@
 - `dictionary_query` 的 `source_primary_key` 已确认从响应 `id` 写入，`data_date` 已确认从 `recordDate` 写入。
 - 阶段 3R 后 `dictionary_query` 仍保持 `enabled: false`，未加入 `--sync-enabled`。
 - 下一阶段可以将 `dictionary_query.enabled` 改为 `true`，并用 `--sync-enabled` 验证 4 个 API 同批次同步。
+- 阶段 3S 已将 `dictionary_query.enabled` 改为 `true`。
+- 阶段 3S 的 `--sync-enabled` 验证批次号为 `sync_20260702_183342_663394`。
+- 该批次 `total_api_count=4`、`success_api_count=4`、`failed_api_count=0`。
+- 当前 enabled API 为 `amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`。
+- 阶段 3S 已运行 `--sync-api-configs`，数据库 `api_config.dictionary_query.enabled=1`。
 
 ## Open Decisions
 
