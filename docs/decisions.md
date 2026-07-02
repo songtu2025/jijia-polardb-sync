@@ -189,6 +189,11 @@
 - `continent_country_tree` 因无稳定主键，`source_primary_key` 为空，已确认使用 `data_hash` 去重。
 - 阶段 3X 后 `continent_country_tree` 仍保持 `enabled: false`，未加入 `--sync-enabled`。
 - 下一阶段可以将 `continent_country_tree.enabled` 改为 `true`，并用 `--sync-enabled` 验证 6 个 API 同批次同步。
+- 阶段 3Y 已将 `continent_country_tree.enabled` 改为 `true`。
+- 阶段 3Y 的 `--sync-enabled` 验证批次号为 `sync_20260702_205600_866582`。
+- 该批次 `total_api_count=6`、`success_api_count=6`、`failed_api_count=0`。
+- 当前 enabled API 为 `amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`。
+- 阶段 3Y 已运行 `--sync-api-configs`，数据库 `api_config.continent_country_tree.enabled=1`。
 
 ## Open Decisions
 

@@ -22,17 +22,17 @@
 
 当前要执行的阶段：
 
-阶段 3Y：将 `continent_country_tree` 加入 enabled 批量同步。
+阶段 3Z：调研第七个真实业务 API 候选。
 
 建议目标：
 
 1. 阅读现有 `config/api_config.example.yaml`、`docs/progress.md`、`docs/decisions.md`。
-2. 将 `continent_country_tree.enabled` 从 `false` 改为 `true`。
-3. 运行 `.\\.venv\\Scripts\\python.exe -m app.main`，确认 enabled API 变为 6 个。
-4. 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`。
-5. 查询数据库确认同一个 `sync_batch` 下有 6 条 `sync_api_log`。
-6. 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，同步 `api_config` 表。
-7. 查询数据库确认 `api_config.continent_country_tree.enabled=1`。
+2. 从积加开放平台文档中选择第七个低风险业务 API 候选。
+3. 先只做文档调研和候选选择。
+4. 明确接口路径、请求体、分页字段、列表字段、总数字段、主键字段和日期字段。
+5. 如果新增 YAML 配置，默认 `enabled: false`。
+6. 不直接加入 `--sync-enabled`。
+7. 不执行新接口真实 API，除非下一阶段专门验证。
 
 验收：
 
@@ -42,7 +42,7 @@
 4. `--test-api amazon_shop_page` 仍可分页请求并写入日志。
 5. `--sync-api amazon_shop_page` 仍可完成真实单接口同步。
 6. `--sync-enabled` 仍可完成 enabled API 同步。
-7. `continent_country_tree` 成功加入 enabled 批量同步。
+7. 若新增第七个 API 配置，必须默认 `enabled: false`。
 8. 不输出任何真实凭证或 accessToken。
 
 当前阶段 3M 已完成内容：
@@ -226,3 +226,10 @@
 - 已确认 `source_primary_key` 为空，使用 `data_hash` 去重，`sync_checkpoint` 已更新。
 - 已再次运行 `--sync-enabled`，批次 `sync_20260702_185428_805435`，仍为 `apis=5`，未执行 `continent_country_tree`。
 - 已运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests` 和 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，均通过。
+- 已将 `continent_country_tree.enabled` 改为 `true`。
+- 已运行 `.\\.venv\\Scripts\\python.exe -m app.main`，dry-run 显示 enabled API 为 6 个。
+- 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`。
+- 验证成功，批次 `sync_20260702_205600_866582`，`apis=6`，`rows=3347`，`requests=12`。
+- 数据库确认同一批次下有六条 `sync_api_log`，六个 API 均成功。
+- 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，数据库 `api_config.continent_country_tree.enabled=1`。
+- 已运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests`、`.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`、`.\\.venv\\Scripts\\python.exe -m app.main --test-token` 和 `.\\.venv\\Scripts\\python.exe -m app.main --mock-sync`，均通过。

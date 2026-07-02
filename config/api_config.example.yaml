@@ -165,7 +165,7 @@ apis:
   # 第六个真实文档候选接口：文档 id=4943 未展开 data 子字段，先用 data_hash 去重并保持禁用。
   - api_code: continent_country_tree
     name: 获取大洲国家关系
-    enabled: false
+    enabled: true
     method: POST
     path: /middle/base/continentCountryTree/page
     page:
