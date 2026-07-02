@@ -259,6 +259,11 @@
 - `brand_page` 响应列表字段是 `data.rows`，总数字段是 `data.total`。
 - `brand_page` 候选主键字段是 `id`，无明确日期字段。
 - `brand_page` 新增配置默认 `enabled: false`，单接口验证通过前不加入 `--sync-enabled`。
+- 阶段 4J 已执行 `--sync-api brand_page`，单接口真实验证成功。
+- 阶段 4J 的 `brand_page` 验证批次号为 `sync_20260702_214759_731674`，请求 1 次，写入 8 条。
+- `brand_page` 的 `source_primary_key` 已确认从响应 `id` 写入。
+- 阶段 4J 后 `brand_page` 仍保持 `enabled: false`，未加入 `--sync-enabled`。
+- 下一阶段可以将 `brand_page.enabled` 改为 `true`，并用 `--sync-enabled` 验证 10 个 API 同批次同步。
 
 ## Open Decisions
 

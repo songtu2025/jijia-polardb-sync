@@ -22,35 +22,34 @@
 
 当前要执行的阶段：
 
-阶段 4J：单接口验证 `brand_page`。
+阶段 4K：将 `brand_page` 加入 enabled 批量同步。
 
 当前事实：
 
 - 当前 enabled API 有 9 个：`amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`。
-- `brand_page` 已在阶段 4I 添加为第十个候选接口，默认 `enabled=false`。
-- `brand_page` 对应文档 id `1752`，名称是“查询品牌资料”。
-- 文档路径为 `POST /purchase/goods/brand/page`，实际请求路径为 `/api/open/purchase/goods/brand/page`。
-- 请求头需要 `accessToken`，请求体必填 `page` 和 `pagesize`，可选 `code`、`name`、`state`。
-- 响应列表字段为 `data.rows`，总数字段为 `data.total`，候选主键字段为 `id`。
-- 阶段 4I 已运行 `--sync-api-configs`，数据库配置总数为 12，`brand_page.enabled=0`。
+- `brand_page` 已在阶段 4J 完成单接口真实验证。
+- 阶段 4J 成功批次：`sync_20260702_214759_731674`。
+- `brand_page` 单接口验证结果：请求 1 次，写入 8 条，`source_primary_key` 来自 `id`，`data_date` 为空。
+- 阶段 4J 后 `brand_page.enabled=false`，未加入 enabled 批量同步。
+- 最近一次 enabled 批次：`sync_20260702_214840_754392`，`apis=9`，九个 API 均成功。
 
 建议目标：
 
 1. 阅读现有 `config/api_config.example.yaml`、`docs/progress.md`、`docs/decisions.md`。
-2. 保持 `brand_page.enabled=false`。
-3. 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api brand_page` 做单接口验证。
-4. 查询数据库确认 `sync_batch`、`sync_api_log`、`raw_api_data`、`sync_checkpoint`。
-5. 确认 `raw_api_data.source_primary_key` 来自 `id`。
-6. 再运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`，确认仍只同步已启用的 9 个 API。
-7. 验证通过后，下一阶段再决定是否把 `brand_page` 加入 `--sync-enabled`。
+2. 将 `brand_page.enabled` 从 `false` 改为 `true`。
+3. 运行 `.\\.venv\\Scripts\\python.exe -m app.main`，确认 enabled API 变为 10 个。
+4. 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`。
+5. 查询数据库确认 `sync_batch`、`sync_api_log`、`raw_api_data`、`sync_checkpoint`。
+6. 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，同步 `api_config` 表。
+7. 查询 `api_config`，确认 `brand_page.enabled=1`。
 
 验收：
 
 1. `.\\.venv\\Scripts\\python.exe -m compileall app tests` 通过。
 2. `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"` 通过。
-3. `.\\.venv\\Scripts\\python.exe -m app.main` dry-run 仍显示 9 个 enabled API。
-4. `.\\.venv\\Scripts\\python.exe -m app.main --mock-sync` 通过。
-5. `brand_page` 单接口验证成功。
-6. `--sync-enabled` 仍只同步当前 9 个 enabled API。
-7. 数据库 `api_config.brand_page.enabled=0`。
+3. dry-run 显示 enabled API 为 10 个。
+4. `--sync-enabled` 成功同步 10 个 API。
+5. `brand_page` 在 enabled 批次中成功写入 8 条。
+6. `--sync-api-configs` 成功，同步配置数为 12。
+7. 数据库 `api_config.brand_page.enabled=1`。
 8. 不输出任何真实凭证或 accessToken。
