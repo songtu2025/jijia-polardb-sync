@@ -384,3 +384,9 @@
 - 后续新增业务 API 仍需要逐个阅读覆盖矩阵和文档详情后再选择，新增配置应先默认 `enabled: false`。
 - 对没有单字段主键的接口，是否继续使用 `data_hash`，或在 YAML 中支持复合业务主键，仍需在接入 `amazon_msku_page` 等接口前确认。
 - 对依赖型接口，参数来源、批次边界和失败日志粒度还需要单独设计；当前仅确认了 `product_detail` 和 `market_inventory_query` 的最小参数来源。
+- 阶段 4V 已将 `product_inventory_page` 和 `storage_inbound_page` 加入 enabled，因为 4U 已分别完成全量单接口验证，并确认 `item_count=total_count`。
+- 阶段 4V 的 enabled 批量同步批次号为 `sync_20260703_040353_819845`，该批次 `total_api_count=20`、`success_api_count=20`、`failed_api_count=0`。
+- 阶段 4V 同一批次中 `product_inventory_page` 请求 1187 次、写入 118653 条；`storage_inbound_page` 请求 1743 次、写入 174286 条；两个接口 checkpoint 均更新到该 enabled 批次且未截断。
+- 阶段 4V 已同步 `api_config`，当前数据库总配置 22 条，启用 20 条；`product_inventory_page.enabled=1`、`storage_inbound_page.enabled=1`，两者 `config_json.enabled=true`。
+- 阶段 4V 覆盖矩阵已刷新为公开文档 API 185 个、真实配置 API 20 个、enabled 20 个。
+- 后续 4W 不应继续只追求 direct_read 数量增长，应开始实现依赖型接口的最小参数来源机制；优先从 `product_detail` 开始，因为它只依赖 `product_page` 已同步的产品 `id`，参数边界最小。

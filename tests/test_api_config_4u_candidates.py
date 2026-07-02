@@ -7,10 +7,10 @@ class Stage4UCandidateApiConfigTest(unittest.TestCase):
     def setUp(self):
         self.apis = {api["api_code"]: api for api in load_api_configs("config/api_config.example.yaml")}
 
-    def test_product_inventory_page_config_matches_doc_and_stays_disabled(self):
+    def test_product_inventory_page_config_matches_doc_and_is_enabled(self):
         api = self.apis["product_inventory_page"]
 
-        self.assertFalse(api["enabled"])
+        self.assertTrue(api["enabled"])
         self.assertEqual(api["method"], "POST")
         self.assertEqual(api["path"], "/purchase/store/inventory/page")
         self.assertEqual(api["page"]["page_no_field"], "page")
@@ -21,10 +21,10 @@ class Stage4UCandidateApiConfigTest(unittest.TestCase):
         self.assertEqual(api["primary_key"]["field"], "id")
         self.assertEqual(api["date_field"], "updateTime")
 
-    def test_storage_inbound_page_config_matches_doc_and_stays_disabled(self):
+    def test_storage_inbound_page_config_matches_doc_and_is_enabled(self):
         api = self.apis["storage_inbound_page"]
 
-        self.assertFalse(api["enabled"])
+        self.assertTrue(api["enabled"])
         self.assertEqual(api["method"], "POST")
         self.assertEqual(api["path"], "/purchase/inventory/storageInbound/page")
         self.assertEqual(api["page"]["page_no_field"], "page")

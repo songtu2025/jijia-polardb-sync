@@ -2,7 +2,7 @@
 
 ## Current Stage
 
-阶段 4U 已完成。`product_inventory_page` 和 `storage_inbound_page` 已完成完整单接口验证并保持 disabled，当前 enabled API 仍为 18 个。
+阶段 4V 已完成。`product_inventory_page` 和 `storage_inbound_page` 已加入 enabled 批量同步，当前 enabled API 为 20 个。
 
 ## Completed
 
@@ -805,6 +805,23 @@
   - `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary`，通过，真实配置 API 为 20 个，enabled 为 18 个。
   - `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
   - `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过，15 个测试。
+- 阶段 4V 已运行：
+  - 已用测试先行把 `product_inventory_page` 和 `storage_inbound_page` 的目标状态改为 enabled；修改 YAML 前该测试按预期失败。
+  - 已将 `product_inventory_page.enabled` 和 `storage_inbound_page.enabled` 从 `false` 改为 `true`。
+  - `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_api_config_4u_candidates.py" -v`，修改 YAML 后通过，2 个测试。
+  - `.\\.venv\\Scripts\\python.exe -m app.main`，通过，dry-run 显示 20 个 enabled API。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`，通过，批次 `sync_20260703_040353_819845`，`apis=20`，`rows=306174`，`requests=3052`。
+  - 已查询数据库摘要，确认该批次 `total_api_count=20`、`success_api_count=20`、`failed_api_count=0`。
+  - 同一批次下有 20 条 `sync_api_log`，全部为 `success`，合计写入 306174 条，失败数为 0。
+  - `product_inventory_page` 在 enabled 批次中请求 1187 次，写入 118653 条，118653 条都有 `source_primary_key`、`data_hash` 和 `data_date`。
+  - `product_inventory_page` checkpoint 更新到批次 `sync_20260703_040353_819845`，记录 `item_count=118653`、`total_count=118653`。
+  - `storage_inbound_page` 在 enabled 批次中请求 1743 次，写入 174286 条，174286 条都有 `source_primary_key`、`data_hash` 和 `data_date`。
+  - `storage_inbound_page` checkpoint 更新到批次 `sync_20260703_040353_819845`，记录 `item_count=174286`、`total_count=174286`。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，通过，同步配置数为 22。
+  - 已查询 `api_config`，确认总配置数为 22，启用配置数为 20，`product_inventory_page.enabled=1`、`storage_inbound_page.enabled=1`，且 `config_json.enabled=true`。
+  - `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary`，通过，公开文档 API 为 185 个，真实配置 API 为 20 个，enabled 为 20 个。
+  - `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
+  - `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过，15 个测试。
 
 ## Review 4L-4N
 
@@ -874,29 +891,30 @@
 - `amazon_shop_page` 第一版以 `data_hash` 去重，不强行编造业务主键。
 - 各业务 API 的具体路径、字段、分页和主键需要逐个阅读文档确认。
 - 新增后续业务接口前，仍需要逐个阅读积加文档确认路径、分页、主键和日期字段。
-- 当前 enabled API 已有 18 个：`amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`、`product_page`、`parent_product_page`、`kb_product_page`、`fba_warehouse_page`、`store_location_page`、`multi_shop_query`、`crm_tags_page`、`inventory_team_query`。
-- 当前已配置真实 API 为 20 个，其中 18 个已加入 enabled，`product_inventory_page` 和 `storage_inbound_page` 已完整验证但仍保持 disabled。
+- 当前 enabled API 已有 20 个：`amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`、`product_page`、`parent_product_page`、`kb_product_page`、`fba_warehouse_page`、`store_location_page`、`multi_shop_query`、`crm_tags_page`、`inventory_team_query`、`product_inventory_page`、`storage_inbound_page`。
+- 当前已配置真实 API 为 20 个，20 个均已加入 enabled。
 - 覆盖矩阵是公开文档视角，不等同于当前账号真实授权可调用结果；真实可访问性仍需单接口运行验证。
-- `product_page` 当前总量为 8258 条，请求 83 页；`product_inventory_page` 当前总量为 118653 条，请求 1187 页；`storage_inbound_page` 当前总量为 174286 条，请求 1743 页。后两个大接口加入 enabled 前必须预留更长运行窗口。
-- 后续如果继续把大接口加入 enabled，需要关注运行时长、数据库写入耗时和 cron 窗口。
+- `product_page` 当前总量为 8258 条，请求 83 页；`product_inventory_page` 当前总量为 118653 条，请求 1187 页；`storage_inbound_page` 当前总量为 174286 条，请求 1743 页。当前 20 个 enabled API 的真实批量同步约 3052 次请求，必须按长耗时任务安排 cron 窗口。
+- 后续如果继续增加大分页接口或依赖型批量接口，需要关注运行时长、数据库写入耗时和 cron 窗口。
 - 远程 PolarDB 如出现遗留睡眠未提交事务，可能导致 raw 写入锁等待超时，需要先查 `information_schema.processlist` 和 `information_schema.innodb_trx`。
 
 ## Next Stage
 
-阶段 4V：评估并启用两个大库存接口的 enabled 批量同步。
+阶段 4W：启动依赖型接口的最小参数来源机制，先围绕 `product_detail` 做小样本验证。
 
 建议目标：
 
-- 将 `product_inventory_page.enabled` 和 `storage_inbound_page.enabled` 从 `false` 改为 `true`。
-- dry-run 确认 enabled API 变为 20 个。
-- 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`，预期请求数会超过 3000 次，运行时间会显著变长。
-- 查询数据库确认 20 个 API 同批次成功，失败数为 0。
-- 同步 `api_config` 并刷新覆盖矩阵，确认真实配置 API 为 20 个且 enabled 为 20 个。
+- 阅读现有 `SyncEngine`、`api_client`、`raw_api_data` 写入逻辑，确认最小改动点。
+- 先为 `product_detail` 增加配置和测试，保持 `enabled=false`。
+- 从已同步的 `product_page` raw 数据中提取少量 `id` 作为请求参数来源，先做小样本单接口验证，不进入 20 个 enabled 批量同步。
+- 小样本验证必须写入 `sync_batch`、`sync_api_log`、`raw_api_data` 和 checkpoint，失败请求仍进入 `failed_request_log`。
+- 验证通过后同步 `api_config` 并刷新覆盖矩阵。
 
 验收：
 
-- `api_config.product_inventory_page.enabled=1`、`api_config.storage_inbound_page.enabled=1`。
-- 两个大接口在 enabled 批次中均成功写入 `sync_api_log` 和 checkpoint，且 `item_count=total_count`。
-- `api_config` 与覆盖矩阵同步更新到 20/20。
+- `product_detail` 能基于 `product_page` 的真实产品 `id` 运行小样本同步。
+- 小样本同步批次成功，`sync_api_log` 成功数、raw 写入数和 checkpoint 可核验。
+- `product_detail` 默认保持 disabled，不影响现有 20 个 enabled API 的生产批量同步。
+- `api_config` 与覆盖矩阵同步更新到 21 个真实配置 API，其中 enabled 仍为 20 个。
 - `compileall` 和 `unittest discover` 通过。
 - 继续保持 `.env`、token 缓存、日志和真实凭证不提交。
