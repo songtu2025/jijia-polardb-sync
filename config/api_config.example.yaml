@@ -228,3 +228,30 @@ apis:
       retries: 3
       delay_seconds: 1
     params: {}
+
+  # 第九个真实文档候选接口：产品品类基础资料，已按文档 id=54 配置，先禁用。
+  - api_code: category_page
+    name: 查询品类信息
+    enabled: false
+    method: POST
+    path: /purchase/goods/category/page
+    page:
+      enabled: true
+      page_no_field: page
+      page_size_field: pagesize
+      page_size: 100
+      max_pages: 10
+      list_field: data.rows
+      total_field: data.total
+    primary_key:
+      field: id
+      required: false
+    date_field: ""
+    rate_limit:
+      sleep_seconds: 0.2
+    retry:
+      retries: 3
+      delay_seconds: 1
+    params:
+      page: 1
+      pagesize: 100

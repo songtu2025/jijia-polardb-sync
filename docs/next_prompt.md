@@ -22,24 +22,27 @@
 
 当前要执行的阶段：
 
-阶段 4F：调研第九个低风险业务 API 候选。
+阶段 4G：单接口验证 `category_page`。
 
 当前事实：
 
 - 当前 enabled API 有 8 个：`amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`。
-- 阶段 4E 已将 `country_tree.enabled=true`。
-- 阶段 4E enabled 批次：`sync_20260702_213009_933395`，`apis=8`，`rows=3637`，`requests=16`。
-- `country_tree` 在 enabled 批次中写入 4 条，数据库 `api_config.country_tree.enabled=1`。
-- 近期排除过这些候选：`warehouseIds/query` 需要店铺 ID，`marketNames/query` 需要店铺 ID 且响应为字符串，`multiTypeWarehouse/page` 包含联系人、电话、邮箱、地址和第三方仓 token 字段，`allUser/list` 包含 phone/email。
+- `category_page` 已在阶段 4F 添加为第九个候选接口，默认 `enabled=false`。
+- `category_page` 对应文档 id `54`，名称是“查询品类信息”。
+- 文档路径为 `POST /purchase/goods/category/page`，实际请求路径为 `/api/open/purchase/goods/category/page`。
+- 请求头需要 `accessToken`，请求体必填 `page` 和 `pagesize`，可选 `state` 和 `valueList`。
+- 响应列表字段为 `data.rows`，总数字段为 `data.total`，候选主键字段为 `id`。
+- 阶段 4F 已运行 `--sync-api-configs`，数据库配置总数为 11，`category_page.enabled=0`。
 
 建议目标：
 
-1. 使用公开文档站只读接口或浏览器调研新的低风险 API。
-2. 优先选择无敏感字段、无需上游业务 ID、响应为列表或分页列表的接口。
-3. 确认文档 id、业务路径、实际请求路径、请求头、请求体、列表字段、分页字段、候选主键和日期字段。
-4. 在 `config/api_config.example.yaml` 中新增配置，默认 `enabled: false`。
-5. 不执行新 API 真实同步，下一阶段再做单接口验证。
-6. 运行 dry-run、mock-sync、sync-api-configs 和基础测试，确认当前 8 个 enabled API 不受影响。
+1. 阅读现有 `config/api_config.example.yaml`、`docs/progress.md`、`docs/decisions.md`。
+2. 保持 `category_page.enabled=false`。
+3. 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api category_page` 做单接口验证。
+4. 查询数据库确认 `sync_batch`、`sync_api_log`、`raw_api_data`、`sync_checkpoint`。
+5. 确认 `raw_api_data.source_primary_key` 来自 `id`。
+6. 再运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`，确认仍只同步已启用的 8 个 API。
+7. 验证通过后，下一阶段再决定是否把 `category_page` 加入 `--sync-enabled`。
 
 验收：
 
@@ -47,6 +50,7 @@
 2. `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"` 通过。
 3. `.\\.venv\\Scripts\\python.exe -m app.main` dry-run 仍显示 8 个 enabled API。
 4. `.\\.venv\\Scripts\\python.exe -m app.main --mock-sync` 通过。
-5. `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs` 通过，配置数应变为 11。
-6. 数据库中新候选 API 的 `enabled=0`。
-7. 不输出任何真实凭证或 accessToken。
+5. `category_page` 单接口验证成功。
+6. `--sync-enabled` 仍只同步当前 8 个 enabled API。
+7. 数据库 `api_config.category_page.enabled=0`。
+8. 不输出任何真实凭证或 accessToken。
