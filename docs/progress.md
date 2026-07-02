@@ -2,7 +2,7 @@
 
 ## Current Stage
 
-阶段 3P 已完成。`role_list` 已加入 enabled 批量同步，当前 enabled API 为 3 个。
+阶段 3Q 已完成。已调研并新增第四个真实业务 API 候选 `dictionary_query`，默认不启用。
 
 ## Completed
 
@@ -162,6 +162,16 @@
   - 三个 API 的 `sync_checkpoint.last_sync_batch_no` 均已更新到该批次。
   - 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，同步配置数为 5。
   - 数据库确认 `api_config.role_list.enabled=1`。
+- 阶段 3Q 已完成：
+  - 已通过公开文档站只读接口 `/api/openAdmin/doc/detail?id=2538` 调研“查询字典管理列表”。
+  - 已选择“查询字典管理列表”作为第四个低风险业务 API 候选。
+  - 已确认文档路径为 `POST /middle/base/dictionary/query`，实际请求路径将是 `/api/open/middle/base/dictionary/query`。
+  - 已确认请求头需要 `accessToken`。
+  - 已确认请求体字段 `id`、`dictionaryTypeList`、`status`、`startRecordDate`、`endRecordDate`、`type` 均可选。
+  - 已确认响应列表字段为 `data`，无分页字段。
+  - 已确认候选主键字段为 `id`，候选日期字段为 `recordDate`。
+  - 已新增 `dictionary_query` YAML 配置，默认 `enabled: false`。
+  - 本阶段未执行 `dictionary_query` 真实 API，避免未经单接口验证就扩大同步范围。
 
 ## Verification
 
@@ -215,6 +225,13 @@
   - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，通过，同步配置数为 5。
   - 已查询 `api_config`，确认 `role_list.enabled=1`。
   - `.\\.venv\\Scripts\\python.exe -m compileall app`，通过。
+- 阶段 3Q 已运行：
+  - `.\\.venv\\Scripts\\python.exe -m compileall app`，通过。
+  - `.\\.venv\\Scripts\\python.exe -m app.main`，dry-run 仍只加载 3 个 enabled API。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --mock-sync`，通过，批次 `sync_20260702_182312_050987`。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，通过，同步配置数为 6。
+  - 已查询 `api_config`，确认 `dictionary_query.enabled=0`，启用 API 仍为 3 个。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --test-token`，通过且没有输出 token。
 
 ## Known Issues
 
@@ -225,15 +242,15 @@
 
 ## Next Stage
 
-阶段 3Q：调研第四个真实业务 API 候选。
+阶段 3R：单接口验证 `dictionary_query`。
 
 建议目标：
 
-- 先只做文档调研和候选选择。
-- 优先选择基础数据或低风险只读接口。
-- 明确接口路径、请求体、分页字段、列表字段、总数字段、主键字段和日期字段。
-- 如果新增 YAML 配置，默认 `enabled: false`。
-- 不直接加入 `--sync-enabled`。
+- 保持 `dictionary_query.enabled=false`。
+- 执行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api dictionary_query`。
+- 验证写入 `sync_batch`、`sync_api_log`、`raw_api_data` 和 `sync_checkpoint`。
+- 确认 `source_primary_key` 使用 `id`。
+- 验证后再决定是否进入下一阶段启用。
 
 验收：
 
@@ -245,5 +262,6 @@
 - `python -m app.main` dry-run 仍可用。
 - `python -m app.main --mock-sync` 仍可用。
 - `python -m app.main --test-token` 仍可用且不输出 token。
-- 若新增第四个 API 配置，必须默认 `enabled: false`。
+- `dictionary_query` 单接口验证成功。
+- `--sync-enabled` 仍只同步 `amazon_shop_page`、`org_manage_query` 和 `role_list`。
 - 不写入任何真实凭证到代码或文档。

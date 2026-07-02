@@ -22,17 +22,17 @@
 
 当前要执行的阶段：
 
-阶段 3Q：调研第四个真实业务 API 候选。
+阶段 3R：单接口验证 `dictionary_query`。
 
 建议目标：
 
 1. 阅读现有 `config/api_config.example.yaml`、`docs/progress.md`、`docs/decisions.md`。
-2. 从积加开放平台文档中选择第四个低风险业务 API 候选。
-3. 先只做文档调研和候选选择。
-4. 明确接口路径、请求体、分页字段、列表字段、总数字段、主键字段和日期字段。
-5. 如果新增 YAML 配置，默认 `enabled: false`。
-6. 不直接加入 `--sync-enabled`。
-7. 不执行新接口真实 API，除非下一阶段专门验证。
+2. 保持 `dictionary_query.enabled=false`。
+3. 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api dictionary_query` 做单接口验证。
+4. 查询数据库确认 `sync_batch`、`sync_api_log`、`raw_api_data`、`sync_checkpoint`。
+5. 确认 `raw_api_data.source_primary_key` 来自 `id`，`data_date` 来自 `recordDate`。
+6. 再运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`，确认仍只同步已启用的 3 个 API。
+7. 验证通过后，下一阶段再决定是否把 `dictionary_query` 加入 `--sync-enabled`。
 
 验收：
 
@@ -42,7 +42,7 @@
 4. `--test-api amazon_shop_page` 仍可分页请求并写入日志。
 5. `--sync-api amazon_shop_page` 仍可完成真实单接口同步。
 6. `--sync-enabled` 仍可完成 enabled API 同步。
-7. 若新增第四个 API 配置，必须默认 `enabled: false`。
+7. `dictionary_query` 当前必须保持 `enabled: false`。
 8. 不输出任何真实凭证或 accessToken。
 
 当前阶段 3M 已完成内容：
@@ -170,3 +170,9 @@
 - 验证成功，批次 `sync_20260702_181854_408493`，`apis=3`，`rows=50`，`requests=4`。
 - 数据库确认同一批次下有三条 `sync_api_log`，三个 API 均成功。
 - 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，数据库 `api_config.role_list.enabled=1`。
+- 已通过公开文档站只读接口调研“查询字典管理列表”，文档 id 为 `2538`。
+- 已确认 `dictionary_query` 路径为 `POST /middle/base/dictionary/query`。
+- 已确认请求头需要 `accessToken`，请求体字段均可选，第一版配置使用 `{}`。
+- 已确认响应列表字段为 `data`，候选主键字段为 `id`，日期字段为 `recordDate`，无分页字段。
+- 已新增 `dictionary_query` YAML 配置，默认 `enabled: false`。
+- 阶段 3Q 未执行 `dictionary_query` 真实业务 API。

@@ -113,3 +113,23 @@ apis:
       retries: 3
       delay_seconds: 1
     params: {}
+
+  # 第四个真实文档候选接口：已按文档 id=2538 配置，先禁用，单接口验证通过后再考虑启用。
+  - api_code: dictionary_query
+    name: 查询字典管理列表
+    enabled: false
+    method: POST
+    path: /middle/base/dictionary/query
+    page:
+      enabled: false
+      list_field: data
+    primary_key:
+      field: id
+      required: false
+    date_field: recordDate
+    rate_limit:
+      sleep_seconds: 0.2
+    retry:
+      retries: 3
+      delay_seconds: 1
+    params: {}

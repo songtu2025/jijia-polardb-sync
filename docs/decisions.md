@@ -136,6 +136,13 @@
 - 该批次 `total_api_count=3`、`success_api_count=3`、`failed_api_count=0`。
 - 当前 enabled API 为 `amazon_shop_page`、`org_manage_query`、`role_list`。
 - 阶段 3P 已运行 `--sync-api-configs`，数据库 `api_config.role_list.enabled=1`。
+- 阶段 3Q 选择“查询字典管理列表”作为第四个低风险业务 API 候选，文档 id 是 `2538`。
+- `dictionary_query` 文档路径是 `POST /middle/base/dictionary/query`，实际请求路径是 `/api/open/middle/base/dictionary/query`。
+- `dictionary_query` 请求头需要 `accessToken`。
+- `dictionary_query` 请求体字段 `id`、`dictionaryTypeList`、`status`、`startRecordDate`、`endRecordDate`、`type` 都是可选字段，第一版配置使用空请求体 `{}`。
+- `dictionary_query` 响应列表字段是 `data`，无分页字段。
+- `dictionary_query` 候选主键字段是 `id`，候选日期字段是 `recordDate`。
+- `dictionary_query` 新增配置默认 `enabled: false`，单接口验证通过前不加入 `--sync-enabled`。
 
 ## Open Decisions
 
