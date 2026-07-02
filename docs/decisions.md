@@ -204,9 +204,17 @@
 - `ship_transport_list` 响应列表字段是 `data.rows`，总数字段是 `data.total`。
 - `ship_transport_list` 候选主键字段是 `id`，无明确日期字段。
 - `ship_transport_list` 新增配置默认 `enabled: false`，单接口验证通过前不加入 `--sync-enabled`。
+- 阶段 4A 已执行 `--sync-api ship_transport_list`，单接口真实验证成功。
+- 阶段 4A 首次执行时遇到 PolarDB/MySQL 锁等待超时，根因候选是数据库中遗留睡眠未提交事务。
+- 已结束持锁数据库线程 `3063892` 后重试成功。
+- 阶段 4A 的 `ship_transport_list` 验证批次号为 `sync_20260702_211036_562677`，请求 4 次，写入 286 条。
+- `ship_transport_list` 的 `source_primary_key` 已确认从响应 `id` 写入。
+- `ship_transport_list` 文档未提供明确日期字段，`data_date` 保持为空。
+- 阶段 4A 后 `ship_transport_list` 仍保持 `enabled: false`，未加入 `--sync-enabled`。
+- 下一阶段可以将 `ship_transport_list.enabled` 改为 `true`，并用 `--sync-enabled` 验证 7 个 API 同批次同步。
 
 ## Open Decisions
 
 - `raw_api_data.data_date` 取哪个业务时间字段，需要按每个 API 单独确认。
 - 后续是否把 `marketListVos` 拆成更细粒度记录，等待先验证 raw JSON 备份价值。
-- 第四个业务 API 仍需要逐个阅读文档后再选择，新增配置应先默认 `enabled: false`。
+- 后续新增业务 API 仍需要逐个阅读文档后再选择，新增配置应先默认 `enabled: false`。

@@ -2,7 +2,7 @@
 
 ## Current Stage
 
-阶段 3Z 已完成。已调研并新增第七个真实业务 API 候选 `ship_transport_list`，默认不启用。
+阶段 4A 已完成。已保持 `ship_transport_list` 禁用，并完成单接口真实同步验证。
 
 ## Completed
 
@@ -279,6 +279,21 @@
   - 已确认候选主键字段为 `id`，文档未提供明确日期字段，`date_field` 暂为空。
   - 已新增 `ship_transport_list` YAML 配置，默认 `enabled: false`。
   - 本阶段未执行 `ship_transport_list` 真实 API。
+- 阶段 4A 已完成：
+  - 已保持 `ship_transport_list.enabled=false`。
+  - 首次执行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api ship_transport_list` 时写库失败，错误为 PolarDB/MySQL `Lock wait timeout exceeded`。
+  - 已确认根因候选是当前库存在一个 `Sleep` 状态但仍持有 InnoDB 事务的连接，线程号为 `3063892`。
+  - 已结束该数据库线程，让未提交事务回滚。
+  - 已重跑 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api ship_transport_list`。
+  - 验证成功，批次号 `sync_20260702_211036_562677`，请求 4 次，写入 286 条。
+  - `sync_batch.status=success`，`success_api_count=1`，`failed_api_count=0`。
+  - `sync_api_log.status=success`，`request_count=4`，`success_count=286`，`failed_count=0`。
+  - `raw_api_data` 中 `ship_transport_list` 总计 286 条，286 条都有 `source_primary_key` 和 `data_hash`。
+  - `source_primary_key` 已确认来自响应字段 `id`。
+  - 文档未提供明确日期字段，因此 `data_date` 为空。
+  - `sync_checkpoint.checkpoint_value` 已记录 `last_page=3`、`request_count=4`、`item_count=286`、`total_count=286`。
+  - 已再次运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`。
+  - `--sync-enabled` 成功，批次号 `sync_20260702_211145_801882`，仍为 `apis=6`，未执行 `ship_transport_list`。
 
 ## Verification
 
@@ -410,6 +425,16 @@
   - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，通过，同步配置数为 9。
   - 已查询 `api_config`，确认 `ship_transport_list.enabled=0`，启用 API 仍为 6 个。
   - `.\\.venv\\Scripts\\python.exe -m app.main --test-token`，通过且没有输出 token。
+- 阶段 4A 已运行：
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api ship_transport_list`，首次因数据库锁等待超时失败。
+  - 已查询 `information_schema.processlist` 和 `information_schema.innodb_trx`，确认存在睡眠未提交事务。
+  - 已执行 `KILL 3063892` 释放该事务。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api ship_transport_list`，重试通过，批次 `sync_20260702_211036_562677`。
+  - 已查询数据库摘要，确认批次、API 日志、raw 主键和 checkpoint。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`，通过，批次 `sync_20260702_211145_801882`，`apis=6`。
+  - 已查询 enabled 批次日志，六个已启用 API 均成功，`failed_api_count=0`。
+  - `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
+  - `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过。
 
 ## Known Issues
 
@@ -417,18 +442,19 @@
 - 各业务 API 的具体路径、字段、分页和主键需要逐个阅读文档确认。
 - 新增后续业务接口前，仍需要逐个阅读积加文档确认路径、分页、主键和日期字段。
 - 当前 enabled API 已有 6 个：`amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`。
+- `ship_transport_list` 已通过单接口验证，但当前仍未加入 enabled 批量同步。
 
 ## Next Stage
 
-阶段 4A：单接口验证 `ship_transport_list`。
+阶段 4B：将 `ship_transport_list` 加入 enabled 批量同步。
 
 建议目标：
 
-- 保持 `ship_transport_list.enabled=false`。
-- 执行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api ship_transport_list`。
-- 验证写入 `sync_batch`、`sync_api_log`、`raw_api_data` 和 `sync_checkpoint`。
-- 确认 `source_primary_key` 使用 `id`。
-- 验证后再决定是否进入下一阶段启用。
+- 将 `ship_transport_list.enabled` 从 `false` 改为 `true`。
+- 运行 dry-run，确认 enabled API 变为 7 个。
+- 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`。
+- 查询数据库确认 7 个 API 同批次成功。
+- 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，同步 `api_config` 表。
 
 验收：
 
@@ -436,7 +462,7 @@
 - `python -m app.main` dry-run 仍可用。
 - `python -m app.main --mock-sync` 仍可用。
 - `python -m app.main --test-token` 仍可用且不输出 token。
-- `ship_transport_list` 单接口验证成功。
-- `--sync-enabled` 仍只同步当前 6 个 enabled API。
+- `ship_transport_list` 加入 enabled 后批量同步成功。
+- `--sync-enabled` 同步当前 7 个 enabled API。
 - `python -m unittest discover -s tests -p "test_*.py"` 通过。
 - 不写入任何真实凭证到代码或文档。

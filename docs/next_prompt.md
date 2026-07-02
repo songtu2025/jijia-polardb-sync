@@ -22,223 +22,35 @@
 
 当前要执行的阶段：
 
-阶段 4A：单接口验证 `ship_transport_list`。
+阶段 4B：将 `ship_transport_list` 加入 enabled 批量同步。
+
+当前事实：
+
+- 当前 enabled API 有 6 个：`amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`。
+- `ship_transport_list` 已在阶段 4A 完成单接口真实验证。
+- 阶段 4A 成功批次：`sync_20260702_211036_562677`。
+- `ship_transport_list` 单接口验证结果：请求 4 次，写入 286 条，`source_primary_key` 来自 `id`，`data_date` 为空。
+- 阶段 4A 曾遇到 PolarDB/MySQL 锁等待超时，已确认是遗留睡眠未提交事务导致，结束线程 `3063892` 后重试成功。
+- 阶段 4A 后 `ship_transport_list.enabled=false`，未加入 enabled 批量同步。
+- 最近一次 enabled 批次：`sync_20260702_211145_801882`，`apis=6`，六个 API 均成功。
 
 建议目标：
 
 1. 阅读现有 `config/api_config.example.yaml`、`docs/progress.md`、`docs/decisions.md`。
-2. 保持 `ship_transport_list.enabled=false`。
-3. 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api ship_transport_list` 做单接口验证。
-4. 查询数据库确认 `sync_batch`、`sync_api_log`、`raw_api_data`、`sync_checkpoint`。
-5. 确认 `raw_api_data.source_primary_key` 来自 `id`。
-6. 再运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`，确认仍只同步已启用的 6 个 API。
-7. 验证通过后，下一阶段再决定是否把 `ship_transport_list` 加入 `--sync-enabled`。
+2. 将 `ship_transport_list.enabled` 从 `false` 改为 `true`。
+3. 运行 `.\\.venv\\Scripts\\python.exe -m app.main`，确认 enabled API 变为 7 个。
+4. 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`。
+5. 查询数据库确认 `sync_batch`、`sync_api_log`、`raw_api_data`、`sync_checkpoint`。
+6. 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，同步 `api_config` 表。
+7. 查询 `api_config`，确认 `ship_transport_list.enabled=1`。
 
 验收：
 
-1. `python -m compileall app` 通过。
-2. dry-run 和 mock-sync 仍然可用。
-3. `--test-token` 仍然可用且不输出 token。
-4. `--test-api amazon_shop_page` 仍可分页请求并写入日志。
-5. `--sync-api amazon_shop_page` 仍可完成真实单接口同步。
-6. `--sync-enabled` 仍可完成 enabled API 同步。
-7. `ship_transport_list` 当前必须保持 `enabled: false`。
+1. `.\\.venv\\Scripts\\python.exe -m compileall app tests` 通过。
+2. `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"` 通过。
+3. dry-run 显示 enabled API 为 7 个。
+4. `--sync-enabled` 成功同步 7 个 API。
+5. `ship_transport_list` 在 enabled 批次中成功写入 286 条。
+6. `--sync-api-configs` 成功，同步配置数为 9。
+7. 数据库 `api_config.ship_transport_list.enabled=1`。
 8. 不输出任何真实凭证或 accessToken。
-
-当前阶段 3M 已完成内容：
-
-- `python -m app.main` 保持 dry-run。
-- `python -m app.main --mock-sync` 可写入 mock 数据。
-- `python -m app.main --test-token` 已实测成功。
-- 已从文档 `id=153` 读取“查询亚马逊店铺信息”接口。
-- 已新增 `amazon_shop_page` API 配置。
-- 已实现 `JijiaApiClient.request()`。
-- 已新增 `python -m app.main --test-api amazon_shop_page`。
-- 已实现单个业务 API 测试落库：写入 `sync_batch`、`sync_api_log`、`raw_api_data`。
-- 当前只请求第一页，`pagesize=20`，不做全量分页循环。
-- 已运行 `.\\.venv\\Scripts\\python.exe -m compileall -f app` 并通过。
-- 已运行 `.\\.venv\\Scripts\\python.exe -m app.main` 并通过。
-- 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --help` 并看到 `--test-api TEST_API`。
-- 已在用户确认后运行 `.\\.venv\\Scripts\\python.exe -m app.main --test-api amazon_shop_page`。
-- 真实业务 API 执行成功，批次号 `sync_20260702_141413_745961`，写入 7 条 `amazon_shop_page` 原始记录。
-- 已查询数据库确认：
-  - `sync_batch.status=success`
-  - `sync_api_log.status=success`
-  - `sync_api_log.success_count=7`
-  - `raw_api_data` 本批次写入 7 条
-- 验证时没有输出 accessToken，也没有输出完整业务 `raw_json`。
-- `JijiaApiClient.request()` 已支持单次请求参数覆盖，用于分页。
-- `amazon_shop_page` 配置已新增 `page.max_pages=5`。
-- `SyncEngine.test_api_once()` 已按 `data.total` 做最小分页循环。
-- 成功后已 upsert `sync_checkpoint`。
-- 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --test-api amazon_shop_page`。
-- 阶段 3E 真实业务 API 执行成功，批次号 `sync_20260702_163706_146056`。
-- 本次 `sync_api_log.request_count=2`，`success_count=13`，`failed_count=0`。
-- `sync_checkpoint.last_sync_batch_no=sync_20260702_163706_146056`。
-- 已运行 `.\\.venv\\Scripts\\python.exe -m compileall -f app` 并通过。
-- 已运行 `.\\.venv\\Scripts\\python.exe -m app.main` 并通过。
-- 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --mock-sync` 并通过。
-- 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --test-token` 并通过，且没有输出 token。
-- `amazon_shop_page` 配置已新增 `retry.retries=3`、`retry.delay_seconds=1`。
-- 真实 API 分页请求已通过 `retry_call()` 做最小重试。
-- 重试失败时已写入 `failed_request_log`。
-- 正常真实 API 验证成功，批次号 `sync_20260702_170155_676007`，请求 2 页，写入 13 条。
-- 临时错误路径验证成功，失败批次号 `sync_20260702_170231_079008`。
-- 失败批次 `sync_api_log.request_count=2`，`failed_request_log.retry_count=1`。
-- 已确认失败日志 `request_params` 不包含 `accessToken`。
-- 已新增 CLI 参数 `--sync-api`。
-- `--sync-api` 复用当前单接口同步链路，包括分页、`sync_checkpoint`、重试和失败日志。
-- `--test-api` 保留为开发调试兼容入口。
-- README 已补充 `--sync-api amazon_shop_page` 的本地运行、ECS 和 cron 示例。
-- 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api amazon_shop_page`。
-- `--sync-api` 验证成功，批次号 `sync_20260702_170601_361540`，请求 2 页，写入 13 条。
-- 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --test-api amazon_shop_page`。
-- `--test-api` 兼容验证成功，批次号 `sync_20260702_170650_348326`，请求 2 页，写入 13 条。
-- 已给当前新增关键代码补充中文备注，说明分页参数覆盖、失败上下文脱敏、真实请求次数统计、`max_pages` 保护、重试计数、checkpoint 摘要和失败请求落库边界。
-- 已明确批次边界：一个 `sync_batch` 表示一次调度运行，多接口同步时所有 enabled API 共用同一个批次。
-- 已整理 YAML 启用状态：`order_list` 和 `product_list` 禁用，`amazon_shop_page` 启用。
-- 已新增 CLI 参数 `--sync-enabled`。
-- `--sync-enabled` 会读取 YAML 中 `enabled: true` 的接口，在同一个批次下逐个写入 `sync_api_log`。
-- 当前第一版 enabled 同步仍只跑 `amazon_shop_page`，没有新增第二个业务接口。
-- 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`。
-- `--sync-enabled` 验证成功，批次号 `sync_20260702_171221_307284`，`total_api_count=1`，请求 2 页，写入 13 条。
-- README 已补充 `--sync-enabled` 本地运行、ECS 和 cron 示例。
-- 已从积加开放平台文档 `id=66` 调研“获取本位币币种”，确认其响应 `data` 是单个字符串，不适合当前列表型 raw item 同步模型，暂不接入。
-- 已从积加开放平台文档 `id=2537` 调研“查询部门列表”。
-- 已选择“查询部门列表”作为第二个低风险业务 API 候选。
-- 已确认文档路径为 `POST /middle/base/orgManage/query`，实际请求路径将是 `/api/open/middle/base/orgManage/query`。
-- 已确认请求头需要 `accessToken`。
-- 已确认请求体字段：`startTime`、`endTime`、`status`、`condition`，均可选。
-- 已确认响应列表字段为 `data`，无分页字段。
-- 已确认候选主键字段为 `id`，候选日期字段为 `createdTime`。
-- 已新增 `org_manage_query` YAML 配置，默认 `enabled: false`。
-- 已运行 `.\\.venv\\Scripts\\python.exe -m compileall app` 并通过。
-- 已运行 `.\\.venv\\Scripts\\python.exe -m app.main`，dry-run 仍只显示 `amazon_shop_page` 一个 enabled API。
-- 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`，仍只同步 `amazon_shop_page`。
-- 未执行 `org_manage_query` 真实 API，避免在未确认前扩大真实同步范围。
-- 已在保持 `org_manage_query.enabled=false` 的前提下执行单接口验证。
-- 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api org_manage_query`。
-- 验证成功，批次号 `sync_20260702_173136_319602`，请求 1 次，写入 1 条。
-- `sync_batch.status=success`，`success_api_count=1`，`failed_api_count=0`。
-- `sync_api_log.status=success`，`request_count=1`，`success_count=1`，`failed_count=0`。
-- `raw_api_data.source_primary_key` 已从 `id` 写入。
-- `raw_api_data.data_date` 已从 `createdTime` 提取日期写入。
-- `sync_checkpoint` 已写入 `org_manage_query` 的分页摘要。
-- 已再次运行 `--sync-enabled`，确认仍只同步 `amazon_shop_page`，没有执行 `org_manage_query`。
-- 已将 `org_manage_query.enabled` 从 `false` 改为 `true`。
-- 未新增第三个 API。
-- dry-run 已确认 enabled API 变为 2 个：`amazon_shop_page`、`org_manage_query`。
-- 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`。
-- 验证成功，批次号 `sync_20260702_174830_926688`，`apis=2`，`rows=14`，`requests=3`。
-- 数据库确认该批次 `total_api_count=2`、`success_api_count=2`、`failed_api_count=0`。
-- 同一批次下有两条 `sync_api_log`：`amazon_shop_page` 成功写入 13 条，`org_manage_query` 成功写入 1 条。
-- 两个 API 的 `sync_checkpoint.last_sync_batch_no` 均已更新到该批次。
-- 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --test-token` 并通过，且没有输出 token。
-- 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --mock-sync` 并通过。
-- 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api amazon_shop_page` 并通过。
-- 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api org_manage_query` 并通过。
-- 已新增 `JIJIA_TOKEN_CACHE_PATH` 配置，默认 `logs/token_cache.json`。
-- `JijiaAuthClient.get_access_token()` 已先读取本地 token 缓存，缓存不存在或快过期时才请求 `/api/open/api_token`。
-- token 缓存提前 60 秒视为过期。
-- `logs/token_cache.json` 已加入 `.gitignore`。
-- README 已说明 token 缓存路径、安全边界和当前 enabled API。
-- 已连续运行两次 `--test-token`，第二次命中缓存且未输出 accessToken。
-- 已运行 `--sync-enabled`，确认 token 缓存不影响真实同步。
-- 阶段 3L 验证批次号为 `sync_20260702_175624_199936`，`--sync-enabled` 仍成功同步 2 个 enabled API。
-- 已新增 CLI 参数 `--sync-api-configs`。
-- 已新增 `SyncEngine.sync_api_configs()`，将 YAML API 配置 upsert 到 `api_config` 表。
-- 写入字段包括 `api_code`、`api_name`、`enabled`、`method`、`path`、`config_json`。
-- 已连续运行两次 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`。
-- 每次均同步 4 条配置，重复运行没有重复插入。
-- 数据库确认 `api_config` 总数为 4，启用数为 2。
-- `amazon_shop_page` 和 `org_manage_query` 为启用状态。
-- `order_list` 和 `product_list` 为禁用状态。
-- 本阶段未新增第三个业务 API，也未请求真实业务接口。
-- 已通过公开文档站只读接口调研“查询角色列表”，文档 id 为 `2885`。
-- 已确认 `role_list` 路径为 `POST /middle/base/role/list`。
-- 已确认请求头需要 `accessToken`，请求体示例为 `{}`。
-- 已确认响应列表字段为 `data`，候选主键字段为 `roleId`，无分页字段，无明确时间字段。
-- 已新增 `role_list` YAML 配置，默认 `enabled: false`。
-- 阶段 3N 未执行 `role_list` 真实业务 API。
-- 已保持 `role_list.enabled=false` 并执行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api role_list`。
-- `role_list` 单接口验证成功，批次 `sync_20260702_181544_620924`，请求 1 次，写入 36 条。
-- 已确认 `source_primary_key` 来自 `roleId`，`sync_checkpoint` 已更新。
-- 已再次运行 `--sync-enabled`，批次 `sync_20260702_181639_728324`，仍为 `apis=2`，未执行 `role_list`。
-- 已将 `role_list.enabled` 改为 `true`。
-- 已运行 `.\\.venv\\Scripts\\python.exe -m app.main`，dry-run 显示 enabled API 为 3 个。
-- 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`。
-- 验证成功，批次 `sync_20260702_181854_408493`，`apis=3`，`rows=50`，`requests=4`。
-- 数据库确认同一批次下有三条 `sync_api_log`，三个 API 均成功。
-- 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，数据库 `api_config.role_list.enabled=1`。
-- 已通过公开文档站只读接口调研“查询字典管理列表”，文档 id 为 `2538`。
-- 已确认 `dictionary_query` 路径为 `POST /middle/base/dictionary/query`。
-- 已确认请求头需要 `accessToken`，请求体字段均可选，第一版配置使用 `{}`。
-- 已确认响应列表字段为 `data`，候选主键字段为 `id`，日期字段为 `recordDate`，无分页字段。
-- 已新增 `dictionary_query` YAML 配置，默认 `enabled: false`。
-- 阶段 3Q 未执行 `dictionary_query` 真实业务 API。
-- 首次执行 `dictionary_query` 单接口验证时，工具 60 秒超时。
-- 已确认接口本身不慢：空请求体返回 700 条，文档示例请求体返回 6 条。
-- 已确认根因是 raw 数据逐条 SQL 写入远程 PolarDB。
-- 已新增 `tests/test_sync_engine_bulk_insert.py`，并将 raw item 写入改为按页批量 executemany。
-- 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api dictionary_query`。
-- `dictionary_query` 单接口验证成功，批次 `sync_20260702_182921_619823`，请求 1 次，写入 700 条。
-- 已确认 `source_primary_key` 来自 `id`，`data_date` 来自 `recordDate`，`sync_checkpoint` 已更新。
-- 已再次运行 `--sync-enabled`，批次 `sync_20260702_182952_860680`，仍为 `apis=3`，未执行 `dictionary_query`。
-- 已运行 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"` 并通过。
-- 已将 `dictionary_query.enabled` 改为 `true`。
-- 已运行 `.\\.venv\\Scripts\\python.exe -m app.main`，dry-run 显示 enabled API 为 4 个。
-- 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`。
-- 验证成功，批次 `sync_20260702_183342_663394`，`apis=4`，`rows=750`，`requests=5`。
-- 数据库确认同一批次下有四条 `sync_api_log`，四个 API 均成功。
-- 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，数据库 `api_config.dictionary_query.enabled=1`。
-- 已运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests` 和 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，均通过。
-- 已通过公开文档站只读接口调研“查询汇率设置”，文档 id 为 `139`。
-- 已确认 `rate_page` 路径为 `POST /middle/base/rate/page`。
-- 已确认请求头需要 `accessToken`，请求体必填 `page` 和 `pagesize`，可选 `condition.currency` 和 `condition.monthDate`。
-- 已确认响应列表字段为 `data.rows`，总数字段为 `data.total`，候选主键字段为 `id`，日期字段为 `lastDate`。
-- 已新增 `rate_page` YAML 配置，默认 `enabled: false`。
-- 阶段 3T 未执行 `rate_page` 真实业务 API。
-- 首次执行 `rate_page` 单接口验证时，命中 `max_pages=5`，只写入 2500 条，但接口总数为 2590。
-- 已将 `rate_page.page.max_pages` 调整为 10。
-- 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api rate_page`。
-- `rate_page` 单接口验证成功，批次 `sync_20260702_184242_907458`，请求 6 次，写入 2590 条。
-- 已确认 `source_primary_key` 来自 `id`，`data_date` 来自 `lastDate`，`sync_checkpoint` 已更新。
-- 已再次运行 `--sync-enabled`，批次 `sync_20260702_184336_640026`，仍为 `apis=4`，未执行 `rate_page`。
-- 已运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests` 和 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，均通过。
-- 已将 `rate_page.enabled` 改为 `true`。
-- 已运行 `.\\.venv\\Scripts\\python.exe -m app.main`，dry-run 显示 enabled API 为 5 个。
-- 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`。
-- 验证成功，批次 `sync_20260702_184635_149384`，`apis=5`，`rows=3340`，`requests=11`。
-- 数据库确认同一批次下有五条 `sync_api_log`，五个 API 均成功。
-- 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，数据库 `api_config.rate_page.enabled=1`。
-- 已运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests` 和 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，均通过。
-- 已调研“获取国家省州信息”，文档 id 为 `5066`，但 `countryCode` 必填，暂不接入。
-- 已调研“查询所有用户列表”，文档 id 为 `25`，但包含 phone/email，暂不作为低风险候选。
-- 已通过公开文档站只读接口调研“获取大洲国家关系”，文档 id 为 `4943`。
-- 已确认 `continent_country_tree` 路径为 `POST /middle/base/continentCountryTree/page`。
-- 已确认请求头需要 `accessToken`，请求体为空 `{}`。
-- 已确认响应列表字段为 `data`，无分页字段。
-- 文档未展开 `data` 元素字段，因此不编造主键，第一版使用 `data_hash` 去重。
-- 已新增 `continent_country_tree` YAML 配置，默认 `enabled: false`。
-- 阶段 3W 未执行 `continent_country_tree` 真实业务 API。
-- 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api continent_country_tree`。
-- `continent_country_tree` 单接口验证成功，批次 `sync_20260702_185400_214824`，请求 1 次，写入 7 条。
-- 已确认 `source_primary_key` 为空，使用 `data_hash` 去重，`sync_checkpoint` 已更新。
-- 已再次运行 `--sync-enabled`，批次 `sync_20260702_185428_805435`，仍为 `apis=5`，未执行 `continent_country_tree`。
-- 已运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests` 和 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，均通过。
-- 已将 `continent_country_tree.enabled` 改为 `true`。
-- 已运行 `.\\.venv\\Scripts\\python.exe -m app.main`，dry-run 显示 enabled API 为 6 个。
-- 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`。
-- 验证成功，批次 `sync_20260702_205600_866582`，`apis=6`，`rows=3347`，`requests=12`。
-- 数据库确认同一批次下有六条 `sync_api_log`，六个 API 均成功。
-- 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，数据库 `api_config.continent_country_tree.enabled=1`。
-- 已运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests`、`.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`、`.\\.venv\\Scripts\\python.exe -m app.main --test-token` 和 `.\\.venv\\Scripts\\python.exe -m app.main --mock-sync`，均通过。
-- 已调研“根据亚马逊店铺id查询仓库信息”，文档 id 为 `1179`，但需要店铺 ID 集合入参，暂不接入。
-- 已调研“根据亚马逊店铺id查询店铺名称”，文档 id 为 `1177`，但需要店铺 ID 集合入参且响应 `data` 为字符串，暂不接入。
-- 已调研“查询仓库信息列表”，文档 id 为 `1035`，但字段包含联系人、电话、邮箱、地址和第三方仓 token 字段，暂不作为低风险候选。
-- 已通过公开文档站只读接口调研“查询物流方式列表”，文档 id 为 `3059`。
-- 已确认 `ship_transport_list` 路径为 `POST /fulfillment/ship/transport/list`。
-- 已确认请求头需要 `accessToken`，请求体必填 `page` 和 `pagesize`，可选 `name`、`status`、`shipperCountry`。
-- 已确认响应列表字段为 `data.rows`，总数字段为 `data.total`，候选主键字段为 `id`，无明确日期字段。
-- 已新增 `ship_transport_list` YAML 配置，默认 `enabled: false`。
-- 阶段 3Z 未执行 `ship_transport_list` 真实业务 API。
