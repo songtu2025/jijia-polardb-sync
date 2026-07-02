@@ -209,10 +209,10 @@ apis:
       page: 1
       pagesize: 100
 
-  # 第八个真实文档候选接口：文档 id=4563 未展开 data 子字段，先用 data_hash 去重并保持禁用。
+  # 第八个真实文档接口：文档 id=4563 未展开 data 子字段，已通过单接口验证并加入 enabled 批量同步。
   - api_code: country_tree
     name: 获取已授权店铺区域国家
-    enabled: false
+    enabled: true
     method: GET
     path: /middle/base/countryTree/page
     page:
