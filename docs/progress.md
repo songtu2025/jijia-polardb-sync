@@ -2,7 +2,7 @@
 
 ## Current Stage
 
-阶段 4A 已完成。已保持 `ship_transport_list` 禁用，并完成单接口真实同步验证。
+阶段 4B 已完成。已将 `ship_transport_list` 加入 enabled 批量同步，并完成 7 个 API 同批次验证。
 
 ## Completed
 
@@ -294,6 +294,18 @@
   - `sync_checkpoint.checkpoint_value` 已记录 `last_page=3`、`request_count=4`、`item_count=286`、`total_count=286`。
   - 已再次运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`。
   - `--sync-enabled` 成功，批次号 `sync_20260702_211145_801882`，仍为 `apis=6`，未执行 `ship_transport_list`。
+- 阶段 4B 已完成：
+  - 已将 `ship_transport_list.enabled` 从 `false` 改为 `true`。
+  - 已运行 `.\\.venv\\Scripts\\python.exe -m app.main`，dry-run 显示 enabled API 为 7 个。
+  - 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`。
+  - 验证成功，批次号 `sync_20260702_211510_012826`，`apis=7`，`rows=3633`，`requests=17`。
+  - 数据库确认该批次 `total_api_count=7`、`success_api_count=7`、`failed_api_count=0`。
+  - 同一批次下有七条 `sync_api_log`，七个 API 均成功。
+  - `ship_transport_list` 在 enabled 批次中写入 286 条，286 条都有 `source_primary_key` 和 `data_hash`。
+  - `ship_transport_list` 本批次 `request_count=5`，单接口验证时为 4；本次最终无失败日志，数据量和 checkpoint 正常。
+  - `sync_checkpoint.last_sync_batch_no` 已更新为 `sync_20260702_211510_012826`。
+  - 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，同步配置数为 9。
+  - 数据库确认 `api_config.ship_transport_list.enabled=1`，当前 `api_config` 启用数为 7。
 
 ## Verification
 
@@ -416,6 +428,7 @@
   - `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
   - `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过。
   - `.\\.venv\\Scripts\\python.exe -m app.main --test-token`，通过且没有输出 token。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --mock-sync`，通过，批次 `sync_20260702_211806_637915`。
   - `.\\.venv\\Scripts\\python.exe -m app.main --mock-sync`，通过，批次 `sync_20260702_205805_616907`。
 - 阶段 3Z 已运行：
   - `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
@@ -435,26 +448,34 @@
   - 已查询 enabled 批次日志，六个已启用 API 均成功，`failed_api_count=0`。
   - `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
   - `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过。
+- 阶段 4B 已运行：
+  - `.\\.venv\\Scripts\\python.exe -m app.main`，通过，enabled API 为 7 个。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`，通过，批次 `sync_20260702_211510_012826`，`apis=7`。
+  - 已查询数据库摘要，确认七条 API 日志、`ship_transport_list` raw 写入数和 checkpoint。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，通过，同步配置数为 9。
+  - 已查询 `api_config`，确认 `ship_transport_list.enabled=1`，启用配置数为 7。
+  - `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
+  - `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --test-token`，通过且没有输出 token。
 
 ## Known Issues
 
 - `amazon_shop_page` 第一版以 `data_hash` 去重，不强行编造业务主键。
 - 各业务 API 的具体路径、字段、分页和主键需要逐个阅读文档确认。
 - 新增后续业务接口前，仍需要逐个阅读积加文档确认路径、分页、主键和日期字段。
-- 当前 enabled API 已有 6 个：`amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`。
-- `ship_transport_list` 已通过单接口验证，但当前仍未加入 enabled 批量同步。
+- 当前 enabled API 已有 7 个：`amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`。
+- 远程 PolarDB 如出现遗留睡眠未提交事务，可能导致 raw 写入锁等待超时，需要先查 `information_schema.processlist` 和 `information_schema.innodb_trx`。
 
 ## Next Stage
 
-阶段 4B：将 `ship_transport_list` 加入 enabled 批量同步。
+阶段 4C：调研第八个低风险业务 API 候选。
 
 建议目标：
 
-- 将 `ship_transport_list.enabled` 从 `false` 改为 `true`。
-- 运行 dry-run，确认 enabled API 变为 7 个。
-- 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`。
-- 查询数据库确认 7 个 API 同批次成功。
-- 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，同步 `api_config` 表。
+- 继续通过公开文档站只读接口调研候选 API。
+- 优先选择无敏感字段、无需上游业务 ID、响应为列表或分页列表的接口。
+- 新增 YAML 配置时默认 `enabled: false`。
+- 本阶段只做文档调研和配置，不执行新 API 真实同步。
 
 验收：
 
@@ -462,7 +483,7 @@
 - `python -m app.main` dry-run 仍可用。
 - `python -m app.main --mock-sync` 仍可用。
 - `python -m app.main --test-token` 仍可用且不输出 token。
-- `ship_transport_list` 加入 enabled 后批量同步成功。
-- `--sync-enabled` 同步当前 7 个 enabled API。
+- 新候选 API 配置已添加且默认禁用。
+- `--sync-enabled` 仍同步当前 7 个 enabled API。
 - `python -m unittest discover -s tests -p "test_*.py"` 通过。
 - 不写入任何真实凭证到代码或文档。

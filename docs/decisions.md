@@ -212,6 +212,12 @@
 - `ship_transport_list` 文档未提供明确日期字段，`data_date` 保持为空。
 - 阶段 4A 后 `ship_transport_list` 仍保持 `enabled: false`，未加入 `--sync-enabled`。
 - 下一阶段可以将 `ship_transport_list.enabled` 改为 `true`，并用 `--sync-enabled` 验证 7 个 API 同批次同步。
+- 阶段 4B 已将 `ship_transport_list.enabled` 改为 `true`。
+- 阶段 4B 的 `--sync-enabled` 验证批次号为 `sync_20260702_211510_012826`。
+- 该批次 `total_api_count=7`、`success_api_count=7`、`failed_api_count=0`。
+- 当前 enabled API 为 `amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`。
+- 阶段 4B 已运行 `--sync-api-configs`，数据库 `api_config.ship_transport_list.enabled=1`。
+- `ship_transport_list` 在 enabled 批次中 `request_count=5`，但写入 286 条且无失败；后续只在再次出现失败或明显变慢时再深入处理。
 
 ## Open Decisions
 

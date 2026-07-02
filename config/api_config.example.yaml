@@ -182,10 +182,10 @@ apis:
       delay_seconds: 1
     params: {}
 
-  # 第七个真实文档候选接口：物流方式基础配置，已按文档 id=3059 配置，先禁用。
+  # 第七个真实文档接口：物流方式基础配置，已通过单接口验证并加入 enabled 批量同步。
   - api_code: ship_transport_list
     name: 查询物流方式列表
-    enabled: false
+    enabled: true
     method: POST
     path: /fulfillment/ship/transport/list
     page:
