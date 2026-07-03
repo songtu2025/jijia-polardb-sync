@@ -842,3 +842,12 @@
 - 6W-6Y 三轮复盘结论：完整窗口验收必须看 `item_count == total_count`，不能只看批次状态 success。
 - 6W-6Y 三轮复盘结论：进入 daily enabled 前仍必须跑完整 enabled 批次；当前 28 个 enabled API 的真实批次约 83 分钟，cron 窗口仍是硬约束。
 - 6W-6Y 三轮复盘结论：历史小窗口和旧 checkpoint 可能掩盖未拉满数据；日期窗口接口必须防止分页截断后推进 checkpoint。
+- 阶段 6Z 选择将 `shipment_data_page` 从 disabled 提升到 enabled；依据是该接口已完成 `2026-07-02` 单日完整窗口验证，完整窗口为 1191 条、12 次请求，且属于 FBA 货件看板直读数据。
+- 阶段 6Z 启用前对比：最近 28 enabled 批次 `sync_20260703_232214_043129` 状态成功、运行 4966 秒；`shipment_data_page` 当前 checkpoint 指向 `next_window_start=2026-07-03`，预期新增请求量可控。
+- 阶段 6Z 已用 TDD 约束 `shipment_data_page.enabled=true`，并将 enabled 基线测试从 28 调整到 29。
+- 阶段 6Z 已同步 `api_config`，数据库总配置 52 条、启用 29 条；`shipment_data_page.enabled=1`、`page_size=100`、`params.pagesize=100`、`page.max_pages=12`。
+- 阶段 6Z 的 dry-run 已确认 loaded 29 enabled API config(s)，且 `shipment_data_page` 出现在 enabled 列表中。
+- 阶段 6Z 已运行完整 `--sync-enabled`，批次号为 `sync_20260704_012039_532253`，29 个 API 全部成功，失败 0；批次总请求 3077 次、写入 308187 条，运行时间 4959 秒。
+- 阶段 6Z 中 `shipment_data_page` 在同批次内状态成功，请求 3 次，`2026-07-03` 窗口返回 `item_count=241`、`total_count=241`，checkpoint 推进到 `next_window_start=2026-07-04`。
+- 阶段 6Z 后覆盖矩阵刷新为公开文档 API 185 个、真实配置 API 50 个、enabled 29 个；执行分层为 `configured=50`、`needs_upstream_params=63`、`needs_sensitive_review=22`、`defer_or_review=50`。
+- 阶段 6Z 是新一组三轮的第 1 轮；下一次三轮复盘应在 7B 完成后覆盖 6Z-7B。

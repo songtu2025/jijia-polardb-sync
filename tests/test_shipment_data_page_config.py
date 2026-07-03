@@ -10,11 +10,11 @@ class ShipmentDataPageConfigTest(unittest.TestCase):
             for api in load_api_configs("config/api_config.example.yaml")
         }
 
-    def test_shipment_data_page_uses_date_window_and_stays_disabled(self):
+    def test_shipment_data_page_uses_date_window_and_is_enabled(self):
         self.assertIn("shipment_data_page", self.apis)
         api = self.apis["shipment_data_page"]
 
-        self.assertFalse(api["enabled"])
+        self.assertTrue(api["enabled"])
         self.assertEqual(api["method"], "POST")
         self.assertEqual(api["path"], "/fulfillment/ship/shipmentData/page")
         self.assertTrue(api["page"]["enabled"])

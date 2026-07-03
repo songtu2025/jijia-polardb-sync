@@ -963,10 +963,10 @@ apis:
       page: 1
       pagesize: 200
 
-  # 第四十二个真实文档接口：FBA货件看板，文档 id=1034，使用收货日期窗口做完整单日验证，默认保持 disabled。
+  # 第四十二个真实文档接口：FBA货件看板，文档 id=1034，已完成完整单日窗口验证并加入 daily enabled。
   - api_code: shipment_data_page
     name: 查询FBA货件看板
-    enabled: false
+    enabled: true
     method: POST
     path: /fulfillment/ship/shipmentData/page
     page:
