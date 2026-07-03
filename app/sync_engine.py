@@ -948,8 +948,9 @@ class SyncEngine:
     ) -> list[dict[str, Any]]:
         """从已入库的上游 raw 数据生成请求参数。
 
-        当前支持两种最小来源：`source_primary_key` 单字段，以及从 raw_json
-        顶层字段提取参数。raw_json 来源可附加固定等值过滤，用于只取某类上游单据。
+        当前支持三种最小来源：`source_primary_key` 单字段、从 raw_json 点路径
+        提取参数，以及从 raw_json 的单层数组展开参数。raw_json 点路径来源可附加
+        固定等值过滤，用于只取某类上游单据。
         """
         param_source = api.get("param_source") or {}
         source_api_code = param_source.get("source_api_code")
@@ -1042,6 +1043,15 @@ class SyncEngine:
         """从上游 raw_json 顶层字段生成请求参数。"""
         if not source_api_code:
             raise ValueError("invalid param_source config: missing source_api_code")
+        if any("[]" in str(field.get("source_field") or "") for field in fields):
+            return self._source_param_sets_from_raw_json_array_field(
+                connection,
+                source_api_code,
+                fields,
+                filters,
+                limit,
+                offset,
+            )
 
         select_parts = []
         where_parts = []
@@ -1095,6 +1105,80 @@ class SyncEngine:
         for row in result.mappings().all():
             rows.append({target_field: str(row[f"source_{index}"]) for index, target_field in enumerate(target_fields)})
         return rows
+
+    def _source_param_sets_from_raw_json_array_field(
+        self,
+        connection: Any,
+        source_api_code: str,
+        fields: list[dict[str, Any]],
+        filters: list[dict[str, Any]],
+        limit: int,
+        offset: int,
+    ) -> list[dict[str, Any]]:
+        """从上游 raw_json 的单层数组展开请求参数。
+
+        目前只支持一个数组字段，例如 `raw_json.marketListVos[].marketId`。
+        这是为了覆盖店铺授权信息里的站点列表，同时避免把数组 join、复杂过滤
+        和多字段同位绑定一次性做复杂。
+        """
+        if filters:
+            raise ValueError("raw_json array param source does not support filters")
+        if len(fields) != 1:
+            raise ValueError("raw_json array param source supports exactly one field")
+
+        field = fields[0]
+        source_field = str(field.get("source_field") or "")
+        target_field = str(field.get("target_field") or "")
+        if not source_field.startswith("raw_json.") or not target_field:
+            raise ValueError(f"invalid raw_json param field: {source_field}")
+
+        raw_json_path = source_field.removeprefix("raw_json.")
+        if raw_json_path.count("[]") != 1:
+            raise ValueError(f"invalid raw_json array param field: {source_field}")
+
+        array_path, value_path = raw_json_path.split("[]", 1)
+        value_path = value_path.removeprefix(".")
+        if not RAW_JSON_FIELD_PATTERN.match(array_path) or not value_path or not RAW_JSON_FIELD_PATTERN.match(value_path):
+            raise ValueError(f"invalid raw_json array param field: {source_field}")
+
+        result = connection.execute(
+            text(
+                """
+                SELECT raw_json
+                FROM raw_api_data
+                WHERE api_code = :source_api_code
+                  AND raw_json IS NOT NULL
+                ORDER BY id
+                """
+            ),
+            {"source_api_code": source_api_code},
+        )
+
+        values = set()
+        for row in result.mappings().all():
+            raw_json = row.get("raw_json")
+            if isinstance(raw_json, str):
+                try:
+                    item = json.loads(raw_json)
+                except json.JSONDecodeError:
+                    continue
+            elif isinstance(raw_json, dict):
+                item = raw_json
+            else:
+                continue
+
+            array_items = self._get_by_path(item, array_path)
+            if not isinstance(array_items, list):
+                continue
+            for array_item in array_items:
+                if not isinstance(array_item, dict):
+                    continue
+                value = self._get_by_path(array_item, value_path)
+                if value is not None and str(value) != "":
+                    values.add(str(value))
+
+        selected_values = sorted(values)[offset : offset + limit]
+        return [{target_field: value} for value in selected_values]
 
     def _request_with_retry(
         self,

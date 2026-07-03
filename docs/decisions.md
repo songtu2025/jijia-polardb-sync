@@ -745,3 +745,10 @@
 - 阶段 6N 已同步 `api_config`，数据库总配置 50 条，启用 24 条；`storage_ledger_month_page.enabled=0`、`monthList=["2026-06"]`、`page.max_pages=1`。
 - 阶段 6N 已用真实接口验证 `storage_ledger_month_page`，批次号为 `sync_20260703_173133_727406`，请求 1 次，写入 100 条，失败 0；checkpoint 记录 `last_page=1`、`request_count=1`、`item_count=100`、`total_count=6044`。
 - 阶段 6N 后覆盖矩阵刷新为公开文档 API 185 个、真实配置 API 48 个、enabled 24 个；执行分层为 `configured=48`、`needs_upstream_params=65`、`needs_sensitive_review=22`、`defer_or_review=50`。
+- 阶段 6O 增加 `param_source.fields` 的单层数组展开能力，支持 `raw_json.marketListVos[].marketId` 这类来源；本轮只支持一个数组字段，不支持数组过滤、多字段同位绑定或复杂 join。
+- 阶段 6O 用真实 DB 证明 `amazon_shop_page.raw_json.marketListVos[].marketId` 可生成站点参数，但广告促销类接口小范围探测出现 400/509，因此不把这些广告接口作为本轮新增配置。
+- 阶段 6O 从统计域选择 `traffic_sku_page`，文档 id 为 `123`，路径为 `POST /operation/sts/trafficSku/page`，默认保持 `enabled=false`。
+- `traffic_sku_page` 使用 `currency=CNY`、`viewType=day` 和 `date_window` 单日窗口；公开文档响应字段包含 `id`，但首次真实同步证明 `primary_key.required=true` 会过滤全部行，因此最终配置为空主键，依靠 `data_hash` 幂等。
+- 阶段 6O 已用真实接口验证 `traffic_sku_page`，批次号为 `sync_20260703_174553_317496`，请求 1 次，写入 100 条，失败 0；checkpoint 记录 `total_count=170`、`window_start=2026-07-02`、`window_end=2026-07-02`、`next_window_start=2026-07-03`。
+- 阶段 6O 已同步 `api_config`，数据库总配置 51 条，启用 24 条；`traffic_sku_page.enabled=0`、`primary_key.field=""`、`date_field=recordDate`、`page.max_pages=1`。
+- 阶段 6O 后覆盖矩阵刷新为公开文档 API 185 个、真实配置 API 49 个、enabled 24 个；执行分层为 `configured=49`、`needs_upstream_params=64`、`needs_sensitive_review=22`、`defer_or_review=50`。
