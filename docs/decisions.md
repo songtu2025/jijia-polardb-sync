@@ -572,3 +572,11 @@
 - 阶段 5R 已同步 `api_config`，当前数据库总配置 35 条，启用 20 条；`transfer_page.enabled=0`、`page.max_pages=3`、`primary_key.field=code`、`date_field=createDate`。
 - 阶段 5R 覆盖矩阵已刷新为公开文档 API 185 个、真实配置 API 33 个、enabled 20 个。
 - 5P-5R 复盘结论：库存和调拨类接口可继续用普通分页小窗口扩容，但大体量接口不能直接加入日常 enabled；有稳定业务主键时优先使用真实业务字段，没有明确主键时才回落到 `data_hash`。
+- 阶段 5S 新增 `lot_no_page`，文档 id 为 `1025`，路径为 `POST /purchase/srm/lotno/page`，默认保持 `enabled=false`。
+- `lot_no_page` 选择依据：交货单列表普通分页、响应非敏感，当前账号 `total=8602`，体量适中，且能与已验证的 `lot_no_detail` 形成列表/详情链路。
+- 阶段 5S 真实探测确认该接口返回 `data.rows` 和 `data.total`，接入阶段继续用 `max_pages=3` 控制窗口。
+- `lot_no_page` 响应字段包含 `id`、`code`、`deliveryCode`、`deliveryDate`、`createdAt`、`updateTime`、`warehouseType`、`supplierName`；本轮使用业务单号 `code` 作为主键，使用 `createdAt` 作为日期字段。
+- 阶段 5S 已用真实接口验证 `lot_no_page`，批次号为 `sync_20260703_101146_180687`，请求 3 次，写入 300 条，失败 0。
+- 阶段 5S 后 `lot_no_page` checkpoint 指向批次 `sync_20260703_101146_180687`，`checkpoint_value` 记录 `last_page=3`、`request_count=3`、`item_count=300`、`total_count=8602`。
+- 阶段 5S 已同步 `api_config`，当前数据库总配置 36 条，启用 20 条；`lot_no_page.enabled=0`、`page.max_pages=3`、`primary_key.field=code`、`date_field=createdAt`。
+- 阶段 5S 覆盖矩阵已刷新为公开文档 API 185 个、真实配置 API 34 个、enabled 20 个。

@@ -1482,23 +1482,51 @@
   - 对财务、订单、物流费用、批量详情和疑似确认入库接口继续保持谨慎，先做小窗口或只读探测。
   - 如果开始接入更高价值但更敏感的接口，应先明确风险边界和数据用途，再进入 enabled 评估。
 
+## Stage 5S
+
+- 阶段目标：进入新一组三轮，继续从体量适中、字段清晰的低风险候选中扩大覆盖。
+- 已完成：
+  - 从未配置 `direct_read_candidate` 中选择 `lot_no_page`，文档 id 为 `1025`，路径为 `POST /purchase/srm/lotno/page`。
+  - 选择依据：该接口是交货单列表，普通分页、响应非敏感，当前总量适中；它能补齐交货单列表对象，并与已验证的 `lot_no_detail` 形成更清晰的列表/详情链路。
+  - 真实探测确认响应 `code=200`，`data` 为分页对象，包含 `total`、`pagesize`、`page`、`rows`；当前账号 `total=8602`，首批 `rows` 为 100 条。
+  - 首条记录字段包含 `id`、`code`、`deliveryCode`、`deliveryDate`、`createdAt`、`updateTime`、`warehouseType`、`supplierName`；本轮使用业务单号 `code` 作为主键，使用 `createdAt` 作为 `data_date` 来源。
+  - 已新增 `tests/test_lot_no_page_config.py`，先失败后通过，约束 `lot_no_page` 默认 disabled、分页字段、`max_pages=3`、主键 `code` 和日期字段 `createdAt`。
+  - 已新增 `lot_no_page` YAML 配置，默认 `enabled=false`，`page.list_field=data.rows`、`page.total_field=data.total`、`page.max_pages=3`。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，通过，同步配置数为 36；其中 2 个是占位示例，真实接口为 34 个。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api lot_no_page`，通过，批次 `sync_20260703_101146_180687`，`rows=300`，`requests=3`。
+  - 数据库已确认该批次 `sync_batch.status=success`、`total_api_count=1`、`success_api_count=1`、`failed_api_count=0`。
+  - 同批次 `sync_api_log` 为 `request_count=3`、`success_count=300`、`failed_count=0`、`error_message=NULL`。
+  - 同批次 `raw_api_data` 写入 300 条，0 条缺少 `source_primary_key`，300 条都有 `data_hash`，300 条都有 `data_date`，日期范围为 `2022-09-20` 到 `2023-04-19`。
+  - 同批次 raw 示例字段已确认 `source_primary_key`、`id`、`code`、`deliveryDate`、`createdAt` 和 `data_date` 可从原始 JSON 提取。
+  - `lot_no_page` checkpoint 指向批次 `sync_20260703_101146_180687`，`checkpoint_value` 记录 `last_page=3`、`request_count=3`、`item_count=300`、`total_count=8602`。
+  - `failed_request_log` 中该批次该接口为 0 条。
+  - `.\\.venv\\Scripts\\python.exe -m app.main`，通过，dry-run 显示 20 个 enabled API。
+  - 已查询 `api_config`，确认 `lot_no_page.enabled=0`、`page.max_pages=3`、`page.page_size=100`、`primary_key.field=code`、`date_field=createdAt`，数据库配置总数 36、启用 20。
+  - `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary`，通过，公开文档 API 为 185 个，真实配置 API 为 34 个，enabled 为 20 个。
+  - `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
+  - `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过，43 个测试。
+- 当前结论：
+  - `lot_no_page` 用业务单号 `code` 做幂等主键，与既有 `lot_no_detail` 的 `code` 主键一致，便于后续链路排查。
+  - 该接口当前总量 8602 条，约 87 页；比库存大表更可控，但本轮仍保持 disabled。
+  - 当前已进入 5S-5U 新三轮，复盘应在 5U 完成后进行。
+
 ## Known Issues
 
 - `amazon_shop_page` 第一版以 `data_hash` 去重，不强行编造业务主键。
 - 各业务 API 的具体路径、字段、分页和主键需要逐个阅读文档确认。
 - 新增后续业务接口前，仍需要逐个阅读积加文档确认路径、分页、主键和日期字段。
 - 当前 enabled API 已有 20 个：`amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`、`product_page`、`parent_product_page`、`kb_product_page`、`fba_warehouse_page`、`store_location_page`、`multi_shop_query`、`crm_tags_page`、`inventory_team_query`、`product_inventory_page`、`storage_inbound_page`。
-- 当前已配置真实 API 为 33 个，其中 20 个已加入 enabled，`product_detail`、`market_inventory_query`、`storage_inbound_detail`、`country_province_query`、`transfer_detail`、`lot_no_detail`、`delivery_fee_query`、`base_currency_query`、`amazon_msku_page`、`platform_msku_page`、`fba_inventory_v2_page`、`inventory_adjustments_page` 和 `transfer_page` 已完成小样本验证但保持 disabled。
+- 当前已配置真实 API 为 34 个，其中 20 个已加入 enabled，`product_detail`、`market_inventory_query`、`storage_inbound_detail`、`country_province_query`、`transfer_detail`、`lot_no_detail`、`delivery_fee_query`、`base_currency_query`、`amazon_msku_page`、`platform_msku_page`、`fba_inventory_v2_page`、`inventory_adjustments_page`、`transfer_page` 和 `lot_no_page` 已完成小样本验证但保持 disabled。
 - 当前依赖参数来源机制支持从 `raw_api_data.source_primary_key` 取单个参数，也支持从 `raw_json` 顶层字段提取多个参数，并可用 `param_source.filters` 做固定等值过滤、用 `param_source.auto_advance` 基于 checkpoint 推进小窗口；响应提取机制已支持列表、单对象和标量包装；尚未把 111307 个库存参数对、6481 个调拨单号、8243 个交货单号或 142281 个发货单号纳入生产级调度。
 - `primary_key.required=true` 会过滤缺少必填主键的响应对象，避免详情接口返回全空对象时写入 `source_primary_key="None"` 的 raw。
 - 覆盖矩阵是公开文档视角，不等同于当前账号真实授权可调用结果；真实可访问性仍需单接口运行验证。
-- `product_page` 当前总量为 8258 条，请求 83 页；`platform_msku_page` 当前总量为 1707 条，请求约 18 页；`transfer_page` 当前总量为 6755 条，请求约 68 页；`amazon_msku_page` 当前总量为 18430 条，请求约 185 页；`fba_inventory_v2_page` 当前总量为 30759 条，请求约 308 页；`inventory_adjustments_page` 当前总量为 58239 条，请求约 583 页；`product_inventory_page` 当前总量为 118653 条，请求 1187 页；`storage_inbound_page` 当前总量为 174286 条，请求 1743 页。当前 20 个 enabled API 的真实批量同步约 3052 次请求，必须按长耗时任务安排 cron 窗口。
+- `platform_msku_page` 当前总量为 1707 条，请求约 18 页；`transfer_page` 当前总量为 6755 条，请求约 68 页；`product_page` 当前总量为 8258 条，请求 83 页；`lot_no_page` 当前总量为 8602 条，请求约 87 页；`amazon_msku_page` 当前总量为 18430 条，请求约 185 页；`fba_inventory_v2_page` 当前总量为 30759 条，请求约 308 页；`inventory_adjustments_page` 当前总量为 58239 条，请求约 583 页；`product_inventory_page` 当前总量为 118653 条，请求 1187 页；`storage_inbound_page` 当前总量为 174286 条，请求 1743 页。当前 20 个 enabled API 的真实批量同步约 3052 次请求，必须按长耗时任务安排 cron 窗口。
 - 后续如果继续增加大分页接口或依赖型批量接口，需要关注运行时长、数据库写入耗时和 cron 窗口。
 - 远程 PolarDB 如出现遗留睡眠未提交事务，可能导致 raw 写入锁等待超时，需要先查 `information_schema.processlist` 和 `information_schema.innodb_trx`。
 
 ## Next Stage
 
-阶段 5S：继续回到覆盖矩阵，选择下一个低风险接口扩大覆盖；优先选择业务风险可控、体量适中、字段清晰的普通分页、单对象或清晰依赖参数接口，并继续避开写操作、数组编码未知、强限流和高敏感接口。
+阶段 5T：继续回到覆盖矩阵，选择下一个低风险接口扩大覆盖；优先选择业务风险可控、体量适中、字段清晰的普通分页、单对象或清晰依赖参数接口，并继续避开写操作、数组编码未知、强限流和高敏感接口。
 
 建议目标：
 
