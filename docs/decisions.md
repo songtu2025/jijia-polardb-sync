@@ -713,3 +713,10 @@
 - 阶段 6J 后覆盖矩阵刷新为公开文档 API 185 个、真实配置 API 45 个、enabled 24 个。
 - 6H-6J 复盘结论：本组三轮新增两个低风险 disabled 报表/库存候选，并把一个低体量映射接口推进到 daily enabled；下一组应先做剩余 API 分层执行计划，再决定继续新增、启用或暂缓。
 - 后续启用接口时，不能只看单接口成功；必须同时确认数据量、`max_pages`/窗口是否覆盖目标范围、完整 enabled 批次是否成功以及 cron 窗口是否还能承受。
+- 阶段 6K 选择先增强覆盖矩阵，而不是新增 API；原因是剩余未配置 direct read 已集中到订单、财务、客服、物流、销售或已知风险路径，继续人工挑选容易误把高风险接口当低风险候选。
+- 阶段 6K 为覆盖矩阵新增执行分层字段：`execution_bucket`、`execution_stage`、`execution_reason`。
+- 阶段 6K 的执行分层规则优先级为：已配置状态优先；未配置接口再按参数依赖、敏感审查、写操作/确认操作、高风险业务域、已知风险路径和普通可探测候选分流。
+- 阶段 6K 将 `confirm` 纳入写操作识别；原因是确认入库、确认订单等接口会改变上游状态，不应进入只读同步候选。
+- 阶段 6K 将 `/purchase/inventory/purchaseSaleStorageSelf/page`、`/purchase/srm/quickInbound/query` 等已有真实风险记录路径纳入 `known_risk_review`，避免后续重复探测。
+- 阶段 6K 覆盖矩阵刷新后，公开文档 API 185 个、真实配置 API 45 个、enabled 24 个；执行分层为 `configured=45`、`needs_upstream_params=68`、`needs_sensitive_review=22`、`defer_or_review=50`。
+- 阶段 6K 结论：当前未配置且可直接普通探测的候选为 0 个；下一步应优先从 `needs_param_source` 中选择能证明真实参数来源的接口，或先建立敏感审查策略。

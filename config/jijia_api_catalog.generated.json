@@ -10,11 +10,25 @@
     "configured_real_api_count": 45,
     "configured_enabled_real_api_count": 24,
     "classification_counts": {
-      "direct_read_candidate": 58,
-      "requires_upstream_params": 79,
+      "direct_read_candidate": 57,
+      "requires_upstream_params": 77,
       "sensitive_review": 23,
-      "unsupported_shape_review": 1,
-      "write_or_mutation": 24
+      "write_or_mutation": 28
+    },
+    "execution_bucket_counts": {
+      "configured": 45,
+      "defer_or_review": 50,
+      "needs_sensitive_review": 22,
+      "needs_upstream_params": 68
+    },
+    "execution_stage_counts": {
+      "configured_disabled": 21,
+      "configured_enabled": 24,
+      "defer_write_or_mutation": 28,
+      "known_risk_review": 2,
+      "needs_param_source": 68,
+      "needs_sensitive_review": 22,
+      "risk_review_before_probe": 20
     },
     "menu_counts": {
       "产品": 18,
@@ -52,7 +66,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "defer_or_review",
+      "execution_stage": "defer_write_or_mutation",
+      "execution_reason": "写入或确认类接口不属于当前只读备份同步范围，默认暂缓。"
     },
     {
       "doc_id": 3,
@@ -72,7 +89,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "defer_or_review",
+      "execution_stage": "defer_write_or_mutation",
+      "execution_reason": "写入或确认类接口不属于当前只读备份同步范围，默认暂缓。"
     },
     {
       "doc_id": 53,
@@ -88,7 +108,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "product_page",
-      "configured_enabled": true
+      "configured_enabled": true,
+      "execution_bucket": "configured",
+      "execution_stage": "configured_enabled",
+      "execution_reason": "已进入 enabled 批量同步。"
     },
     {
       "doc_id": 54,
@@ -107,7 +130,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "category_page",
-      "configured_enabled": true
+      "configured_enabled": true,
+      "execution_bucket": "configured",
+      "execution_stage": "configured_enabled",
+      "execution_reason": "已进入 enabled 批量同步。"
     },
     {
       "doc_id": 59,
@@ -129,7 +155,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "defer_or_review",
+      "execution_stage": "defer_write_or_mutation",
+      "execution_reason": "写入或确认类接口不属于当前只读备份同步范围，默认暂缓。"
     },
     {
       "doc_id": 211,
@@ -149,7 +178,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "product_detail",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "configured",
+      "execution_stage": "configured_disabled",
+      "execution_reason": "已配置但默认关闭，需按数据量、窗口和批量耗时评估后再启用。"
     },
     {
       "doc_id": 935,
@@ -173,7 +205,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "defer_or_review",
+      "execution_stage": "defer_write_or_mutation",
+      "execution_reason": "写入或确认类接口不属于当前只读备份同步范围，默认暂缓。"
     },
     {
       "doc_id": 936,
@@ -197,7 +232,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "defer_or_review",
+      "execution_stage": "defer_write_or_mutation",
+      "execution_reason": "写入或确认类接口不属于当前只读备份同步范围，默认暂缓。"
     },
     {
       "doc_id": 1019,
@@ -219,7 +257,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "defer_or_review",
+      "execution_stage": "defer_write_or_mutation",
+      "execution_reason": "写入或确认类接口不属于当前只读备份同步范围，默认暂缓。"
     },
     {
       "doc_id": 1752,
@@ -238,7 +279,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "brand_page",
-      "configured_enabled": true
+      "configured_enabled": true,
+      "execution_bucket": "configured",
+      "execution_stage": "configured_enabled",
+      "execution_reason": "已进入 enabled 批量同步。"
     },
     {
       "doc_id": 1753,
@@ -262,7 +306,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "defer_or_review",
+      "execution_stage": "defer_write_or_mutation",
+      "execution_reason": "写入或确认类接口不属于当前只读备份同步范围，默认暂缓。"
     },
     {
       "doc_id": 1921,
@@ -278,7 +325,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "amazon_msku_page",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "configured",
+      "execution_stage": "configured_disabled",
+      "execution_reason": "已配置但默认关闭，需按数据量、窗口和批量耗时评估后再启用。"
     },
     {
       "doc_id": 1956,
@@ -297,7 +347,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "kb_product_page",
-      "configured_enabled": true
+      "configured_enabled": true,
+      "execution_bucket": "configured",
+      "execution_stage": "configured_enabled",
+      "execution_reason": "已进入 enabled 批量同步。"
     },
     {
       "doc_id": 2898,
@@ -316,7 +369,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "platform_msku_page",
-      "configured_enabled": true
+      "configured_enabled": true,
+      "execution_bucket": "configured",
+      "execution_stage": "configured_enabled",
+      "execution_reason": "已进入 enabled 批量同步。"
     },
     {
       "doc_id": 4835,
@@ -335,7 +391,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "parent_product_page",
-      "configured_enabled": true
+      "configured_enabled": true,
+      "execution_bucket": "configured",
+      "execution_stage": "configured_enabled",
+      "execution_reason": "已进入 enabled 批量同步。"
     },
     {
       "doc_id": 5067,
@@ -357,7 +416,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "defer_or_review",
+      "execution_stage": "defer_write_or_mutation",
+      "execution_reason": "写入或确认类接口不属于当前只读备份同步范围，默认暂缓。"
     },
     {
       "doc_id": 5070,
@@ -377,7 +439,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 5071,
@@ -397,7 +462,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "defer_or_review",
+      "execution_stage": "defer_write_or_mutation",
+      "execution_reason": "写入或确认类接口不属于当前只读备份同步范围，默认暂缓。"
     },
     {
       "doc_id": 63,
@@ -416,7 +484,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "fba_warehouse_page",
-      "configured_enabled": true
+      "configured_enabled": true,
+      "execution_bucket": "configured",
+      "execution_stage": "configured_enabled",
+      "execution_reason": "已进入 enabled 批量同步。"
     },
     {
       "doc_id": 64,
@@ -435,7 +506,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": true,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_sensitive_review",
+      "execution_stage": "needs_sensitive_review",
+      "execution_reason": "公开文档响应或接口域可能包含敏感信息，需先做字段审查和脱敏边界确认。"
     },
     {
       "doc_id": 141,
@@ -454,7 +528,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "store_location_page",
-      "configured_enabled": true
+      "configured_enabled": true,
+      "execution_bucket": "configured",
+      "execution_stage": "configured_enabled",
+      "execution_reason": "已进入 enabled 批量同步。"
     },
     {
       "doc_id": 212,
@@ -473,7 +550,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": true,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_sensitive_review",
+      "execution_stage": "needs_sensitive_review",
+      "execution_reason": "公开文档响应或接口域可能包含敏感信息，需先做字段审查和脱敏边界确认。"
     },
     {
       "doc_id": 1035,
@@ -495,7 +575,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": true,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 1449,
@@ -517,7 +600,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 25,
@@ -533,7 +619,10 @@
       "has_list_response": true,
       "has_sensitive_response_fields": true,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_sensitive_review",
+      "execution_stage": "needs_sensitive_review",
+      "execution_reason": "公开文档响应或接口域可能包含敏感信息，需先做字段审查和脱敏边界确认。"
     },
     {
       "doc_id": 61,
@@ -557,7 +646,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "defer_or_review",
+      "execution_stage": "defer_write_or_mutation",
+      "execution_reason": "写入或确认类接口不属于当前只读备份同步范围，默认暂缓。"
     },
     {
       "doc_id": 66,
@@ -573,7 +665,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "base_currency_query",
-      "configured_enabled": true
+      "configured_enabled": true,
+      "execution_bucket": "configured",
+      "execution_stage": "configured_enabled",
+      "execution_reason": "已进入 enabled 批量同步。"
     },
     {
       "doc_id": 139,
@@ -592,7 +687,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "rate_page",
-      "configured_enabled": true
+      "configured_enabled": true,
+      "execution_bucket": "configured",
+      "execution_stage": "configured_enabled",
+      "execution_reason": "已进入 enabled 批量同步。"
     },
     {
       "doc_id": 153,
@@ -612,7 +710,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": true,
       "configured_api_code": "amazon_shop_page",
-      "configured_enabled": true
+      "configured_enabled": true,
+      "execution_bucket": "configured",
+      "execution_stage": "configured_enabled",
+      "execution_reason": "已进入 enabled 批量同步。"
     },
     {
       "doc_id": 596,
@@ -634,7 +735,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": true,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 694,
@@ -654,7 +758,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 1177,
@@ -674,7 +781,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 1179,
@@ -694,7 +804,10 @@
       "has_list_response": true,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 2537,
@@ -710,7 +823,10 @@
       "has_list_response": true,
       "has_sensitive_response_fields": false,
       "configured_api_code": "org_manage_query",
-      "configured_enabled": true
+      "configured_enabled": true,
+      "execution_bucket": "configured",
+      "execution_stage": "configured_enabled",
+      "execution_reason": "已进入 enabled 批量同步。"
     },
     {
       "doc_id": 2538,
@@ -726,7 +842,10 @@
       "has_list_response": true,
       "has_sensitive_response_fields": false,
       "configured_api_code": "dictionary_query",
-      "configured_enabled": true
+      "configured_enabled": true,
+      "execution_bucket": "configured",
+      "execution_stage": "configured_enabled",
+      "execution_reason": "已进入 enabled 批量同步。"
     },
     {
       "doc_id": 2885,
@@ -742,7 +861,10 @@
       "has_list_response": true,
       "has_sensitive_response_fields": false,
       "configured_api_code": "role_list",
-      "configured_enabled": true
+      "configured_enabled": true,
+      "execution_bucket": "configured",
+      "execution_stage": "configured_enabled",
+      "execution_reason": "已进入 enabled 批量同步。"
     },
     {
       "doc_id": 3095,
@@ -758,7 +880,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": true,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_sensitive_review",
+      "execution_stage": "needs_sensitive_review",
+      "execution_reason": "公开文档响应或接口域可能包含敏感信息，需先做字段审查和脱敏边界确认。"
     },
     {
       "doc_id": 4563,
@@ -774,7 +899,10 @@
       "has_list_response": true,
       "has_sensitive_response_fields": false,
       "configured_api_code": "country_tree",
-      "configured_enabled": true
+      "configured_enabled": true,
+      "execution_bucket": "configured",
+      "execution_stage": "configured_enabled",
+      "execution_reason": "已进入 enabled 批量同步。"
     },
     {
       "doc_id": 4943,
@@ -790,7 +918,10 @@
       "has_list_response": true,
       "has_sensitive_response_fields": false,
       "configured_api_code": "continent_country_tree",
-      "configured_enabled": true
+      "configured_enabled": true,
+      "execution_bucket": "configured",
+      "execution_stage": "configured_enabled",
+      "execution_reason": "已进入 enabled 批量同步。"
     },
     {
       "doc_id": 5066,
@@ -810,7 +941,10 @@
       "has_list_response": true,
       "has_sensitive_response_fields": false,
       "configured_api_code": "country_province_query",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "configured",
+      "execution_stage": "configured_disabled",
+      "execution_reason": "已配置但默认关闭，需按数据量、窗口和批量耗时评估后再启用。"
     },
     {
       "doc_id": 67,
@@ -826,7 +960,10 @@
       "has_list_response": true,
       "has_sensitive_response_fields": false,
       "configured_api_code": "multi_shop_query",
-      "configured_enabled": true
+      "configured_enabled": true,
+      "execution_bucket": "configured",
+      "execution_stage": "configured_enabled",
+      "execution_reason": "已进入 enabled 批量同步。"
     },
     {
       "doc_id": 137,
@@ -848,7 +985,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": true,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 138,
@@ -870,7 +1010,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": true,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 1377,
@@ -889,7 +1032,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": true,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_sensitive_review",
+      "execution_stage": "needs_sensitive_review",
+      "execution_reason": "公开文档响应或接口域可能包含敏感信息，需先做字段审查和脱敏边界确认。"
     },
     {
       "doc_id": 5592,
@@ -905,7 +1051,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "defer_or_review",
+      "execution_stage": "risk_review_before_probe",
+      "execution_reason": "接口位于订单、财务、客服、物流或销售等高风险域，需先人工确认字段和调用边界。"
     },
     {
       "doc_id": 6013,
@@ -928,7 +1077,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": true,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 116,
@@ -947,7 +1099,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": true,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_sensitive_review",
+      "execution_stage": "needs_sensitive_review",
+      "execution_reason": "公开文档响应或接口域可能包含敏感信息，需先做字段审查和脱敏边界确认。"
     },
     {
       "doc_id": 136,
@@ -963,7 +1118,10 @@
       "has_list_response": true,
       "has_sensitive_response_fields": false,
       "configured_api_code": "crm_tags_page",
-      "configured_enabled": true
+      "configured_enabled": true,
+      "execution_bucket": "configured",
+      "execution_stage": "configured_enabled",
+      "execution_reason": "已进入 enabled 批量同步。"
     },
     {
       "doc_id": 1014,
@@ -982,7 +1140,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "defer_or_review",
+      "execution_stage": "risk_review_before_probe",
+      "execution_reason": "接口位于订单、财务、客服、物流或销售等高风险域，需先人工确认字段和调用边界。"
     },
     {
       "doc_id": 1092,
@@ -1001,7 +1162,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": true,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_sensitive_review",
+      "execution_stage": "needs_sensitive_review",
+      "execution_reason": "公开文档响应或接口域可能包含敏感信息，需先做字段审查和脱敏边界确认。"
     },
     {
       "doc_id": 98,
@@ -1027,7 +1191,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": true,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 99,
@@ -1053,7 +1220,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 100,
@@ -1079,7 +1249,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 101,
@@ -1101,7 +1274,10 @@
       "has_list_response": true,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 102,
@@ -1120,7 +1296,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "strategy_template_page",
-      "configured_enabled": true
+      "configured_enabled": true,
+      "execution_bucket": "configured",
+      "execution_stage": "configured_enabled",
+      "execution_reason": "已进入 enabled 批量同步。"
     },
     {
       "doc_id": 104,
@@ -1142,7 +1321,10 @@
       "has_list_response": true,
       "has_sensitive_response_fields": true,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 287,
@@ -1164,7 +1346,10 @@
       "has_list_response": true,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 288,
@@ -1186,7 +1371,10 @@
       "has_list_response": true,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 291,
@@ -1208,7 +1396,10 @@
       "has_list_response": true,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 292,
@@ -1230,7 +1421,10 @@
       "has_list_response": true,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 293,
@@ -1252,7 +1446,10 @@
       "has_list_response": true,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 295,
@@ -1274,7 +1471,10 @@
       "has_list_response": true,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 575,
@@ -1296,7 +1496,10 @@
       "has_list_response": true,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 576,
@@ -1318,7 +1521,10 @@
       "has_list_response": true,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 656,
@@ -1340,7 +1546,10 @@
       "has_list_response": true,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 657,
@@ -1362,7 +1571,10 @@
       "has_list_response": true,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 658,
@@ -1384,7 +1596,10 @@
       "has_list_response": true,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 1375,
@@ -1406,7 +1621,10 @@
       "has_list_response": true,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 2450,
@@ -1428,7 +1646,10 @@
       "has_list_response": true,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 2451,
@@ -1450,7 +1671,10 @@
       "has_list_response": true,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 2452,
@@ -1472,7 +1696,10 @@
       "has_list_response": true,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 2897,
@@ -1494,7 +1721,10 @@
       "has_list_response": true,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 3106,
@@ -1516,7 +1746,10 @@
       "has_list_response": true,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 15,
@@ -1535,7 +1768,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "product_inventory_page",
-      "configured_enabled": true
+      "configured_enabled": true,
+      "execution_bucket": "configured",
+      "execution_stage": "configured_enabled",
+      "execution_reason": "已进入 enabled 批量同步。"
     },
     {
       "doc_id": 18,
@@ -1559,7 +1795,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "defer_or_review",
+      "execution_stage": "defer_write_or_mutation",
+      "execution_reason": "写入或确认类接口不属于当前只读备份同步范围，默认暂缓。"
     },
     {
       "doc_id": 19,
@@ -1583,7 +1822,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "defer_or_review",
+      "execution_stage": "defer_write_or_mutation",
+      "execution_reason": "写入或确认类接口不属于当前只读备份同步范围，默认暂缓。"
     },
     {
       "doc_id": 84,
@@ -1605,7 +1847,10 @@
       "has_list_response": true,
       "has_sensitive_response_fields": false,
       "configured_api_code": "market_inventory_query",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "configured",
+      "execution_stage": "configured_disabled",
+      "execution_reason": "已配置但默认关闭，需按数据量、窗口和批量耗时评估后再启用。"
     },
     {
       "doc_id": 172,
@@ -1624,7 +1869,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "fba_inventory_page",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "configured",
+      "execution_stage": "configured_disabled",
+      "execution_reason": "已配置但默认关闭，需按数据量、窗口和批量耗时评估后再启用。"
     },
     {
       "doc_id": 234,
@@ -1643,7 +1891,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "storage_inbound_page",
-      "configured_enabled": true
+      "configured_enabled": true,
+      "execution_bucket": "configured",
+      "execution_stage": "configured_enabled",
+      "execution_reason": "已进入 enabled 批量同步。"
     },
     {
       "doc_id": 235,
@@ -1663,7 +1914,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "storage_inbound_detail",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "configured",
+      "execution_stage": "configured_disabled",
+      "execution_reason": "已配置但默认关闭，需按数据量、窗口和批量耗时评估后再启用。"
     },
     {
       "doc_id": 1020,
@@ -1682,7 +1936,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "transfer_page",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "configured",
+      "execution_stage": "configured_disabled",
+      "execution_reason": "已配置但默认关闭，需按数据量、窗口和批量耗时评估后再启用。"
     },
     {
       "doc_id": 1021,
@@ -1702,7 +1959,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "transfer_detail",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "configured",
+      "execution_stage": "configured_disabled",
+      "execution_reason": "已配置但默认关闭，需按数据量、窗口和批量耗时评估后再启用。"
     },
     {
       "doc_id": 1022,
@@ -1721,7 +1981,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "defer_or_review",
+      "execution_stage": "known_risk_review",
+      "execution_reason": "该接口已有真实探测风险记录，需有新证据后再重新评估。"
     },
     {
       "doc_id": 1557,
@@ -1745,7 +2008,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "defer_or_review",
+      "execution_stage": "defer_write_or_mutation",
+      "execution_reason": "写入或确认类接口不属于当前只读备份同步范围，默认暂缓。"
     },
     {
       "doc_id": 1559,
@@ -1769,7 +2035,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "defer_or_review",
+      "execution_stage": "defer_write_or_mutation",
+      "execution_reason": "写入或确认类接口不属于当前只读备份同步范围，默认暂缓。"
     },
     {
       "doc_id": 5136,
@@ -1788,7 +2057,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "fba_inventory_v2_page",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "configured",
+      "execution_stage": "configured_disabled",
+      "execution_reason": "已配置但默认关闭，需按数据量、窗口和批量耗时评估后再启用。"
     },
     {
       "doc_id": 5654,
@@ -1804,7 +2076,10 @@
       "has_list_response": true,
       "has_sensitive_response_fields": false,
       "configured_api_code": "inventory_team_query",
-      "configured_enabled": true
+      "configured_enabled": true,
+      "execution_bucket": "configured",
+      "execution_stage": "configured_enabled",
+      "execution_reason": "已进入 enabled 批量同步。"
     },
     {
       "doc_id": 20,
@@ -1823,7 +2098,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "inventory_adjustments_page",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "configured",
+      "execution_stage": "configured_disabled",
+      "execution_reason": "已配置但默认关闭，需按数据量、窗口和批量耗时评估后再启用。"
     },
     {
       "doc_id": 21,
@@ -1842,7 +2120,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "inventory_receipts_page",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "configured",
+      "execution_stage": "configured_disabled",
+      "execution_reason": "已配置但默认关闭，需按数据量、窗口和批量耗时评估后再启用。"
     },
     {
       "doc_id": 232,
@@ -1861,7 +2142,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "purchase_sale_storage_fba_page",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "configured",
+      "execution_stage": "configured_disabled",
+      "execution_reason": "已配置但默认关闭，需按数据量、窗口和批量耗时评估后再启用。"
     },
     {
       "doc_id": 773,
@@ -1883,7 +2167,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 1036,
@@ -1902,7 +2189,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "inventory_event_page",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "configured",
+      "execution_stage": "configured_disabled",
+      "execution_reason": "已配置但默认关闭，需按数据量、窗口和批量耗时评估后再启用。"
     },
     {
       "doc_id": 1436,
@@ -1924,7 +2214,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "storage_ledger_page",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "configured",
+      "execution_stage": "configured_disabled",
+      "execution_reason": "已配置但默认关闭，需按数据量、窗口和批量耗时评估后再启用。"
     },
     {
       "doc_id": 2542,
@@ -1943,7 +2236,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "inventory_age_page",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "configured",
+      "execution_stage": "configured_disabled",
+      "execution_reason": "已配置但默认关闭，需按数据量、窗口和批量耗时评估后再启用。"
     },
     {
       "doc_id": 2658,
@@ -1965,7 +2261,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 256,
@@ -1984,7 +2283,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "defer_or_review",
+      "execution_stage": "risk_review_before_probe",
+      "execution_reason": "接口位于订单、财务、客服、物流或销售等高风险域，需先人工确认字段和调用边界。"
     },
     {
       "doc_id": 709,
@@ -2003,7 +2305,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": true,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_sensitive_review",
+      "execution_stage": "needs_sensitive_review",
+      "execution_reason": "公开文档响应或接口域可能包含敏感信息，需先做字段审查和脱敏边界确认。"
     },
     {
       "doc_id": 1027,
@@ -2022,7 +2327,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "defer_or_review",
+      "execution_stage": "risk_review_before_probe",
+      "execution_reason": "接口位于订单、财务、客服、物流或销售等高风险域，需先人工确认字段和调用边界。"
     },
     {
       "doc_id": 1028,
@@ -2038,7 +2346,10 @@
       "has_list_response": true,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "defer_or_review",
+      "execution_stage": "risk_review_before_probe",
+      "execution_reason": "接口位于订单、财务、客服、物流或销售等高风险域，需先人工确认字段和调用边界。"
     },
     {
       "doc_id": 1029,
@@ -2058,7 +2369,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 1030,
@@ -2078,7 +2392,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 1032,
@@ -2098,7 +2415,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "delivery_fee_query",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "configured",
+      "execution_stage": "configured_disabled",
+      "execution_reason": "已配置但默认关闭，需按数据量、窗口和批量耗时评估后再启用。"
     },
     {
       "doc_id": 1033,
@@ -2117,7 +2437,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": true,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_sensitive_review",
+      "execution_stage": "needs_sensitive_review",
+      "execution_reason": "公开文档响应或接口域可能包含敏感信息，需先做字段审查和脱敏边界确认。"
     },
     {
       "doc_id": 1034,
@@ -2136,7 +2459,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "shipment_data_page",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "configured",
+      "execution_stage": "configured_disabled",
+      "execution_reason": "已配置但默认关闭，需按数据量、窗口和批量耗时评估后再启用。"
     },
     {
       "doc_id": 1778,
@@ -2152,7 +2478,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "defer_or_review",
+      "execution_stage": "risk_review_before_probe",
+      "execution_reason": "接口位于订单、财务、客服、物流或销售等高风险域，需先人工确认字段和调用边界。"
     },
     {
       "doc_id": 1779,
@@ -2171,7 +2500,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "defer_or_review",
+      "execution_stage": "risk_review_before_probe",
+      "execution_reason": "接口位于订单、财务、客服、物流或销售等高风险域，需先人工确认字段和调用边界。"
     },
     {
       "doc_id": 2453,
@@ -2193,7 +2525,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 2539,
@@ -2213,7 +2548,10 @@
       "has_list_response": true,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 2732,
@@ -2229,7 +2567,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "defer_or_review",
+      "execution_stage": "defer_write_or_mutation",
+      "execution_reason": "写入或确认类接口不属于当前只读备份同步范围，默认暂缓。"
     },
     {
       "doc_id": 3004,
@@ -2245,7 +2586,10 @@
       "has_list_response": true,
       "has_sensitive_response_fields": true,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_sensitive_review",
+      "execution_stage": "needs_sensitive_review",
+      "execution_reason": "公开文档响应或接口域可能包含敏感信息，需先做字段审查和脱敏边界确认。"
     },
     {
       "doc_id": 3059,
@@ -2264,7 +2608,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "ship_transport_list",
-      "configured_enabled": true
+      "configured_enabled": true,
+      "execution_bucket": "configured",
+      "execution_stage": "configured_enabled",
+      "execution_reason": "已进入 enabled 批量同步。"
     },
     {
       "doc_id": 4624,
@@ -2284,7 +2631,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "defer_or_review",
+      "execution_stage": "defer_write_or_mutation",
+      "execution_reason": "写入或确认类接口不属于当前只读备份同步范围，默认暂缓。"
     },
     {
       "doc_id": 5516,
@@ -2300,7 +2650,10 @@
       "has_list_response": true,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "defer_or_review",
+      "execution_stage": "risk_review_before_probe",
+      "execution_reason": "接口位于订单、财务、客服、物流或销售等高风险域，需先人工确认字段和调用边界。"
     },
     {
       "doc_id": 4443,
@@ -2320,7 +2673,10 @@
       "has_list_response": true,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 122,
@@ -2348,7 +2704,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": true,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 123,
@@ -2376,7 +2735,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": true,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 128,
@@ -2395,7 +2757,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "defer_or_review",
+      "execution_stage": "risk_review_before_probe",
+      "execution_reason": "接口位于订单、财务、客服、物流或销售等高风险域，需先人工确认字段和调用边界。"
     },
     {
       "doc_id": 129,
@@ -2419,7 +2784,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 130,
@@ -2451,7 +2819,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": true,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 131,
@@ -2477,7 +2848,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": true,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 132,
@@ -2503,7 +2877,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": true,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 133,
@@ -2531,7 +2908,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 140,
@@ -2561,7 +2941,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": true,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 309,
@@ -2587,7 +2970,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 1016,
@@ -2611,7 +2997,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": true,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 1017,
@@ -2639,7 +3028,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": true,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 1018,
@@ -2665,7 +3057,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": true,
       "configured_api_code": "traffic_analysis_page",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "configured",
+      "execution_stage": "configured_disabled",
+      "execution_reason": "已配置但默认关闭，需按数据量、窗口和批量耗时评估后再启用。"
     },
     {
       "doc_id": 2256,
@@ -2693,7 +3088,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 2280,
@@ -2713,7 +3111,10 @@
       "has_list_response": true,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 2284,
@@ -2739,7 +3140,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 3375,
@@ -2767,7 +3171,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": true,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 71,
@@ -2786,7 +3193,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": true,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_sensitive_review",
+      "execution_stage": "needs_sensitive_review",
+      "execution_reason": "公开文档响应或接口域可能包含敏感信息，需先做字段审查和脱敏边界确认。"
     },
     {
       "doc_id": 118,
@@ -2805,7 +3215,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": true,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_sensitive_review",
+      "execution_stage": "needs_sensitive_review",
+      "execution_reason": "公开文档响应或接口域可能包含敏感信息，需先做字段审查和脱敏边界确认。"
     },
     {
       "doc_id": 1366,
@@ -2824,7 +3237,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": true,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_sensitive_review",
+      "execution_stage": "needs_sensitive_review",
+      "execution_reason": "公开文档响应或接口域可能包含敏感信息，需先做字段审查和脱敏边界确认。"
     },
     {
       "doc_id": 27,
@@ -2843,7 +3259,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "defer_or_review",
+      "execution_stage": "risk_review_before_probe",
+      "execution_reason": "接口位于订单、财务、客服、物流或销售等高风险域，需先人工确认字段和调用边界。"
     },
     {
       "doc_id": 29,
@@ -2862,7 +3281,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": true,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_sensitive_review",
+      "execution_stage": "needs_sensitive_review",
+      "execution_reason": "公开文档响应或接口域可能包含敏感信息，需先做字段审查和脱敏边界确认。"
     },
     {
       "doc_id": 30,
@@ -2881,7 +3303,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": true,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_sensitive_review",
+      "execution_stage": "needs_sensitive_review",
+      "execution_reason": "公开文档响应或接口域可能包含敏感信息，需先做字段审查和脱敏边界确认。"
     },
     {
       "doc_id": 31,
@@ -2900,7 +3325,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "defer_or_review",
+      "execution_stage": "risk_review_before_probe",
+      "execution_reason": "接口位于订单、财务、客服、物流或销售等高风险域，需先人工确认字段和调用边界。"
     },
     {
       "doc_id": 111,
@@ -2919,7 +3347,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "defer_or_review",
+      "execution_stage": "risk_review_before_probe",
+      "execution_reason": "接口位于订单、财务、客服、物流或销售等高风险域，需先人工确认字段和调用边界。"
     },
     {
       "doc_id": 112,
@@ -2938,7 +3369,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "defer_or_review",
+      "execution_stage": "risk_review_before_probe",
+      "execution_reason": "接口位于订单、财务、客服、物流或销售等高风险域，需先人工确认字段和调用边界。"
     },
     {
       "doc_id": 113,
@@ -2962,7 +3396,10 @@
       "has_list_response": true,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 301,
@@ -2984,7 +3421,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 600,
@@ -3003,7 +3443,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "defer_or_review",
+      "execution_stage": "risk_review_before_probe",
+      "execution_reason": "接口位于订单、财务、客服、物流或销售等高风险域，需先人工确认字段和调用边界。"
     },
     {
       "doc_id": 1038,
@@ -3025,7 +3468,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 1039,
@@ -3047,7 +3493,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 1040,
@@ -3075,7 +3524,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 2388,
@@ -3094,7 +3546,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "defer_or_review",
+      "execution_stage": "risk_review_before_probe",
+      "execution_reason": "接口位于订单、财务、客服、物流或销售等高风险域，需先人工确认字段和调用边界。"
     },
     {
       "doc_id": 43,
@@ -3113,7 +3568,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": true,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_sensitive_review",
+      "execution_stage": "needs_sensitive_review",
+      "execution_reason": "公开文档响应或接口域可能包含敏感信息，需先做字段审查和脱敏边界确认。"
     },
     {
       "doc_id": 86,
@@ -3133,7 +3591,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 87,
@@ -3152,7 +3613,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "purchase_plan_page",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "configured",
+      "execution_stage": "configured_disabled",
+      "execution_reason": "已配置但默认关闭，需按数据量、窗口和批量耗时评估后再启用。"
     },
     {
       "doc_id": 88,
@@ -3168,7 +3632,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": true,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_sensitive_review",
+      "execution_stage": "needs_sensitive_review",
+      "execution_reason": "公开文档响应或接口域可能包含敏感信息，需先做字段审查和脱敏边界确认。"
     },
     {
       "doc_id": 90,
@@ -3188,7 +3655,10 @@
       "has_list_response": true,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 91,
@@ -3207,7 +3677,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": true,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_sensitive_review",
+      "execution_stage": "needs_sensitive_review",
+      "execution_reason": "公开文档响应或接口域可能包含敏感信息，需先做字段审查和脱敏边界确认。"
     },
     {
       "doc_id": 92,
@@ -3251,7 +3724,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "defer_or_review",
+      "execution_stage": "defer_write_or_mutation",
+      "execution_reason": "写入或确认类接口不属于当前只读备份同步范围，默认暂缓。"
     },
     {
       "doc_id": 93,
@@ -3301,7 +3777,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "defer_or_review",
+      "execution_stage": "defer_write_or_mutation",
+      "execution_reason": "写入或确认类接口不属于当前只读备份同步范围，默认暂缓。"
     },
     {
       "doc_id": 152,
@@ -3320,7 +3799,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "storage_return_page",
-      "configured_enabled": true
+      "configured_enabled": true,
+      "execution_bucket": "configured",
+      "execution_stage": "configured_enabled",
+      "execution_reason": "已进入 enabled 批量同步。"
     },
     {
       "doc_id": 689,
@@ -3344,7 +3826,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "defer_or_review",
+      "execution_stage": "defer_write_or_mutation",
+      "execution_reason": "写入或确认类接口不属于当前只读备份同步范围，默认暂缓。"
     },
     {
       "doc_id": 931,
@@ -3380,7 +3865,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "defer_or_review",
+      "execution_stage": "defer_write_or_mutation",
+      "execution_reason": "写入或确认类接口不属于当前只读备份同步范围，默认暂缓。"
     },
     {
       "doc_id": 932,
@@ -3414,7 +3902,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "defer_or_review",
+      "execution_stage": "defer_write_or_mutation",
+      "execution_reason": "写入或确认类接口不属于当前只读备份同步范围，默认暂缓。"
     },
     {
       "doc_id": 1024,
@@ -3434,7 +3925,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": true,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 1025,
@@ -3453,7 +3947,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "lot_no_page",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "configured",
+      "execution_stage": "configured_disabled",
+      "execution_reason": "已配置但默认关闭，需按数据量、窗口和批量耗时评估后再启用。"
     },
     {
       "doc_id": 1026,
@@ -3473,7 +3970,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "lot_no_detail",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "configured",
+      "execution_stage": "configured_disabled",
+      "execution_reason": "已配置但默认关闭，需按数据量、窗口和批量耗时评估后再启用。"
     },
     {
       "doc_id": 1060,
@@ -3482,14 +3982,17 @@
       "api_url": "/purchase/srm/quickInbound/confirm",
       "method": "POST",
       "op_type": "confirm",
-      "classification": "unsupported_shape_review",
+      "classification": "write_or_mutation",
       "required_body_fields": [],
       "business_required_fields": [],
       "has_page_response": false,
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "defer_or_review",
+      "execution_stage": "defer_write_or_mutation",
+      "execution_reason": "写入或确认类接口不属于当前只读备份同步范围，默认暂缓。"
     },
     {
       "doc_id": 1080,
@@ -3505,7 +4008,10 @@
       "has_list_response": true,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "defer_or_review",
+      "execution_stage": "known_risk_review",
+      "execution_reason": "该接口已有真实探测风险记录，需有新证据后再重新评估。"
     },
     {
       "doc_id": 1082,
@@ -3514,7 +4020,7 @@
       "api_url": "/purchase/srm/quickInboundByCode/confirm",
       "method": "GET",
       "op_type": "confirm",
-      "classification": "requires_upstream_params",
+      "classification": "write_or_mutation",
       "required_body_fields": [
         "code"
       ],
@@ -3525,7 +4031,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "defer_or_review",
+      "execution_stage": "defer_write_or_mutation",
+      "execution_reason": "写入或确认类接口不属于当前只读备份同步范围，默认暂缓。"
     },
     {
       "doc_id": 1434,
@@ -3557,7 +4066,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "defer_or_review",
+      "execution_stage": "defer_write_or_mutation",
+      "execution_reason": "写入或确认类接口不属于当前只读备份同步范围，默认暂缓。"
     },
     {
       "doc_id": 1593,
@@ -3581,7 +4093,10 @@
       "has_list_response": true,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "defer_or_review",
+      "execution_stage": "defer_write_or_mutation",
+      "execution_reason": "写入或确认类接口不属于当前只读备份同步范围，默认暂缓。"
     },
     {
       "doc_id": 2611,
@@ -3590,7 +4105,7 @@
       "api_url": "/purchase/srm/order/confirm",
       "method": "POST",
       "op_type": "confirm",
-      "classification": "requires_upstream_params",
+      "classification": "write_or_mutation",
       "required_body_fields": [
         "poCodeList"
       ],
@@ -3601,7 +4116,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "defer_or_review",
+      "execution_stage": "defer_write_or_mutation",
+      "execution_reason": "写入或确认类接口不属于当前只读备份同步范围，默认暂缓。"
     },
     {
       "doc_id": 3100,
@@ -3610,14 +4128,17 @@
       "api_url": "/purchase/srm/quickInbound/confirm/V2",
       "method": "POST",
       "op_type": "confirm",
-      "classification": "direct_read_candidate",
+      "classification": "write_or_mutation",
       "required_body_fields": [],
       "business_required_fields": [],
       "has_page_response": false,
       "has_list_response": true,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "defer_or_review",
+      "execution_stage": "defer_write_or_mutation",
+      "execution_reason": "写入或确认类接口不属于当前只读备份同步范围，默认暂缓。"
     },
     {
       "doc_id": 5262,
@@ -3633,7 +4154,10 @@
       "has_list_response": true,
       "has_sensitive_response_fields": true,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_sensitive_review",
+      "execution_stage": "needs_sensitive_review",
+      "execution_reason": "公开文档响应或接口域可能包含敏感信息，需先做字段审查和脱敏边界确认。"
     },
     {
       "doc_id": 8,
@@ -3655,7 +4179,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": true,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 9,
@@ -3674,7 +4201,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "defer_or_review",
+      "execution_stage": "risk_review_before_probe",
+      "execution_reason": "接口位于订单、财务、客服、物流或销售等高风险域，需先人工确认字段和调用边界。"
     },
     {
       "doc_id": 10,
@@ -3694,7 +4224,10 @@
       "has_list_response": true,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 16,
@@ -3716,7 +4249,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": true,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 17,
@@ -3735,7 +4271,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "defer_or_review",
+      "execution_stage": "risk_review_before_probe",
+      "execution_reason": "接口位于订单、财务、客服、物流或销售等高风险域，需先人工确认字段和调用边界。"
     },
     {
       "doc_id": 69,
@@ -3754,7 +4293,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": true,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_sensitive_review",
+      "execution_stage": "needs_sensitive_review",
+      "execution_reason": "公开文档响应或接口域可能包含敏感信息，需先做字段审查和脱敏边界确认。"
     },
     {
       "doc_id": 70,
@@ -3773,7 +4315,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": true,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_sensitive_review",
+      "execution_stage": "needs_sensitive_review",
+      "execution_reason": "公开文档响应或接口域可能包含敏感信息，需先做字段审查和脱敏边界确认。"
     },
     {
       "doc_id": 96,
@@ -3795,7 +4340,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": true,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 119,
@@ -3815,7 +4363,10 @@
       "has_list_response": true,
       "has_sensitive_response_fields": true,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 120,
@@ -3834,7 +4385,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "defer_or_review",
+      "execution_stage": "risk_review_before_probe",
+      "execution_reason": "接口位于订单、财务、客服、物流或销售等高风险域，需先人工确认字段和调用边界。"
     },
     {
       "doc_id": 1011,
@@ -3860,7 +4414,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
       "doc_id": 1382,
@@ -3879,7 +4436,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": true,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "needs_sensitive_review",
+      "execution_stage": "needs_sensitive_review",
+      "execution_reason": "公开文档响应或接口域可能包含敏感信息，需先做字段审查和脱敏边界确认。"
     },
     {
       "doc_id": 2033,
@@ -3905,7 +4465,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "defer_or_review",
+      "execution_stage": "defer_write_or_mutation",
+      "execution_reason": "写入或确认类接口不属于当前只读备份同步范围，默认暂缓。"
     },
     {
       "doc_id": 2541,
@@ -3924,7 +4487,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "defer_or_review",
+      "execution_stage": "risk_review_before_probe",
+      "execution_reason": "接口位于订单、财务、客服、物流或销售等高风险域，需先人工确认字段和调用边界。"
     },
     {
       "doc_id": 3003,
@@ -3943,7 +4509,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
-      "configured_enabled": false
+      "configured_enabled": false,
+      "execution_bucket": "defer_or_review",
+      "execution_stage": "risk_review_before_probe",
+      "execution_reason": "接口位于订单、财务、客服、物流或销售等高风险域，需先人工确认字段和调用边界。"
     }
   ],
   "errors": []

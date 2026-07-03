@@ -161,7 +161,7 @@ python -m app.main --sync-enabled
 python -m app.doc_catalog --output config/jijia_api_catalog.generated.json --summary
 ```
 
-该命令只读取公开文档目录和详情，不读取 `.env`，不请求真实业务接口。输出文件只保存公开接口元数据、分类结果和本地配置覆盖状态。
+该命令只读取公开文档目录和详情，不读取 `.env`，不请求真实业务接口。输出文件保存公开接口元数据、分类结果、本地配置覆盖状态和下一步执行分层，例如已配置、需参数源、需敏感审查、需风险复核或暂缓写操作。
 
 ## ECS 部署
 

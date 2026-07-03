@@ -2069,6 +2069,29 @@
   - 可以继续评估小体量、非敏感、非依赖型 disabled 接口进入 enabled；暂不要把 `traffic_analysis_page`、大库存表、订单、财务、客服文本或物流费用直接加入 daily enabled。
   - 对日期窗口接口和月度报表接口，需要单独设计历史回填策略，避免只完成当天或单页样本。
 
+## Stage 6K
+
+- 阶段目标：进入新一组三轮，先把剩余 API 的下一步执行路径写入覆盖矩阵，避免继续靠人工在文档里筛选。
+- 已完成：
+  - 已为 `app.doc_catalog` 增加 `execution_plan_for_api()`，每个公开文档 API 都会生成 `execution_bucket`、`execution_stage` 和 `execution_reason`。
+  - 执行分层规则：
+    - 已配置接口分为 `configured_enabled` 和 `configured_disabled`。
+    - 需要业务必填参数的接口进入 `needs_param_source`。
+    - 含敏感字段或敏感域的接口进入 `needs_sensitive_review`。
+    - 写入、创建、确认、更新、上传等接口进入 `defer_write_or_mutation`。
+    - 订单、财务、客服、物流、销售等高风险直读接口进入 `risk_review_before_probe`。
+    - 已有真实探测风险记录的接口进入 `known_risk_review`。
+  - 已把 `confirm` 加入写操作识别，避免 `quickInbound/confirm/V2` 这类确认接口被误判为普通直读候选。
+  - 已把 `/purchase/inventory/purchaseSaleStorageSelf/page`、`/purchase/srm/quickInbound/query` 等前序已知风险路径纳入 `known_risk_review`。
+  - 已扩展 `tests/test_doc_catalog.py`，先失败于缺少 `execution_plan_for_api` 和已知风险路径误判，再通过。
+  - `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary`，通过，公开文档 API 185 个，真实配置 API 45 个，enabled 24 个。
+  - 新的执行分层摘要为：`configured=45`、`needs_upstream_params=68`、`needs_sensitive_review=22`、`defer_or_review=50`。
+  - 新的执行阶段摘要为：`configured_enabled=24`、`configured_disabled=21`、`needs_param_source=68`、`needs_sensitive_review=22`、`risk_review_before_probe=20`、`known_risk_review=2`、`defer_write_or_mutation=28`。
+  - 未配置且可直接普通探测的候选当前为 0 个；下一步不能继续沿用“未配置 direct_read_candidate 里随便挑一个”的早期策略。
+- 当前结论：
+  - 6K 没有新增或启用 API，但把剩余 140 个未配置公开接口的执行路径固化到覆盖矩阵，推进了“完整 API 覆盖清单”目标。
+  - 后续真正能继续推进完整拉取的主路径，已经从“找低风险直读”转为“构建参数源、敏感审查和历史回填策略”。
+
 ## Known Issues
 
 - `amazon_shop_page` 第一版以 `data_hash` 去重，不强行编造业务主键。
@@ -2084,15 +2107,16 @@
 - 请求参数已支持 `{{ today }}`、`{{ yesterday }}`、`{{ days_ago:N }}` 三类日期模板；`date_window` 已通过 `traffic_analysis_page`、`shipment_data_page`、`storage_ledger_page` 和 `inventory_receipts_page` 真实验证，可用 checkpoint 中的 `next_window_start` 推进历史窗口，支持嵌套字段，并已支持追平当前日期后的自动跳过。
 - 后续如果继续增加大分页接口或依赖型批量接口，需要关注运行时长、数据库写入耗时和 cron 窗口。
 - 远程 PolarDB 如出现遗留睡眠未提交事务，可能导致 raw 写入锁等待超时，需要先查 `information_schema.processlist` 和 `information_schema.innodb_trx`。
+- 覆盖矩阵已增加执行分层；当前未配置且可直接普通探测的候选为 0 个，剩余接口应按 `needs_param_source`、`needs_sensitive_review`、`risk_review_before_probe`、`known_risk_review` 和 `defer_write_or_mutation` 分别推进。
 
 ## Next Stage
 
-阶段 6K：进入新一组三轮，优先做剩余 API 分层执行计划，或继续评估一个低体量、非敏感、非依赖型 disabled 接口是否具备进入 enabled 的条件。
+阶段 6L：基于 6K 执行分层，优先选择一个 `needs_param_source` 接口，先证明真实参数来源，再默认 disabled 小样本接入。
 
 建议目标：
 
-- 只读读取覆盖矩阵、6H-6J 结果、6H-6J 复盘、6E 追平跳过策略和 `platform_msku_page` enabled 批次证据。
-- 优先选择能复用 `date_window`、普通分页、`response.item_field`、`response.scalar_field`、`source_primary_key`、`param_source.fields` 或 `param_source.filters` 的低风险接口，暂不强行接入数组入参、嵌套数组来源或疑似写操作接口。
+- 只读读取覆盖矩阵、6K 执行分层、6H-6J 复盘、6E 追平跳过策略和 `platform_msku_page` enabled 批次证据。
+- 优先从 `needs_param_source` 中选择能复用 `param_source.fields`、`param_source.filters`、`response.item_field` 或 `response.scalar_field` 的接口，先证明真实上游参数来源。
 - 阅读候选接口公开文档详情，确认路径、方法、必填参数、响应形态、主键和日期字段。
 - 如果是依赖型接口，先只读查询数据库证明参数来源真实存在；如果是直读接口，先用一次真实请求确认响应形态。
 - 如新增 API，默认 `enabled=false`；如评估启用，必须把 `max_pages` 或窗口策略调整到能覆盖当前目标范围，不能把小窗口误当完整拉取。
@@ -2103,7 +2127,7 @@
 验收：
 
 - 新接口完成文档确认和小样本真实同步，默认保持 disabled，除非它是已充分验证的低风险直读接口。
-- 参数来源由数据库只读查询证明，不靠猜测字段。
+- 参数来源必须由数据库只读查询证明，不靠猜测字段。
 - 新接口或启用接口同步批次成功，`sync_api_log`、`raw_api_data` 和 checkpoint 可核验。
 - `api_config` 与覆盖矩阵显示真实配置 API 或 enabled 数量符合本轮目标；当前基线是真实配置 API 45 个、enabled 24 个。
 - `compileall` 和 `unittest discover` 通过。

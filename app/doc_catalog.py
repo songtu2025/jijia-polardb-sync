@@ -15,7 +15,21 @@ DOC_TREE_URL = "https://open.gerpgo.com/api/openAdmin/doc/tree"
 DOC_DETAIL_URL = "https://open.gerpgo.com/api/openAdmin/doc/detail?id={doc_id}"
 
 READ_OPS = {"page", "list", "query", "detail", "get", "tree"}
-WRITE_HINTS = {"update", "save", "create", "add", "delete", "remove", "import", "submit", "sync", "cancel", "approve", "upload"}
+WRITE_HINTS = {
+    "update",
+    "save",
+    "create",
+    "add",
+    "delete",
+    "remove",
+    "import",
+    "submit",
+    "sync",
+    "cancel",
+    "approve",
+    "upload",
+    "confirm",
+}
 PAGE_FIELDS = {"page", "pagesize", "pageSize", "pageNo", "size", "current", "limit"}
 OPTIONAL_QUERY_OBJECTS = {"condition", "param", "params", "query", "filter"}
 SENSITIVE_WORDS = [
@@ -39,6 +53,30 @@ SENSITIVE_WORDS = [
     "密码",
 ]
 SENSITIVE_PATTERN = re.compile("|".join(re.escape(word) for word in SENSITIVE_WORDS), re.IGNORECASE)
+HIGH_RISK_MENU_ROOTS = {"订单", "财务", "客服", "物流", "销售"}
+HIGH_RISK_URL_WORDS = [
+    "order",
+    "fee",
+    "cost",
+    "payment",
+    "refund",
+    "asset",
+    "finance",
+    "delivery",
+    "shipment",
+    "voice",
+    "review",
+    "feedback",
+]
+HIGH_RISK_URL_PATTERN = re.compile("|".join(re.escape(word) for word in HIGH_RISK_URL_WORDS), re.IGNORECASE)
+KNOWN_RISK_REVIEW_PATHS = {
+    # 这些路径已有真实探测结论：编码、限流、数组入参或敏感字段边界尚未稳定，不应反复作为普通候选。
+    "/middle/base/marketNames/query",
+    "/purchase/inventory/purchaseSaleStorageSelf/page",
+    "/operation/sts/trafficSkuAnalysis/page",
+    "/purchase/store/multiTypeWarehouse/page",
+    "/purchase/srm/quickInbound/query",
+}
 
 
 def classify_api_detail(detail: dict[str, Any]) -> dict[str, Any]:
@@ -83,6 +121,72 @@ def classify_api_detail(detail: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def execution_plan_for_api(item: dict[str, Any]) -> dict[str, str]:
+    """给覆盖矩阵中的单个 API 标记下一步执行层级。
+
+    `classification` 只说明公开文档形态；这里再结合是否已配置、是否启用、
+    菜单域和 URL 风险，给后续阶段一个可执行分流，避免把订单、财务、
+    客服、物流费用等高风险接口误当成普通低风险候选。
+    """
+    if item.get("configured_enabled"):
+        return {
+            "execution_bucket": "configured",
+            "execution_stage": "configured_enabled",
+            "execution_reason": "已进入 enabled 批量同步。",
+        }
+
+    if item.get("configured_api_code"):
+        return {
+            "execution_bucket": "configured",
+            "execution_stage": "configured_disabled",
+            "execution_reason": "已配置但默认关闭，需按数据量、窗口和批量耗时评估后再启用。",
+        }
+
+    classification = item.get("classification")
+    if classification == "requires_upstream_params":
+        return {
+            "execution_bucket": "needs_upstream_params",
+            "execution_stage": "needs_param_source",
+            "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。",
+        }
+    if classification == "sensitive_review":
+        return {
+            "execution_bucket": "needs_sensitive_review",
+            "execution_stage": "needs_sensitive_review",
+            "execution_reason": "公开文档响应或接口域可能包含敏感信息，需先做字段审查和脱敏边界确认。",
+        }
+    if classification == "write_or_mutation":
+        return {
+            "execution_bucket": "defer_or_review",
+            "execution_stage": "defer_write_or_mutation",
+            "execution_reason": "写入或确认类接口不属于当前只读备份同步范围，默认暂缓。",
+        }
+    if classification == "direct_read_candidate":
+        if item.get("api_url") in KNOWN_RISK_REVIEW_PATHS:
+            return {
+                "execution_bucket": "defer_or_review",
+                "execution_stage": "known_risk_review",
+                "execution_reason": "该接口已有真实探测风险记录，需有新证据后再重新评估。",
+            }
+        if _needs_domain_risk_review(item):
+            return {
+                "execution_bucket": "defer_or_review",
+                "execution_stage": "risk_review_before_probe",
+                "execution_reason": "接口位于订单、财务、客服、物流或销售等高风险域，需先人工确认字段和调用边界。",
+            }
+        return {
+            "execution_bucket": "can_probe",
+            "execution_stage": "can_probe_next",
+            "execution_reason": "未配置的低风险直读候选，可按默认 disabled 小窗口探测。",
+        }
+
+    return {
+        "execution_bucket": "defer_or_review",
+        "execution_stage": "unsupported_shape_review",
+        "execution_reason": "公开文档形态暂不适配当前同步引擎，需单独确认请求和响应结构。",
+    }
+
+
 def build_catalog(api_config_path: str | Path = "config/api_config.example.yaml") -> dict[str, Any]:
     """拉取公开文档目录和详情，生成当前 API 覆盖矩阵。"""
     configured_by_path = _load_configured_apis(api_config_path)
@@ -97,24 +201,24 @@ def build_catalog(api_config_path: str | Path = "config/api_config.example.yaml"
             detail = _get_json(DOC_DETAIL_URL.format(doc_id=doc_id)).get("data") or {}
             classified = classify_api_detail(detail)
             configured_api = configured_by_path.get(detail.get("apiUrl"))
-            catalog.append(
-                {
-                    "doc_id": doc_id,
-                    "menu_path": " > ".join(menu_path),
-                    "api_name": detail.get("apiName") or api.get("name") or "",
-                    "api_url": detail.get("apiUrl") or api.get("url") or "",
-                    "method": classified["method"],
-                    "op_type": classified["op_type"],
-                    "classification": classified["classification"],
-                    "required_body_fields": classified["required_body_fields"],
-                    "business_required_fields": classified["business_required_fields"],
-                    "has_page_response": classified["has_page_response"],
-                    "has_list_response": classified["has_list_response"],
-                    "has_sensitive_response_fields": classified["has_sensitive_response_fields"],
-                    "configured_api_code": configured_api.get("api_code") if configured_api else "",
-                    "configured_enabled": bool(configured_api.get("enabled")) if configured_api else False,
-                }
-            )
+            item = {
+                "doc_id": doc_id,
+                "menu_path": " > ".join(menu_path),
+                "api_name": detail.get("apiName") or api.get("name") or "",
+                "api_url": detail.get("apiUrl") or api.get("url") or "",
+                "method": classified["method"],
+                "op_type": classified["op_type"],
+                "classification": classified["classification"],
+                "required_body_fields": classified["required_body_fields"],
+                "business_required_fields": classified["business_required_fields"],
+                "has_page_response": classified["has_page_response"],
+                "has_list_response": classified["has_list_response"],
+                "has_sensitive_response_fields": classified["has_sensitive_response_fields"],
+                "configured_api_code": configured_api.get("api_code") if configured_api else "",
+                "configured_enabled": bool(configured_api.get("enabled")) if configured_api else False,
+            }
+            item.update(execution_plan_for_api(item))
+            catalog.append(item)
         except requests.RequestException as error:
             errors.append({"doc_id": doc_id, "error": str(error)})
         time.sleep(0.02)
@@ -151,6 +255,8 @@ def _summarize_catalog(
     catalog: list[dict[str, Any]], errors: list[dict[str, Any]], configured_by_path: dict[str, dict[str, Any]]
 ) -> dict[str, Any]:
     classification_counts = Counter(item["classification"] for item in catalog)
+    execution_bucket_counts = Counter(item["execution_bucket"] for item in catalog)
+    execution_stage_counts = Counter(item["execution_stage"] for item in catalog)
     menu_counts = Counter(item["menu_path"].split(" > ")[0] for item in catalog)
     return {
         "tree_api_count": len(catalog) + len(errors),
@@ -159,6 +265,8 @@ def _summarize_catalog(
         "configured_real_api_count": len(configured_by_path),
         "configured_enabled_real_api_count": sum(1 for api in configured_by_path.values() if api.get("enabled")),
         "classification_counts": dict(sorted(classification_counts.items())),
+        "execution_bucket_counts": dict(sorted(execution_bucket_counts.items())),
+        "execution_stage_counts": dict(sorted(execution_stage_counts.items())),
         "menu_counts": dict(sorted(menu_counts.items())),
     }
 
@@ -228,8 +336,19 @@ def _is_write_like(op_type: str, api_url: str) -> bool:
     return (
         op_type in WRITE_HINTS
         or any(hint in op_type for hint in WRITE_HINTS)
-        or any(fragment in url for fragment in ["/update", "/delete", "/save", "/create", "/add", "/import", "/upload"])
+        or any(
+            fragment in url
+            for fragment in ["/update", "/delete", "/save", "/create", "/add", "/import", "/upload", "/confirm"]
+        )
     )
+
+
+def _needs_domain_risk_review(item: dict[str, Any]) -> bool:
+    menu_root = str(item.get("menu_path") or "").split(" > ")[0]
+    if menu_root in HIGH_RISK_MENU_ROOTS:
+        return True
+    text = f"{item.get('api_url') or ''} {item.get('api_name') or ''}"
+    return bool(HIGH_RISK_URL_PATTERN.search(text))
 
 
 if __name__ == "__main__":
