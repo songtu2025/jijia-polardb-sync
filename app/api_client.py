@@ -37,10 +37,11 @@ class JijiaApiClient:
         params = params_override if params_override is not None else api_config.get("params") or {}
         headers = {"accessToken": token.value}
 
+        timeout_seconds = int(api_config.get("timeout_seconds") or self.timeout_seconds)
         if method == "POST":
-            response = self.session.post(url, json=params, headers=headers, timeout=self.timeout_seconds)
+            response = self.session.post(url, json=params, headers=headers, timeout=timeout_seconds)
         elif method == "GET":
-            response = self.session.get(url, params=params, headers=headers, timeout=self.timeout_seconds)
+            response = self.session.get(url, params=params, headers=headers, timeout=timeout_seconds)
         else:
             raise ValueError(f"unsupported API method: {method}")
 

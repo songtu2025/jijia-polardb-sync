@@ -640,6 +640,34 @@ apis:
       page: 1
       pagesize: 100
 
+  # 第四十个真实文档接口：FBA库龄列表，文档 id=2542，接口响应较慢，当前只做 3 页小窗口验证，默认保持 disabled。
+  - api_code: inventory_age_page
+    name: 查询FBA库龄列表
+    enabled: false
+    method: POST
+    path: /fulfillment/inventory/inventoryAge/page
+    timeout_seconds: 90
+    page:
+      enabled: true
+      page_no_field: page
+      page_size_field: pagesize
+      page_size: 10
+      max_pages: 3
+      list_field: data.rows
+      total_field: data.total
+    primary_key:
+      field: id
+      required: false
+    date_field: updateDate
+    rate_limit:
+      sleep_seconds: 0.2
+    retry:
+      retries: 3
+      delay_seconds: 1
+    params:
+      page: 1
+      pagesize: 10
+
   # 第十九个真实文档接口：产品库存，文档 id=15，已完整单接口验证并加入 enabled 批量同步。
   - api_code: product_inventory_page
     name: 查询产品库存
