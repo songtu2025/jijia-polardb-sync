@@ -811,3 +811,13 @@
 - 6T-6V 三轮复盘结论：`traffic_sku_page`、`traffic_page` 和 `storage_ledger_page` 都先完成完整窗口，再逐个进入 enabled；这种节奏能控制风险，也能让每次 enabled 批次提供清晰的回归证据。
 - 6T-6V 三轮复盘结论：这 3 个日期窗口接口进入 enabled 后，在当天窗口为空时仍会写入成功日志并推进 checkpoint；空窗口不是失败，但必须保留 `sync_api_log` 和 checkpoint 证据。
 - 6T-6V 三轮复盘结论：当前 enabled 批次耗时仍在 77-81 分钟区间，主体成本来自既有大分页接口和数据库写入；后续继续启用接口前仍必须评估 cron 窗口。
+- 阶段 6W 不新增 API、不扩大 enabled，选择 `inventory_receipts_page` 从单页小窗口推进到完整单日窗口验证。
+- 阶段 6W 选择 `inventory_receipts_page` 的原因是它有真实行级主键 `id`，可用 `marketDateBegin/marketDateEnd` 做日期窗口，历史窗口总量 735 条，风险低于订单、财务敏感明细、客服文本、物流费用和库存分类账明细大表。
+- 阶段 6W 候选对比后暂不推进 `traffic_analysis_page`、`storage_ledger_detail_page`、`storage_ledger_month_page` 和 `purchase_sale_storage_fba_page`；原因分别是限流严格、单日总量 27104、月总量 6044、无日期窗口且总量 58955。
+- 阶段 6W 已用 TDD 约束 `inventory_receipts_page.page.max_pages=10`，测试先失败于旧配置 `max_pages=1`，再通过；本轮不提高 `page_size`，避免在未确认页大小上限前触发参数错误。
+- 阶段 6W 已同步 `api_config`，数据库总配置 52 条、启用 27 条；`inventory_receipts_page.enabled=0`、`page_size=100`、`params.pagesize=100`、`page.max_pages=10`。
+- 阶段 6W 的 dry-run 仍确认 loaded 27 enabled API config(s)，说明 `inventory_receipts_page` 没有误进入 enabled。
+- 阶段 6W 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api inventory_receipts_page`，批次号为 `sync_20260703_231344_896620`，请求 2 次，写入 157 条，失败 0。
+- 阶段 6W DB 核验显示该批次 157 条 raw 都有不同 `source_primary_key`，无缺失主键，`data_date=2026-07-03`。
+- 阶段 6W checkpoint 记录 `last_page=2`、`request_count=2`、`item_count=157`、`total_count=157`、`window_start=2026-07-03`、`window_end=2026-07-03`、`next_window_start=2026-07-04`，证明本轮是完整单日窗口而非小窗口。
+- 阶段 6W 后覆盖矩阵刷新为公开文档 API 185 个、真实配置 API 50 个、enabled 27 个；执行分层仍为 `configured=50`、`needs_upstream_params=63`、`needs_sensitive_review=22`、`defer_or_review=50`。

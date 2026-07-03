@@ -1093,7 +1093,7 @@ apis:
       monthList:
         - "2026-06"
 
-  # 第四十四个真实文档接口：已接收库存列表，文档 id=21，使用市场日期窗口做单页验证，默认保持 disabled。
+  # 第四十四个真实文档接口：已接收库存列表，文档 id=21，使用市场日期窗口做完整单日窗口验证，默认保持 disabled。
   - api_code: inventory_receipts_page
     name: 查询已接收库存列表
     enabled: false
@@ -1104,7 +1104,7 @@ apis:
       page_no_field: page
       page_size_field: pagesize
       page_size: 100
-      max_pages: 1
+      max_pages: 10
       list_field: data.rows
       total_field: data.total
     primary_key:
