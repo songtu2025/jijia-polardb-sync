@@ -492,3 +492,12 @@
 - 阶段 5I 已同步 `api_config`，当前数据库总配置 27 条，启用 20 条；`transfer_detail.enabled=0`、`param_source.auto_advance=true`、过滤值为 `TFOutbound`。
 - 阶段 5I 覆盖矩阵保持公开文档 API 185 个、真实配置 API 25 个、enabled 20 个。
 - 5G-5I 复盘结论：依赖型小窗口已能处理固定等值过滤，但数组入参和嵌套数组来源仍未支持；下一阶段应继续选择可复用现有机制的依赖接口。
+- 阶段 5J 新增 `lot_no_detail`，文档 id 为 `1026`，路径为 `GET /purchase/srm/lotNo/detail`，默认保持 `enabled=false`。
+- `lot_no_detail` 选择依据：该接口只需要必填 `code`，且本地覆盖矩阵标记为非分页、非敏感响应，可复用现有依赖参数机制做低风险验证。
+- `lot_no_detail` 的参数来源必须使用 `storage_inbound_page.raw_json.fcode` 并过滤 `raw_json.opType=LNInbound`；只用 `fcode` 会混入调拨、调整、其他出入库等不同业务单据。
+- 阶段 5J 已只读确认 `storage_inbound_page` 中 `opType=LNInbound` 有 8781 条 raw，8243 个去重 `fcode`，足够作为交货单明细的小窗口参数来源。
+- 阶段 5J 未新增代码机制，只新增测试和 YAML 配置；现有 `param_source.fields`、`param_source.filters`、`param_source.auto_advance` 已覆盖该接口需要。
+- 阶段 5J 已用前三个交货单号 `LN2209200001`、`LN2209210002`、`LN2209220003` 验证 `lot_no_detail`，批次号为 `sync_20260703_083033_387237`，请求 3 次，写入 3 条，失败 0。
+- 阶段 5J 后 `lot_no_detail` checkpoint 记录 `param_offset=0`、`param_limit=3`、`next_param_offset=3`；下一阶段应不改 YAML 验证自动推进到第二批。
+- 阶段 5J 已同步 `api_config`，当前数据库总配置 28 条，启用 20 条；`lot_no_detail.enabled=0`、`param_source.auto_advance=true`、过滤值为 `LNInbound`。
+- 阶段 5J 覆盖矩阵已刷新为公开文档 API 185 个、真实配置 API 26 个、enabled 20 个。
