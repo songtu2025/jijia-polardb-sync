@@ -903,8 +903,8 @@ apis:
       enabled: true
       page_no_field: page
       page_size_field: pagesize
-      page_size: 100
-      max_pages: 1
+      page_size: 500
+      max_pages: 2
       list_field: data.rows
       total_field: data.total
     primary_key:
@@ -918,15 +918,15 @@ apis:
       default_start: "2026-07-02"
       days: 1
     rate_limit:
-      sleep_seconds: 0.5
+      sleep_seconds: 65
     retry:
-      retries: 3
+      retries: 1
       delay_seconds: 1
     params:
       currency: CNY
       viewType: day
       page: 1
-      pagesize: 100
+      pagesize: 500
 
   # 第四十九个真实文档接口：流量统计-msku，文档 id=123，使用 date_window 做单页单日窗口验证，默认保持 disabled。
   - api_code: traffic_sku_page

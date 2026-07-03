@@ -766,3 +766,10 @@
 - 阶段 6Q 已同步 `api_config`，数据库总配置 52 条，启用 24 条；`traffic_sku_page.enabled=0`、`page_size=200`、`params.pagesize=200`、`page.max_pages=1`。
 - 阶段 6Q 已用真实接口完成 `traffic_sku_page` 单日完整窗口验证，批次号为 `sync_20260703_180803_993141`，请求 1 次，写入 170 条，失败 0；checkpoint 记录 `item_count=170`、`total_count=170`、`window_start=2026-07-02`、`window_end=2026-07-02`、`next_window_start=2026-07-03`。
 - 阶段 6Q 后覆盖矩阵刷新仍为公开文档 API 185 个、真实配置 API 50 个、enabled 24 个；执行分层仍为 `configured=50`、`needs_upstream_params=63`、`needs_sensitive_review=22`、`defer_or_review=50`。
+- 阶段 6R 不新增 API，选择已验证 disabled 的 `traffic_page` 做 `2026-07-02` 单日完整窗口验证；原因是 6P 已证明该接口单日总量为 583 条，但当时只写入 100 条。
+- 阶段 6R 先尝试 `pagesize=600`、`max_pages=1`，批次 `sync_20260703_181754_561672` 因 509 限流失败；将 `retry.retries` 调为 1 后，批次 `sync_20260703_182010_431018` 返回 40004，错误信息为“参数大小不合规：pagesize<=500”，因此确认该接口页大小上限为 500。
+- 阶段 6R 对 `traffic_page` 采用 `page.page_size=500`、`params.pagesize=500`、`page.max_pages=2`、`rate_limit.sleep_seconds=65`、`retry.retries=1`；原因是完整 583 条必须请求第 2 页，且限流失败不应在同批次内重复打 3 次。
+- 阶段 6R 为重新验证 7 月 2 日，只删除了 `sync_checkpoint` 中 `traffic_page` 的 1 行 checkpoint，未删除 raw 数据。
+- 阶段 6R 已同步 `api_config`，数据库总配置 52 条，启用 24 条；`traffic_page.enabled=0`、`page_size=500`、`params.pagesize=500`、`page.max_pages=2`、`sleep_seconds=65`、`retries=1`。
+- 阶段 6R 已用真实接口完成 `traffic_page` 单日完整窗口验证，批次号为 `sync_20260703_182130_693272`，请求 2 次，写入 583 条，失败 0；checkpoint 记录 `item_count=583`、`total_count=583`、`window_start=2026-07-02`、`window_end=2026-07-02`、`next_window_start=2026-07-03`。
+- 阶段 6R 后覆盖矩阵刷新仍为公开文档 API 185 个、真实配置 API 50 个、enabled 24 个；执行分层仍为 `configured=50`、`needs_upstream_params=63`、`needs_sensitive_review=22`、`defer_or_review=50`。
