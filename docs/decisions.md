@@ -657,3 +657,12 @@
 - 阶段 6C 的 checkpoint 额外记录 `window_start`、`window_end`、`next_window_start` 和 `window_days`，用于追踪历史窗口推进。
 - 日期窗口逻辑已接入非分页、分页和依赖参数请求路径；本轮不改变 `api_config`、enabled 数量或覆盖矩阵数量。
 - 阶段 6C 后真实配置 API 仍为 40 个，enabled 仍为 23 个；本轮通过 dry-run、compileall 和 55 个单测验证。
+- 阶段 6D 新增 `traffic_analysis_page`，文档 id 为 `1018`，路径为 `POST /operation/sts/trafficAnalysis/page`，默认保持 `enabled=false`。
+- `traffic_analysis_page` 选择依据：统计域“流量数据-ASIN”接口必填 `currency`、`beginDate`、`endDate`、`page`、`pagesize`，能直接验证 `date_window` 请求字段和 checkpoint 推进，业务风险低于订单、财务明细、客服文本和物流费用。
+- `traffic_analysis_page` 真实探测确认 `2026-07-02` 单日 CNY 窗口返回 `total=528`；样本字段包含 `marketId`、`asin`、`parentAsin`、`sku`、`recordDate`。
+- `traffic_analysis_page` 真实样本中的 `id` 为 `None`，本轮不使用 `id` 做主键，配置空 `primary_key.field`，依赖 `data_hash` 幂等。
+- `traffic_analysis_page` 首次按 `max_pages=3` 验证时，第 2 页触发 509 “接口调用次数已超过限制次数”；本轮将 `max_pages` 降为 1，避免严格限流接口在接入验证阶段连续多页请求。
+- 阶段 6D 已用真实接口验证 `traffic_analysis_page`，批次号为 `sync_20260703_134351_398121`，请求 1 次，写入 100 条，失败 0。
+- 阶段 6D 后 `traffic_analysis_page` checkpoint 指向批次 `sync_20260703_134351_398121`，`checkpoint_value` 记录 `last_page=1`、`request_count=1`、`item_count=100`、`total_count=528`、`window_start=2026-07-02`、`window_end=2026-07-02`、`next_window_start=2026-07-03`、`window_days=1`。
+- 阶段 6D 已同步 `api_config`，当前数据库总配置 43 条，启用 23 条；覆盖矩阵刷新后为公开文档 API 185 个、真实配置 API 41 个、enabled 23 个。
+- 6B-6D 复盘结论：日期模板、checkpoint 日期窗口和真实日期窗口接口验证已经闭环；后续仍要逐接口确认限流、主键可靠性和追平当前日期后的调度策略，不能把严格限流接口直接加入 daily enabled。
