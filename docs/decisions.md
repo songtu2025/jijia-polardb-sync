@@ -821,3 +821,12 @@
 - 阶段 6W DB 核验显示该批次 157 条 raw 都有不同 `source_primary_key`，无缺失主键，`data_date=2026-07-03`。
 - 阶段 6W checkpoint 记录 `last_page=2`、`request_count=2`、`item_count=157`、`total_count=157`、`window_start=2026-07-03`、`window_end=2026-07-03`、`next_window_start=2026-07-04`，证明本轮是完整单日窗口而非小窗口。
 - 阶段 6W 后覆盖矩阵刷新为公开文档 API 185 个、真实配置 API 50 个、enabled 27 个；执行分层仍为 `configured=50`、`needs_upstream_params=63`、`needs_sensitive_review=22`、`defer_or_review=50`。
+- 阶段 6X 选择将 `inventory_receipts_page` 从 disabled 提升到 enabled；依据是该接口已完成 `2026-07-03` 单日完整窗口验证，完整窗口为 157 条、2 次请求，且响应行有稳定 `id` 主键。
+- 阶段 6X 已用 TDD 约束 `inventory_receipts_page.enabled=true`，并将 enabled 基线测试从 27 调整到 28。
+- 阶段 6X 已同步 `api_config`，数据库总配置 52 条、启用 28 条；`inventory_receipts_page.enabled=1`、`page_size=100`、`params.pagesize=100`、`page.max_pages=10`。
+- 阶段 6X 的 dry-run 已确认 loaded 28 enabled API config(s)，且 `inventory_receipts_page` 出现在 enabled 列表中。
+- 阶段 6X 已运行完整 `--sync-enabled`，批次号为 `sync_20260703_232214_043129`，28 个 API 全部成功，失败 0；批次总请求 3078 次、写入 307943 条，运行时间约 83 分钟。
+- 阶段 6X 批次从 `2026-07-03 23:22:14` 运行到 `2026-07-04 00:45:01`，因此 date_window 接口在批次后段按 `2026-07-04` 窗口继续推进。
+- 阶段 6X 中 `inventory_receipts_page` 在同批次内状态成功，请求 1 次，`2026-07-04` 窗口返回 `item_count=0`、`total_count=0`，checkpoint 推进到 `next_window_start=2026-07-05`。
+- 阶段 6X 中 `traffic_page`、`traffic_sku_page`、`storage_ledger_page` 也在 `2026-07-04` 窗口请求 1 次并返回 0 条，属于跨日批次的预期行为。
+- 阶段 6X 后覆盖矩阵刷新为公开文档 API 185 个、真实配置 API 50 个、enabled 28 个；执行分层仍为 `configured=50`、`needs_upstream_params=63`、`needs_sensitive_review=22`、`defer_or_review=50`。

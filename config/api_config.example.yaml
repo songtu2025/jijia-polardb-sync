@@ -1093,10 +1093,10 @@ apis:
       monthList:
         - "2026-06"
 
-  # 第四十四个真实文档接口：已接收库存列表，文档 id=21，使用市场日期窗口做完整单日窗口验证，默认保持 disabled。
+  # 第四十四个真实文档接口：已接收库存列表，文档 id=21，已完成完整单日窗口验证并加入 daily enabled。
   - api_code: inventory_receipts_page
     name: 查询已接收库存列表
-    enabled: false
+    enabled: true
     method: POST
     path: /purchase/store/inventoryReceipts/page
     page:

@@ -10,11 +10,11 @@ class InventoryReceiptsPageConfigTest(unittest.TestCase):
             for api in load_api_configs("config/api_config.example.yaml")
         }
 
-    def test_inventory_receipts_page_uses_market_date_window_and_stays_disabled(self):
+    def test_inventory_receipts_page_uses_market_date_window_and_is_enabled(self):
         self.assertIn("inventory_receipts_page", self.apis)
         api = self.apis["inventory_receipts_page"]
 
-        self.assertFalse(api["enabled"])
+        self.assertTrue(api["enabled"])
         self.assertEqual(api["method"], "POST")
         self.assertEqual(api["path"], "/purchase/store/inventoryReceipts/page")
         self.assertTrue(api["page"]["enabled"])
