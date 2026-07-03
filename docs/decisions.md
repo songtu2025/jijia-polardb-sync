@@ -666,3 +666,7 @@
 - 阶段 6D 后 `traffic_analysis_page` checkpoint 指向批次 `sync_20260703_134351_398121`，`checkpoint_value` 记录 `last_page=1`、`request_count=1`、`item_count=100`、`total_count=528`、`window_start=2026-07-02`、`window_end=2026-07-02`、`next_window_start=2026-07-03`、`window_days=1`。
 - 阶段 6D 已同步 `api_config`，当前数据库总配置 43 条，启用 23 条；覆盖矩阵刷新后为公开文档 API 185 个、真实配置 API 41 个、enabled 23 个。
 - 6B-6D 复盘结论：日期模板、checkpoint 日期窗口和真实日期窗口接口验证已经闭环；后续仍要逐接口确认限流、主键可靠性和追平当前日期后的调度策略，不能把严格限流接口直接加入 daily enabled。
+- 阶段 6E 不新增 API，不改变 YAML、数据库 `api_config` 或覆盖矩阵数量；真实配置 API 仍为 41 个，enabled 仍为 23 个。
+- 阶段 6E 补齐 `date_window` 追平当前日期后的跳过策略：当 checkpoint 的 `next_window_start` 晚于当天时，不再发起真实 API 请求。
+- 阶段 6E 的追平跳过会写入成功日志和 checkpoint，`request_count=0`、`item_count=0`，并保留 `next_window_start`、`window_days` 和 `skipped_reason=date_window_caught_up`，避免空跑后丢失窗口位置。
+- 阶段 6E 保持 `date_window` 只负责单接口窗口推进和跳过，不引入复杂调度器；后续如要完整拉取更多超大表，仍需逐接口验证真实日期字段、限流和主键可靠性。

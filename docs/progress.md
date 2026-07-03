@@ -2,7 +2,7 @@
 
 ## Current Stage
 
-阶段 6D 已完成。已用 `traffic_analysis_page` 验证 checkpoint 驱动日期窗口，当前真实配置 API 为 41 个，enabled API 为 23 个。
+阶段 6E 已完成。已补齐 `date_window` 追平当前日期后的跳过策略，当前真实配置 API 为 41 个，enabled API 为 23 个。
 
 ## Completed
 
@@ -1876,6 +1876,25 @@
   - 继续避免直接进入订单、财务敏感明细、客服文本、物流费用和销售售后。
   - 对限流严格的接口，默认使用更小 `max_pages`、更长 `rate_limit.sleep_seconds` 或独立调度，不要直接加入 daily enabled。
 
+## Stage 6E
+
+- 阶段目标：进入新一组三轮，先补齐 `date_window` 追平当前日期后的跳过策略，避免严格限流接口在已追平时继续空请求。
+- 已完成：
+  - 只读确认 6B-6D 的缺口：`date_window` 已能从 checkpoint 推进历史窗口，但当 `next_window_start` 已晚于当天时，旧逻辑可能生成无效窗口或继续发起不必要请求。
+  - 已扩展 `tests/test_sync_engine_param_templates.py`，先失败于 `_paged_payloads()` 仍会请求未来窗口，再通过。
+  - 新增 `_date_window_caught_up()`，当启用 `date_window` 且下一窗口起点晚于当天时，判断该接口当前已追平。
+  - `_paged_payloads()` 在追平时不再产出请求，避免进入真实 HTTP 调用。
+  - `_sync_api_in_batch()` 和依赖参数同步路径在追平时写入成功日志和 checkpoint，`request_count=0`、`item_count=0`，并保留 `next_window_start`、`window_days` 和 `skipped_reason=date_window_caught_up`。
+  - `_date_window_params()` 在窗口起点晚于当天时返回空窗口，避免生成 `beginDate > endDate` 这种无效参数。
+  - 本轮不新增 API，不改变 YAML、数据库 `api_config` 或覆盖矩阵数量；真实配置 API 仍为 41 个，enabled 仍为 23 个。
+  - `.\\.venv\\Scripts\\python.exe -m app.main`，通过，dry-run 显示 23 个 enabled API。
+  - `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
+  - `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过，57 个测试。
+- 当前结论：
+  - 日期窗口链路现在具备三段能力：日期模板、checkpoint 推进、追平后跳过。
+  - 本轮是完整拉取的调度安全能力改造，不是 API 数量扩容。
+  - 后续仍需要逐个真实日期窗口接口验证请求字段、限流和主键可靠性。
+
 ## Known Issues
 
 - `amazon_shop_page` 第一版以 `data_hash` 去重，不强行编造业务主键。
@@ -1888,17 +1907,17 @@
 - 覆盖矩阵是公开文档视角，不等同于当前账号真实授权可调用结果；真实可访问性仍需单接口运行验证。
 - `purchase_plan_page` 当前总量为 0 条；`storage_return_page` 当前总量为 1 条；`strategy_template_page` 当前总量为 19 条；`traffic_analysis_page` 在 `2026-07-02` 单日 CNY 窗口总量为 528 条且限流严格；`platform_msku_page` 当前总量为 1707 条，请求约 18 页；`transfer_page` 当前总量为 6755 条，请求约 68 页；`product_page` 当前总量为 8258 条，请求 83 页；`lot_no_page` 当前总量为 8602 条，请求约 87 页；`amazon_msku_page` 当前总量为 18430 条，请求约 185 页；`fba_inventory_page` 和 `fba_inventory_v2_page` 当前总量均为 30759 条，请求约 308 页；`inventory_adjustments_page` 当前总量为 58239 条，请求约 583 页；`product_inventory_page` 当前总量为 118653 条，请求 1187 页；`storage_inbound_page` 当前总量为 174286 条，请求 1743 页；`inventory_event_page` 当前总量为 2669068 条，请求约 26691 页；`inventory_age_page` 当前总量为 6597161 条，当前小窗口配置为每页 10 条且单页响应很慢。当前 23 个 enabled API 的真实批量同步约 3053 次请求，5V 实测耗时 5735 秒，必须按长耗时任务安排 cron 窗口。
 - `--sync-enabled` 已在 5W 改为批次头、单 API、最终汇总分事务提交，已完成 API 的 raw、log 和 checkpoint 可随 API 完成后提交；但总运行时长仍由接口请求量和数据库写入量决定。
-- 请求参数已支持 `{{ today }}`、`{{ yesterday }}`、`{{ days_ago:N }}` 三类日期模板；`date_window` 已通过 `traffic_analysis_page` 真实验证，可用 checkpoint 中的 `next_window_start` 推进历史窗口，但尚未实现追平当前日期后的自动跳过策略。
+- 请求参数已支持 `{{ today }}`、`{{ yesterday }}`、`{{ days_ago:N }}` 三类日期模板；`date_window` 已通过 `traffic_analysis_page` 真实验证，可用 checkpoint 中的 `next_window_start` 推进历史窗口，并已支持追平当前日期后的自动跳过。
 - 后续如果继续增加大分页接口或依赖型批量接口，需要关注运行时长、数据库写入耗时和 cron 窗口。
 - 远程 PolarDB 如出现遗留睡眠未提交事务，可能导致 raw 写入锁等待超时，需要先查 `information_schema.processlist` 和 `information_schema.innodb_trx`。
 
 ## Next Stage
 
-阶段 6E：进入新一组三轮，继续推进完整覆盖。优先评估日期窗口继续扩展或补齐追平当前日期后的跳过策略，暂不扩大 enabled。
+阶段 6F：继续推进完整覆盖。优先用 `date_window` 接入另一个低风险日期窗口接口，默认保持 disabled；暂不扩大 enabled。
 
 建议目标：
 
-- 只读读取覆盖矩阵、6B-6D 复盘和 `traffic_analysis_page` 的限流证据。
+- 只读读取覆盖矩阵、6B-6D 复盘、6E 追平跳过策略和 `traffic_analysis_page` 的限流证据。
 - 优先选择能复用 `date_window`、普通分页、`response.item_field`、`response.scalar_field`、`source_primary_key`、`param_source.fields` 或 `param_source.filters` 的低风险接口，暂不强行接入数组入参、嵌套数组来源或疑似写操作接口。
 - 阅读候选接口公开文档详情，确认路径、方法、必填参数、响应形态、主键和日期字段。
 - 如果是依赖型接口，先只读查询数据库证明参数来源真实存在；如果是直读接口，先用一次真实请求确认响应形态。

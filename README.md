@@ -81,7 +81,7 @@ mysql -h <POLARDB_HOST> -P 3306 -u <DB_USER> -p <DB_NAME> < sql/init_tables.sql
 
 对需要滚动日期窗口的接口，`params` 支持少量日期占位符：`{{ today }}`、`{{ yesterday }}` 和 `{{ days_ago:7 }}`。程序会在发起请求前展开为 `YYYY-MM-DD`。
 
-对需要补历史窗口的接口，可以在 YAML 中增加 `date_window`，用 `default_start`、`days`、`start_field` 和 `end_field` 生成本次请求窗口。同步成功后 checkpoint 会记录 `next_window_start`，下次运行从下一窗口继续，避免超大表只能全量分页；该能力已用 `traffic_analysis_page` 做过真实单日窗口验证。
+对需要补历史窗口的接口，可以在 YAML 中增加 `date_window`，用 `default_start`、`days`、`start_field` 和 `end_field` 生成本次请求窗口。同步成功后 checkpoint 会记录 `next_window_start`，下次运行从下一窗口继续；如果下一窗口已经晚于当天，程序会跳过请求，避免严格限流接口空跑。该能力已用 `traffic_analysis_page` 做过真实单日窗口验证。
 
 ## 本地运行
 

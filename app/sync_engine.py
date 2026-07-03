@@ -393,6 +393,7 @@ class SyncEngine:
             return self._sync_api_from_param_source_in_batch(connection, api, batch_no, api_client, token)
 
         try:
+            date_window_caught_up = self._date_window_caught_up(api, connection)
             for page_no, payload, attempt_count in self._paged_payloads(api, api_client, token, connection):
                 # request_count 统计真实 HTTP 尝试次数，包含失败后的重试次数。
                 request_count += attempt_count
@@ -403,7 +404,10 @@ class SyncEngine:
                 total_count = self._response_total(payload, api)
                 self._sleep_between_pages(api, page_no, total_count)
 
-            checkpoint_extra = self._date_window_checkpoint_extra(api, self._request_params(api, connection))
+            if date_window_caught_up:
+                checkpoint_extra = self._date_window_caught_up_checkpoint_extra(api, connection)
+            else:
+                checkpoint_extra = self._date_window_checkpoint_extra(api, self._request_params(api, connection))
             self._update_checkpoint(
                 connection,
                 api_code,
@@ -456,6 +460,30 @@ class SyncEngine:
         api_started_at = datetime.now()
 
         try:
+            if self._date_window_caught_up(api, connection):
+                checkpoint_extra = self._date_window_caught_up_checkpoint_extra(api, connection)
+                self._update_checkpoint(
+                    connection,
+                    api_code,
+                    batch_no,
+                    item_count,
+                    request_count,
+                    0,
+                    total_count,
+                    extra=checkpoint_extra,
+                )
+                self._insert_api_log(
+                    connection,
+                    batch_no,
+                    api_code,
+                    "success",
+                    request_count,
+                    item_count,
+                    0,
+                    api_started_at,
+                )
+                return {"item_count": item_count, "request_count": request_count, "failed_count": failed_count}
+
             param_source = api.get("param_source") or {}
             param_limit = int(param_source.get("limit") or 10)
             param_offset = self._param_source_offset(connection, api)
@@ -713,6 +741,9 @@ class SyncEngine:
         非分页接口只请求一次。分页接口会在每次请求前覆盖页码和页大小，并用
         total 判断是否已经到最后一页；max_pages 是接入阶段的保护阈值。
         """
+        if self._date_window_caught_up(api, connection):
+            return
+
         page_config = api.get("page") or {}
         if not page_config.get("enabled", False):
             params = self._request_params(api, connection)
@@ -805,6 +836,8 @@ class SyncEngine:
         start_date = self._date_window_start(api, connection) or date.fromisoformat(default_start)
         end_date = start_date + timedelta(days=max(window_days, 1) - 1)
         current_date = today or date.today()
+        if start_date > current_date:
+            return None
         if end_date > current_date:
             end_date = current_date
 
@@ -841,6 +874,46 @@ class SyncEngine:
         if not next_window_start:
             return None
         return date.fromisoformat(str(next_window_start))
+
+    def _date_window_caught_up(
+        self,
+        api: dict[str, Any],
+        connection: Any | None = None,
+        today: date | None = None,
+    ) -> bool:
+        """判断日期窗口是否已经推进到今天之后。"""
+        window_config = api.get("date_window") or {}
+        if not window_config.get("enabled"):
+            return False
+
+        default_start = str(window_config.get("default_start") or "")
+        if not default_start:
+            return False
+
+        start_date = self._date_window_start(api, connection) or date.fromisoformat(default_start)
+        current_date = today or date.today()
+        return start_date > current_date
+
+    def _date_window_caught_up_checkpoint_extra(
+        self,
+        api: dict[str, Any],
+        connection: Any | None = None,
+    ) -> dict[str, Any] | None:
+        """日期窗口追平时保留下一窗口，避免空跑后丢失推进位置。"""
+        window_config = api.get("date_window") or {}
+        if not window_config.get("enabled"):
+            return None
+
+        default_start = str(window_config.get("default_start") or "")
+        if not default_start:
+            return None
+
+        start_date = self._date_window_start(api, connection) or date.fromisoformat(default_start)
+        return {
+            "next_window_start": start_date.isoformat(),
+            "window_days": int(window_config.get("days") or 1),
+            "skipped_reason": "date_window_caught_up",
+        }
 
     def _date_window_checkpoint_extra(self, api: dict[str, Any], params: dict[str, Any]) -> dict[str, Any] | None:
         """生成写入 checkpoint 的日期窗口推进信息。"""

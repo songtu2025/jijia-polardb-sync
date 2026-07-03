@@ -25,7 +25,7 @@
 
 当前阶段：
 
-阶段 6D 已完成。下一阶段 6E 进入新一组三轮；优先继续推进完整覆盖所需的日期窗口、限流和调度能力，暂不直接扩大 enabled。
+阶段 6E 已完成。下一阶段 6F 继续推进完整覆盖；6E-6G 是当前三轮组。优先用 `date_window` 接入另一个低风险日期窗口接口，默认保持 disabled，暂不扩大 enabled。
 
 当前事实：
 
@@ -34,24 +34,18 @@
 - 覆盖矩阵显示公开文档 API 185 个，真实配置 API 41 个，enabled 23 个。
 - 5V 的完整 `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled` 批次为 `sync_20260703_104718_888820`，状态 `success`，23 个 API 全部成功，总请求数 3053，总写入行数 306199，运行耗时 5735 秒。
 - 5W 已修改 `SyncEngine.sync_enabled_apis()`：批次头先提交，每个 enabled API 独立事务提交 raw、log 和 checkpoint，全部结束后独立事务提交批次汇总状态。
-- 6B 新增请求参数日期模板，支持 `{{ today }}`、`{{ yesterday }}`、`{{ days_ago:N }}`，发起请求前展开为 `YYYY-MM-DD`。
-- 6C 新增 `date_window`：`enabled=true`、`start_field`、`end_field`、`default_start`、`days`；首次从 `default_start` 生成窗口，后续从 checkpoint 的 `next_window_start` 继续。
+- 6B 新增请求参数日期模板，支持 `{{ today }}`、`{{ yesterday }}`、`{{ days_ago:N }}`。
+- 6C 新增 `date_window`：首次从 `default_start` 生成窗口，后续从 checkpoint 的 `next_window_start` 继续。
 - 6D 新增 `traffic_analysis_page`，文档 id 为 `1018`，路径为 `POST /operation/sts/trafficAnalysis/page`，默认 `enabled=false`。
-- `traffic_analysis_page` 是统计域“流量数据-ASIN”，必填 `currency`、`beginDate`、`endDate`、`page`、`pagesize`，响应为 `data.total` 和 `data.rows`。
-- 真实探测确认 `traffic_analysis_page` 在 `2026-07-02` 单日 CNY 窗口返回 `total=528`；样本字段包含 `marketId`、`asin`、`parentAsin`、`sku`、`recordDate`。
+- 6D 的 `traffic_analysis_page` 成功批次为 `sync_20260703_134351_398121`，`rows=100`、`requests=1`、失败 0；checkpoint 记录 `window_start=2026-07-02`、`window_end=2026-07-02`、`next_window_start=2026-07-03`。
 - `traffic_analysis_page` 真实样本中的 `id` 为 `None`，当前配置使用空 `primary_key.field`，依赖 `data_hash` 幂等。
-- `traffic_analysis_page` 首次按 `max_pages=3` 运行时，第 2 页触发 509 “接口调用次数已超过限制次数”；当前已降为 `max_pages=1`。
-- 6D 的 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api traffic_analysis_page` 批次为 `sync_20260703_134351_398121`，状态 `success`，`rows=100`、`requests=1`、失败 0。
-- 数据库确认该批次 `sync_batch.status=success`、`total_api_count=1`、`success_api_count=1`、`failed_api_count=0`、耗时 8 秒。
-- 同批次 `sync_api_log` 为 `request_count=1`、`success_count=100`、`failed_count=0`、`error_message=NULL`。
-- 同批次 `raw_api_data` 写入 100 条，100 条都有 `data_hash`，100 条都有 `data_date`，日期范围为 `2026-07-02` 到 `2026-07-02`。
-- `traffic_analysis_page` checkpoint 已更新到 `sync_20260703_134351_398121`，`checkpoint_value` 记录 `last_page=1`、`request_count=1`、`item_count=100`、`total_count=528`、`window_start=2026-07-02`、`window_end=2026-07-02`、`next_window_start=2026-07-03`、`window_days=1`。
-- 数据库确认 `api_config` 总数 43、启用 23；`traffic_analysis_page.enabled=0`、`page.max_pages=1`、`primary_key.field=""`、`date_field=recordDate`、`date_window.default_start=2026-07-02`、`date_window.days=1`。
-- `.\\.venv\\Scripts\\python.exe -m app.main` dry-run 显示 23 个 enabled API。
-- `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary` 已通过，公开文档 185 个，真实配置 41 个，enabled 23 个；该命令会访问公开文档，运行时继续给较长超时。
-- `.\\.venv\\Scripts\\python.exe -m compileall app tests` 已通过。
-- `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"` 已通过，56 个测试。
-- 6B-6D 复盘结论：日期模板、checkpoint 日期窗口和真实日期窗口接口验证已经闭环；后续仍要逐接口确认限流、主键可靠性和追平当前日期后的调度策略。
+- `traffic_analysis_page` 连续分页时出现过 509 “接口调用次数已超过限制次数”，当前配置 `max_pages=1`，保持 disabled。
+- 6E 不新增 API，不改变 YAML、数据库 `api_config` 或覆盖矩阵数量；真实配置 API 仍为 41 个，enabled 仍为 23 个。
+- 6E 补齐 `date_window` 追平当前日期后的跳过策略：当 checkpoint 的 `next_window_start` 晚于当天时，不再发起真实 API 请求。
+- 6E 的追平跳过会写入成功日志和 checkpoint，`request_count=0`、`item_count=0`，并保留 `next_window_start`、`window_days` 和 `skipped_reason=date_window_caught_up`。
+- 6E 的 `.\\.venv\\Scripts\\python.exe -m app.main` dry-run 显示 23 个 enabled API。
+- 6E 的 `.\\.venv\\Scripts\\python.exe -m compileall app tests` 已通过。
+- 6E 的 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"` 已通过，57 个测试。
 - 当前仍不支持数组入参、嵌套数组来源或复杂过滤表达式。
 - `marketNames/query` 的常见 GET 数组编码已试过会返回 400，暂不要在未确认真实编码前强行接入。
 - `deliveryFee/query`、`relevancePoInfo/query` 和 `traffic_analysis_page` 高频或连续分页时出现过 509；后续类似接口应减少手工扫参，优先用小窗口同步和较长等待。
@@ -60,8 +54,8 @@
 
 建议目标：
 
-1. 先只读读取覆盖矩阵、当前 disabled 已验证接口清单和 6B-6D 复盘结论。
-2. 优先在两个方向中选一个最小目标：继续用 `date_window` 接入另一个低风险日期窗口接口，或补齐“日期窗口追平当前日期后的跳过/停止策略”。
+1. 先只读读取覆盖矩阵、当前 disabled 已验证接口清单、6B-6D 复盘和 6E 追平跳过策略。
+2. 优先用 `date_window` 接入另一个低风险日期窗口接口，默认保持 disabled，并用真实单接口小窗口验证请求字段、raw 入库和 checkpoint 推进。
 3. 如果继续新增接口，优先选择需要日期窗口且业务风险可控的统计、报表或配置类接口；暂不要直接进入订单、财务敏感明细、客服文本、物流费用或销售售后。
 4. 对限流严格的接口，默认使用更小 `max_pages`、更长 `rate_limit.sleep_seconds` 或独立调度，不要直接加入 daily enabled。
 5. 阅读候选接口公开文档详情，确认路径、方法、必填参数、响应形态、主键和日期字段。

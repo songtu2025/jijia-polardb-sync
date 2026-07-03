@@ -28,6 +28,15 @@ class FakeCheckpointConnection:
         return FakeResult([])
 
 
+class FakeApiClient:
+    def __init__(self):
+        self.calls = []
+
+    def request(self, api, token, params):
+        self.calls.append((api, token, params))
+        return {"data": {"rows": [], "total": 0}}
+
+
 class SyncEngineParamTemplatesTest(unittest.TestCase):
     def test_resolves_date_param_templates_without_touching_unknown_values(self):
         engine = SyncEngine([])
@@ -105,6 +114,38 @@ class SyncEngineParamTemplatesTest(unittest.TestCase):
 
         self.assertEqual(params["startDate"], "2026-06-04")
         self.assertEqual(params["endDate"], "2026-06-05")
+
+    def test_date_window_skips_request_when_next_window_is_after_today(self):
+        engine = SyncEngine([])
+        api_client = FakeApiClient()
+        api = {
+            "api_code": "windowed_report",
+            "params": {"page": 1, "pagesize": 100},
+            "page": {
+                "enabled": True,
+                "page_no_field": "page",
+                "page_size_field": "pagesize",
+                "page_size": 100,
+                "max_pages": 1,
+                "list_field": "data.rows",
+                "total_field": "data.total",
+            },
+            "date_window": {
+                "enabled": True,
+                "start_field": "beginDate",
+                "end_field": "endDate",
+                "default_start": "2026-07-01",
+                "days": 1,
+            },
+        }
+        connection = FakeCheckpointConnection(
+            json.dumps({"next_window_start": "2999-01-01"}, ensure_ascii=False)
+        )
+
+        payloads = list(engine._paged_payloads(api, api_client, token="token", connection=connection))
+
+        self.assertEqual(payloads, [])
+        self.assertEqual(api_client.calls, [])
 
 
 if __name__ == "__main__":
