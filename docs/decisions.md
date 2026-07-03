@@ -720,3 +720,11 @@
 - 阶段 6K 将 `/purchase/inventory/purchaseSaleStorageSelf/page`、`/purchase/srm/quickInbound/query` 等已有真实风险记录路径纳入 `known_risk_review`，避免后续重复探测。
 - 阶段 6K 覆盖矩阵刷新后，公开文档 API 185 个、真实配置 API 45 个、enabled 24 个；执行分层为 `configured=45`、`needs_upstream_params=68`、`needs_sensitive_review=22`、`defer_or_review=50`。
 - 阶段 6K 结论：当前未配置且可直接普通探测的候选为 0 个；下一步应优先从 `needs_param_source` 中选择能证明真实参数来源的接口，或先建立敏感审查策略。
+- 阶段 6L 从 `needs_param_source` 中选择 `procure_detail`，文档 id 为 `1024`，路径为 `GET /purchase/srm/procure/detail`，默认保持 `enabled=false`。
+- 阶段 6L 先排除 `attribute/detail` 和 `multiShopWarehouse/query`；原因是当前 DB 证据分别无法证明 `attributeName` 和 `platformCode` 来源，不能靠字段猜测接入。
+- `procure_detail` 的参数来源使用 `lot_no_page.raw_json.poCode`；数据库只读确认 `lot_no_page` 300 条 raw 都有 `poCode`，去重后 168 个采购单号。
+- `procure_detail` 公开文档的响应 `data` 没有稳定顶层 `code` 或日期字段，因此本轮不编造主键和 `date_field`，依靠 `data_hash` 幂等。
+- 阶段 6L 已用 TDD 约束 `procure_detail` 配置；测试先失败于缺少配置，再通过。本轮未修改同步引擎。
+- 阶段 6L 已同步 `api_config`，数据库总配置 48 条，启用 24 条；`procure_detail.enabled=0`、`source_api_code=lot_no_page`、`source_field=raw_json.poCode`、`target_field=poCode`。
+- 阶段 6L 已用真实接口验证 `procure_detail`，批次号为 `sync_20260703_170038_518908`，请求 3 次，写入 3 条，失败 0；checkpoint 记录 `param_offset=0`、`param_limit=3`、`next_param_offset=3`。
+- 阶段 6L 后覆盖矩阵刷新为公开文档 API 185 个、真实配置 API 46 个、enabled 24 个；执行分层为 `configured=46`、`needs_upstream_params=67`、`needs_sensitive_review=22`、`defer_or_review=50`。

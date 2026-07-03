@@ -145,7 +145,7 @@ python -m app.main --sync-api amazon_shop_page
 
 `--sync-api` 复用分页、`sync_checkpoint`、重试、失败日志和 token 缓存能力。
 
-依赖上游参数的接口也先用 `--sync-api` 做小样本验证。例如 `product_detail` 会从已入库的 `product_page` 原始数据中取少量产品 ID 请求详情；`market_inventory_query` 会从已入库的 `product_inventory_page.raw_json` 提取 `sku` 和 `warehouseId` 请求站点库存分布，并可用 `param_source.offset` 做小范围参数窗口。这类接口默认保持 `enabled: false`，不进入每天的 enabled 批量同步。
+依赖上游参数的接口也先用 `--sync-api` 做小样本验证。例如 `product_detail` 会从已入库的 `product_page` 原始数据中取少量产品 ID 请求详情；`market_inventory_query` 会从已入库的 `product_inventory_page.raw_json` 提取 `sku` 和 `warehouseId` 请求站点库存分布；`procure_detail` 会从已入库的 `lot_no_page.raw_json` 提取少量 `poCode` 请求采购订单详情。这类接口默认保持 `enabled: false`，不进入每天的 enabled 批量同步。
 
 同步 YAML 中已启用的真实业务 API：
 
@@ -205,7 +205,7 @@ logs/sync.log
 
 当前已验证并启用 `amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`、`product_page`、`parent_product_page`、`kb_product_page`、`fba_warehouse_page`、`store_location_page`、`multi_shop_query`、`platform_msku_page`、`crm_tags_page`、`inventory_team_query`、`product_inventory_page`、`storage_inbound_page`、`storage_return_page`、`strategy_template_page` 和 `base_currency_query`。
 
-另有一批已完成小窗口或空结果验证但默认未启用的接口，例如 `purchase_plan_page`、`fba_inventory_page`、`inventory_event_page`、`inventory_age_page`、`traffic_analysis_page`、`shipment_data_page`、`storage_ledger_page`、`inventory_receipts_page`、`purchase_sale_storage_fba_page`、`transfer_page`、`lot_no_page` 和若干库存、SKU 映射、详情类接口；这些接口需先评估数据量、限流和业务风险，再决定是否进入每天的 enabled 批量同步。
+另有一批已完成小窗口或空结果验证但默认未启用的接口，例如 `purchase_plan_page`、`fba_inventory_page`、`inventory_event_page`、`inventory_age_page`、`traffic_analysis_page`、`shipment_data_page`、`storage_ledger_page`、`inventory_receipts_page`、`purchase_sale_storage_fba_page`、`transfer_page`、`lot_no_page`、`procure_detail` 和若干库存、SKU 映射、详情类接口；这些接口需先评估数据量、限流和业务风险，再决定是否进入每天的 enabled 批量同步。
 
 ### accessToken 如何获取？
 

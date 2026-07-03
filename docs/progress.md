@@ -2,7 +2,7 @@
 
 ## Current Stage
 
-阶段 6J 已完成。已将 `platform_msku_page` 提升到 enabled 并完成 24 个 API 的真实批量同步，当前真实配置 API 为 45 个，enabled API 为 24 个。
+阶段 6L 已完成。已新增 `procure_detail` 默认 disabled 小样本同步，当前真实配置 API 为 46 个，enabled API 仍为 24 个。
 
 ## Completed
 
@@ -2092,13 +2092,36 @@
   - 6K 没有新增或启用 API，但把剩余 140 个未配置公开接口的执行路径固化到覆盖矩阵，推进了“完整 API 覆盖清单”目标。
   - 后续真正能继续推进完整拉取的主路径，已经从“找低风险直读”转为“构建参数源、敏感审查和历史回填策略”。
 
+## Stage 6L
+
+- 阶段目标：从 `needs_param_source` 中选择一个能证明真实参数来源的接口，默认 disabled 接入并完成小样本真实同步。
+- 已完成：
+  - 只读筛选 68 个 `needs_param_source` 候选后，先排除 `attribute/detail` 和 `multiShopWarehouse/query`：`product_page` 中无可用 `attributeName`，`multi_shop_query` 中无 `platformCode`，不猜测字段。
+  - 选择 `procure_detail`，文档 id 为 `1024`，路径为 `GET /purchase/srm/procure/detail`，必填参数为 `poCode`，响应为单对象 `data`。
+  - 只读数据库确认 `lot_no_page` 有 300 条 raw，其中 300 条都有 `poCode`，去重后 168 个采购单号，可作为真实参数来源。
+  - 已新增 `tests/test_procure_detail_param_source.py`，先失败于缺少 `procure_detail` 配置，再通过；本轮未修改同步引擎。
+  - 已新增 `procure_detail` YAML 配置，默认 `enabled=false`，从 `lot_no_page.raw_json.poCode` 取 3 个参数，响应用 `response.item_field=data` 包装；公开文档未给出 `data.code` 或 `data.createdAt` 顶层稳定字段，因此不编造主键和日期字段，使用 `data_hash` 幂等。
+  - `.\\.venv\\Scripts\\python.exe -m app.main`，通过，dry-run 仍显示 24 个 enabled API。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，通过，同步配置数为 48，数据库配置总数 48、启用 24。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api procure_detail`，通过，批次 `sync_20260703_170038_518908`，`rows=3`，`requests=3`。
+  - 数据库已确认该批次 `sync_batch.status=success`、`total_api_count=1`、`success_api_count=1`、`failed_api_count=0`、耗时 12 秒。
+  - 同批次 `sync_api_log` 为 `request_count=3`、`success_count=3`、`failed_count=0`、`error_message=NULL`。
+  - 同批次 `raw_api_data` 写入 3 条，3 条都有 `data_hash`，因没有稳定顶层主键，`source_primary_key` 为空是当前预期行为。
+  - `procure_detail` checkpoint 指向批次 `sync_20260703_170038_518908`，记录 `param_offset=0`、`param_limit=3`、`next_param_offset=3`。
+  - 已查询 `api_config`，确认 `procure_detail.enabled=0`、`param_source.source_api_code=lot_no_page`、`source_field=raw_json.poCode`、`target_field=poCode`。
+  - `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary`，通过，公开文档 API 185 个，真实配置 API 46 个，enabled 24 个。
+  - 新的执行分层摘要为：`configured=46`、`needs_upstream_params=67`、`needs_sensitive_review=22`、`defer_or_review=50`。
+- 当前结论：
+  - `procure_detail` 已完成参数源证明和真实小样本同步，可作为采购订单详情候选保留，但因响应含采购明细和金额信息，默认保持 disabled。
+  - 本轮证明了 6K 后的 `needs_param_source` 路径能继续推进覆盖，但不能跳过字段来源证明；字段不存在时必须放弃候选，而不是猜测。
+
 ## Known Issues
 
 - `amazon_shop_page` 第一版以 `data_hash` 去重，不强行编造业务主键。
 - 各业务 API 的具体路径、字段、分页和主键需要逐个阅读文档确认。
 - 新增后续业务接口前，仍需要逐个阅读积加文档确认路径、分页、主键和日期字段。
 - 当前 enabled API 已有 24 个：`amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`、`product_page`、`parent_product_page`、`kb_product_page`、`fba_warehouse_page`、`store_location_page`、`multi_shop_query`、`platform_msku_page`、`crm_tags_page`、`inventory_team_query`、`product_inventory_page`、`storage_inbound_page`、`storage_return_page`、`strategy_template_page`、`base_currency_query`。
-- 当前已配置真实 API 为 45 个，其中 24 个已加入 enabled，`product_detail`、`market_inventory_query`、`storage_inbound_detail`、`country_province_query`、`transfer_detail`、`lot_no_detail`、`delivery_fee_query`、`amazon_msku_page`、`fba_inventory_page`、`fba_inventory_v2_page`、`inventory_adjustments_page`、`inventory_event_page`、`inventory_age_page`、`traffic_analysis_page`、`shipment_data_page`、`storage_ledger_page`、`inventory_receipts_page`、`purchase_sale_storage_fba_page`、`transfer_page`、`lot_no_page` 和 `purchase_plan_page` 已完成验证但保持 disabled。
+- 当前已配置真实 API 为 46 个，其中 24 个已加入 enabled，`product_detail`、`market_inventory_query`、`storage_inbound_detail`、`country_province_query`、`transfer_detail`、`lot_no_detail`、`delivery_fee_query`、`amazon_msku_page`、`fba_inventory_page`、`fba_inventory_v2_page`、`inventory_adjustments_page`、`inventory_event_page`、`inventory_age_page`、`traffic_analysis_page`、`shipment_data_page`、`storage_ledger_page`、`inventory_receipts_page`、`purchase_sale_storage_fba_page`、`transfer_page`、`lot_no_page`、`purchase_plan_page` 和 `procure_detail` 已完成验证但保持 disabled。
 - 当前依赖参数来源机制支持从 `raw_api_data.source_primary_key` 取单个参数，也支持从 `raw_json` 顶层字段提取多个参数，并可用 `param_source.filters` 做固定等值过滤、用 `param_source.auto_advance` 基于 checkpoint 推进小窗口；响应提取机制已支持列表、单对象和标量包装；尚未把 111307 个库存参数对、6481 个调拨单号、8243 个交货单号或 142281 个发货单号纳入生产级调度。
 - `primary_key.required=true` 会过滤缺少必填主键的响应对象，避免详情接口返回全空对象时写入 `source_primary_key="None"` 的 raw。
 - 覆盖矩阵是公开文档视角，不等同于当前账号真实授权可调用结果；真实可访问性仍需单接口运行验证。
@@ -2111,11 +2134,11 @@
 
 ## Next Stage
 
-阶段 6L：基于 6K 执行分层，优先选择一个 `needs_param_source` 接口，先证明真实参数来源，再默认 disabled 小样本接入。
+阶段 6M：继续基于 6K 执行分层推进覆盖，优先在 `needs_param_source` 中选择第二个能证明真实参数来源的接口，或为已验证 disabled 接口设计更明确的历史回填策略。
 
 建议目标：
 
-- 只读读取覆盖矩阵、6K 执行分层、6H-6J 复盘、6E 追平跳过策略和 `platform_msku_page` enabled 批次证据。
+- 只读读取覆盖矩阵、6K 执行分层、6L `procure_detail` 参数源证据、6H-6J 复盘和 `platform_msku_page` enabled 批次证据。
 - 优先从 `needs_param_source` 中选择能复用 `param_source.fields`、`param_source.filters`、`response.item_field` 或 `response.scalar_field` 的接口，先证明真实上游参数来源。
 - 阅读候选接口公开文档详情，确认路径、方法、必填参数、响应形态、主键和日期字段。
 - 如果是依赖型接口，先只读查询数据库证明参数来源真实存在；如果是直读接口，先用一次真实请求确认响应形态。
@@ -2129,6 +2152,6 @@
 - 新接口完成文档确认和小样本真实同步，默认保持 disabled，除非它是已充分验证的低风险直读接口。
 - 参数来源必须由数据库只读查询证明，不靠猜测字段。
 - 新接口或启用接口同步批次成功，`sync_api_log`、`raw_api_data` 和 checkpoint 可核验。
-- `api_config` 与覆盖矩阵显示真实配置 API 或 enabled 数量符合本轮目标；当前基线是真实配置 API 45 个、enabled 24 个。
+- `api_config` 与覆盖矩阵显示真实配置 API 或 enabled 数量符合本轮目标；当前基线是真实配置 API 46 个、enabled 24 个。
 - `compileall` 和 `unittest discover` 通过。
 - 继续保持 `.env`、token 缓存、日志和真实凭证不提交。

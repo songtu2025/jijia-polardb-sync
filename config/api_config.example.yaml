@@ -776,6 +776,34 @@ apis:
       page: 1
       pagesize: 100
 
+  # 第四十六个真实文档接口：采购订单详情，文档 id=1024，依赖交货单列表中的 poCode，小样本验证阶段保持 disabled。
+  - api_code: procure_detail
+    name: 查询采购订单详情
+    enabled: false
+    method: GET
+    path: /purchase/srm/procure/detail
+    page:
+      enabled: false
+    response:
+      item_field: data
+    primary_key:
+      field: ""
+      required: false
+    date_field: ""
+    param_source:
+      source_api_code: lot_no_page
+      limit: 3
+      auto_advance: true
+      fields:
+        - source_field: raw_json.poCode
+          target_field: poCode
+    rate_limit:
+      sleep_seconds: 0.2
+    retry:
+      retries: 3
+      delay_seconds: 1
+    params: {}
+
   # 第三十五个真实文档接口：采购退货单列表V2，文档 id=152，当前总量很小，已加入 enabled 批量同步。
   - api_code: storage_return_page
     name: 查询采购退货单列表V2
