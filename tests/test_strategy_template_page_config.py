@@ -7,11 +7,11 @@ class StrategyTemplatePageConfigTest(unittest.TestCase):
     def setUp(self):
         self.apis = {api["api_code"]: api for api in load_api_configs("config/api_config.example.yaml")}
 
-    def test_strategy_template_page_uses_records_window_and_stays_disabled(self):
+    def test_strategy_template_page_uses_records_window_and_is_enabled(self):
         self.assertIn("strategy_template_page", self.apis)
         api = self.apis["strategy_template_page"]
 
-        self.assertFalse(api["enabled"])
+        self.assertTrue(api["enabled"])
         self.assertEqual(api["method"], "POST")
         self.assertEqual(api["path"], "/operation/ads/strategyTemplate/page")
         self.assertTrue(api["page"]["enabled"])

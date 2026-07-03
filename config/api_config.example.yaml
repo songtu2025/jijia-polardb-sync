@@ -694,10 +694,10 @@ apis:
       page: 1
       pagesize: 100
 
-  # 第三十五个真实文档接口：采购退货单列表V2，文档 id=152，当前总量很小，默认仍保持 disabled。
+  # 第三十五个真实文档接口：采购退货单列表V2，文档 id=152，当前总量很小，已加入 enabled 批量同步。
   - api_code: storage_return_page
     name: 查询采购退货单列表V2
-    enabled: false
+    enabled: true
     method: POST
     path: /fulfillment/store/storageReturn/page
     page:
@@ -721,10 +721,10 @@ apis:
       page: 1
       pagesize: 100
 
-  # 第三十六个真实文档接口：分时策略NEW，文档 id=102，响应列表字段为 data.records，默认保持 disabled。
+  # 第三十六个真实文档接口：分时策略NEW，文档 id=102，响应列表字段为 data.records，已加入 enabled 批量同步。
   - api_code: strategy_template_page
     name: 分时策略NEW
-    enabled: false
+    enabled: true
     method: POST
     path: /operation/ads/strategyTemplate/page
     page:
@@ -924,10 +924,10 @@ apis:
       delay_seconds: 1
     params: {}
 
-  # 第二十八个真实文档接口：获取本位币币种，文档 id=66，返回 data 标量字符串，先保持 disabled。
+  # 第二十八个真实文档接口：获取本位币币种，文档 id=66，返回 data 标量字符串，已加入 enabled 批量同步。
   - api_code: base_currency_query
     name: 获取本位币币种
-    enabled: false
+    enabled: true
     method: GET
     path: /middle/base/baseCurrency/query
     page:

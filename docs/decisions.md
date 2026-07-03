@@ -599,3 +599,11 @@
 - 阶段 5U 已同步 `api_config`，当前数据库总配置 38 条，启用 20 条；`strategy_template_page.enabled=0`、`page.max_pages=3`、`page.list_field=data.records`、`primary_key.field=id`、`date_field=updateTime`。
 - 阶段 5U 覆盖矩阵已刷新为公开文档 API 185 个、真实配置 API 36 个、enabled 20 个。
 - 5S-5U 复盘结论：三轮新增接口都保持 disabled，证明默认 disabled 小窗口策略仍有效；但已验证 disabled 接口数量增加，下一组除了继续扩容，还需要开始评估哪些接口具备进入 enabled 的条件。
+- 阶段 5V 将 `base_currency_query`、`storage_return_page` 和 `strategy_template_page` 加入 enabled；三者都已完成真实单接口验证，当前总量分别为 1、1、19，且不涉及订单、财务、客服文本、物流费用或依赖型批量调度。
+- 阶段 5V 新增 `tests/test_5v_low_risk_enabled_configs.py`，约束当前 enabled 数量为 23，并约束三个小体量接口进入 daily enabled。
+- 阶段 5V 已同步 `api_config`，当前数据库总配置 38 条，启用 23 条；三个目标接口的 `enabled=1` 且 `config_json.enabled=true`。
+- 阶段 5V 的 `--sync-enabled` 批次为 `sync_20260703_104718_888820`，状态 `success`，23 个 API 全部成功，失败 0。
+- 批次 `sync_20260703_104718_888820` 总请求数为 3053，总写入行数为 306199，运行耗时 5735 秒。
+- 同批次中 `base_currency_query` 请求 1 次写入 1 条，`storage_return_page` 请求 1 次写入 1 条，`strategy_template_page` 请求 1 次写入 19 条，三者失败均为 0 且 checkpoint 更新到该批次。
+- 阶段 5V 排查确认 `--sync-enabled` 运行期间外部看不到新 batch，不是失败，而是当前实现把整个 enabled 批量放在一个数据库事务中，提交前 `sync_batch`、`sync_api_log` 和 raw 写入对其他连接不可见。
+- 后续启用更大体量接口前，必须先把运行窗口和长事务影响纳入评估；不能只根据单接口小窗口成功就加入 daily enabled。

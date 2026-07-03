@@ -8,11 +8,11 @@ class BaseCurrencyScalarResponseTest(unittest.TestCase):
     def setUp(self):
         self.apis = {api["api_code"]: api for api in load_api_configs("config/api_config.example.yaml")}
 
-    def test_base_currency_query_wraps_scalar_data_and_stays_disabled(self):
+    def test_base_currency_query_wraps_scalar_data_and_is_enabled(self):
         self.assertIn("base_currency_query", self.apis)
         api = self.apis["base_currency_query"]
 
-        self.assertFalse(api["enabled"])
+        self.assertTrue(api["enabled"])
         self.assertEqual(api["method"], "GET")
         self.assertEqual(api["path"], "/middle/base/baseCurrency/query")
         self.assertFalse(api["page"]["enabled"])

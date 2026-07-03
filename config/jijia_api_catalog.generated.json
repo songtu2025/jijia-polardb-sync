@@ -8,7 +8,7 @@
     "detail_success_count": 185,
     "detail_error_count": 0,
     "configured_real_api_count": 36,
-    "configured_enabled_real_api_count": 20,
+    "configured_enabled_real_api_count": 23,
     "classification_counts": {
       "direct_read_candidate": 58,
       "requires_upstream_params": 79,
@@ -573,7 +573,7 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "base_currency_query",
-      "configured_enabled": false
+      "configured_enabled": true
     },
     {
       "doc_id": 139,
@@ -1120,7 +1120,7 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "strategy_template_page",
-      "configured_enabled": false
+      "configured_enabled": true
     },
     {
       "doc_id": 104,
@@ -3320,7 +3320,7 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "storage_return_page",
-      "configured_enabled": false
+      "configured_enabled": true
     },
     {
       "doc_id": 689,
