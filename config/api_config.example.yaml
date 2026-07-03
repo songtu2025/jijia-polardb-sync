@@ -996,10 +996,10 @@ apis:
       page: 1
       pagesize: 100
 
-  # 第四十三个真实文档接口：FBA库存分类账日报一览，文档 id=1436，日期字段在 model 内，默认保持 disabled。
+  # 第四十三个真实文档接口：FBA库存分类账日报一览，文档 id=1436，已完成完整单日窗口验证并加入 daily enabled。
   - api_code: storage_ledger_page
     name: FBA库存分类账-一览视图-按日维度列表查询
-    enabled: false
+    enabled: true
     method: POST
     path: /fulfillment/inventory/storageLedger/page
     page:

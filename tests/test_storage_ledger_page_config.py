@@ -10,11 +10,11 @@ class StorageLedgerPageConfigTest(unittest.TestCase):
             for api in load_api_configs("config/api_config.example.yaml")
         }
 
-    def test_storage_ledger_page_uses_nested_date_window_and_stays_disabled(self):
+    def test_storage_ledger_page_uses_nested_date_window_and_is_enabled(self):
         self.assertIn("storage_ledger_page", self.apis)
         api = self.apis["storage_ledger_page"]
 
-        self.assertFalse(api["enabled"])
+        self.assertTrue(api["enabled"])
         self.assertEqual(api["method"], "POST")
         self.assertEqual(api["path"], "/fulfillment/inventory/storageLedger/page")
         self.assertTrue(api["page"]["enabled"])

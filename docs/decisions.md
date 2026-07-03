@@ -799,3 +799,15 @@
 - 阶段 6U 中 `traffic_page` 在同批次内状态成功，请求 1 次，`2026-07-03` 窗口返回 `item_count=0`、`total_count=0`，checkpoint 推进到 `next_window_start=2026-07-04`；这说明 daily 路径可追踪，即使当天无数据也会推进窗口。
 - 阶段 6U 中 `traffic_sku_page` 已追平到 `2026-07-04`，因此在该 enabled 批次按 `date_window` 跳过，`request_count=0` 属于预期行为。
 - 阶段 6U 后覆盖矩阵刷新为公开文档 API 185 个、真实配置 API 50 个、enabled 26 个；执行分层为 `configured=50`、`needs_upstream_params=63`、`needs_sensitive_review=22`、`defer_or_review=50`。
+- 阶段 6V 选择将 `storage_ledger_page` 从 disabled 提升到 enabled；依据是该接口已完成 `2026-07-02` 单日完整窗口验证，完整窗口为 1163 条、3 次请求，且属于 FBA 库存分类账日报直读数据。
+- 阶段 6V 启用前对比：`storage_ledger_page` 比 `traffic_page` 多 1 页和 65 秒页间等待，但风险仍低于订单、财务明细、客服文本和物流费用；启用前最近 26 enabled 批次约 81 分钟。
+- 阶段 6V 已用 TDD 约束 `storage_ledger_page.enabled=true`，并将 enabled 基线测试从 26 调整到 27；`traffic_page` 和 `traffic_sku_page` 保持 enabled。
+- 阶段 6V 已同步 `api_config`，数据库总配置 52 条、启用 27 条；`storage_ledger_page.enabled=1`、`page_size=500`、`params.pagesize=500`、`page.max_pages=3`、`sleep_seconds=65`、`retries=1`。
+- 阶段 6V 的 dry-run 已确认 loaded 27 enabled API config(s)，且 `storage_ledger_page` 出现在 enabled 列表中。
+- 阶段 6V 已运行完整 `--sync-enabled`，批次号为 `sync_20260703_214704_241675`，27 个 API 全部成功，失败 0；批次总请求 3075 次、写入 307943 条，运行时间约 77 分钟。
+- 阶段 6V 中 `storage_ledger_page` 在同批次内状态成功，请求 1 次，`2026-07-03` 窗口返回 `item_count=0`、`total_count=0`，checkpoint 推进到 `next_window_start=2026-07-04`。
+- 阶段 6V 中 `traffic_page` 和 `traffic_sku_page` 已追平到 `2026-07-04`，因此在该 enabled 批次按 `date_window` 跳过，`request_count=0` 属于预期行为。
+- 阶段 6V 后覆盖矩阵刷新为公开文档 API 185 个、真实配置 API 50 个、enabled 27 个；执行分层为 `configured=50`、`needs_upstream_params=63`、`needs_sensitive_review=22`、`defer_or_review=50`。
+- 6T-6V 三轮复盘结论：`traffic_sku_page`、`traffic_page` 和 `storage_ledger_page` 都先完成完整窗口，再逐个进入 enabled；这种节奏能控制风险，也能让每次 enabled 批次提供清晰的回归证据。
+- 6T-6V 三轮复盘结论：这 3 个日期窗口接口进入 enabled 后，在当天窗口为空时仍会写入成功日志并推进 checkpoint；空窗口不是失败，但必须保留 `sync_api_log` 和 checkpoint 证据。
+- 6T-6V 三轮复盘结论：当前 enabled 批次耗时仍在 77-81 分钟区间，主体成本来自既有大分页接口和数据库写入；后续继续启用接口前仍必须评估 cron 窗口。
