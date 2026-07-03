@@ -773,3 +773,13 @@
 - 阶段 6R 已同步 `api_config`，数据库总配置 52 条，启用 24 条；`traffic_page.enabled=0`、`page_size=500`、`params.pagesize=500`、`page.max_pages=2`、`sleep_seconds=65`、`retries=1`。
 - 阶段 6R 已用真实接口完成 `traffic_page` 单日完整窗口验证，批次号为 `sync_20260703_182130_693272`，请求 2 次，写入 583 条，失败 0；checkpoint 记录 `item_count=583`、`total_count=583`、`window_start=2026-07-02`、`window_end=2026-07-02`、`next_window_start=2026-07-03`。
 - 阶段 6R 后覆盖矩阵刷新仍为公开文档 API 185 个、真实配置 API 50 个、enabled 24 个；执行分层仍为 `configured=50`、`needs_upstream_params=63`、`needs_sensitive_review=22`、`defer_or_review=50`。
+- 阶段 6S 不新增 API，选择已验证 disabled 的 `storage_ledger_page` 做 `2026-07-02` 单日完整窗口验证；原因是该接口是 FBA 库存分类账日报一览，风险低于订单、财务明细、客服文本和物流费用。
+- 阶段 6S 先按旧 checkpoint 总量 710 配置 `page_size=500`、`max_pages=2`，真实同步批次 `sync_20260703_183130_464206` 写入 1000 条，但 checkpoint 显示当前 `total_count=1163`，因此 2 页未覆盖完整窗口。
+- 阶段 6S 最终采用 `storage_ledger_page.page.page_size=500`、`params.pagesize=500`、`page.max_pages=3`、`rate_limit.sleep_seconds=65`、`retry.retries=1`；原因是当前完整窗口需要 3 页，且失败不应在同批次内重复请求。
+- 阶段 6S 为重新验证 7 月 2 日，两次都只删除了 `sync_checkpoint` 中 `storage_ledger_page` 的 1 行 checkpoint，未删除 raw 数据。
+- 阶段 6S 已同步 `api_config`，数据库总配置 52 条，启用 24 条；`storage_ledger_page.enabled=0`、`page_size=500`、`params.pagesize=500`、`page.max_pages=3`、`sleep_seconds=65`、`retries=1`。
+- 阶段 6S 已用真实接口完成 `storage_ledger_page` 单日完整窗口验证，批次号为 `sync_20260703_183551_315212`，请求 3 次，写入 1163 条，失败 0；checkpoint 记录 `item_count=1163`、`total_count=1163`、`window_start=2026-07-02`、`window_end=2026-07-02`、`next_window_start=2026-07-03`。
+- 阶段 6S 后覆盖矩阵刷新仍为公开文档 API 185 个、真实配置 API 50 个、enabled 24 个；执行分层仍为 `configured=50`、`needs_upstream_params=63`、`needs_sensitive_review=22`、`defer_or_review=50`。
+- 6Q-6S 三轮复盘结论：本组三轮没有新增 API，而是把 3 个已验证 disabled 接口推进到完整单日窗口；完整窗口标准必须以 checkpoint 的 `item_count == total_count` 为准，不能用早期小窗口总量或命令输出的成功状态替代。
+- 6Q-6S 三轮复盘结论：严格限流或分页上限不明的接口，优先减少无效重试、确认页大小上限、按较长页间等待推进；`traffic_sku_page` 适合单页放大，`traffic_page` 和 `storage_ledger_page` 需要少量分页。
+- 6Q-6S 三轮复盘结论：这些接口仍保持 disabled，进入 daily enabled 前还要评估每天窗口、历史回填节奏、完整 enabled 批次耗时和 cron 窗口。
