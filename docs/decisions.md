@@ -629,3 +629,11 @@
 - 阶段 5Y 后 `fba_inventory_page` checkpoint 指向批次 `sync_20260703_125157_022009`，`checkpoint_value` 记录 `last_page=3`、`request_count=3`、`item_count=300`、`total_count=30759`。
 - 阶段 5Y 已同步 `api_config`，当前数据库总配置 40 条，启用 23 条；覆盖矩阵刷新后为公开文档 API 185 个、真实配置 API 38 个、enabled 23 个。
 - `fba_inventory_page` 和 `fba_inventory_v2_page` 当前总量相同，后续若评估启用，需要先确认旧版与 V2 的字段差异、重复价值和运行窗口。
+- 阶段 5Z 新增 `inventory_event_page`，文档 id 为 `1036`，路径为 `POST /purchase/store/inventoryEvent/page`，默认保持 `enabled=false`。
+- `inventory_event_page` 选择依据：库存动作列表无业务必填字段，普通分页，非写操作；字段包含动作类型、SKU、仓库、数量和更新时间，可补充库存变动视角。
+- `inventory_event_page` 响应列表字段为 `data.rows`，总数字段为 `data.total`；本轮使用 `id` 作为主键，使用 `updateTime` 作为日期字段。
+- 阶段 5Z 已用真实接口验证 `inventory_event_page`，批次号为 `sync_20260703_130058_411267`，请求 3 次，写入 300 条，失败 0。
+- `inventory_event_page` 的 `source_primary_key` 已确认从响应 `id` 写入，`data_date` 已确认从 `updateTime` 写入。
+- 阶段 5Z 后 `inventory_event_page` checkpoint 指向批次 `sync_20260703_130058_411267`，`checkpoint_value` 记录 `last_page=3`、`request_count=3`、`item_count=300`、`total_count=2669068`。
+- 阶段 5Z 已同步 `api_config`，当前数据库总配置 41 条，启用 23 条；覆盖矩阵刷新后为公开文档 API 185 个、真实配置 API 39 个、enabled 23 个。
+- `inventory_event_page` 当前总量约 2669068 条，远超当前 enabled 大表；后续如果要纳入日常同步，必须先设计增量窗口、时间过滤或分批调度策略。

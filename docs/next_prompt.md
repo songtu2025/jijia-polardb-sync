@@ -25,30 +25,32 @@
 
 当前阶段：
 
-阶段 5Y 已完成。下一阶段 5Z 继续推进完整覆盖：可以继续接入一个低风险未配置接口，也可以继续评估已验证 disabled 接口的启用条件。enabled 批量仍是长任务，暂不要直接启用大体量接口。
+阶段 5Z 已完成。下一阶段 6A 继续推进完整覆盖；5Y-6A 是一组三轮，6A 完成后需要做复盘。enabled 批量仍是长任务，暂不要直接启用大体量接口。
 
 当前事实：
 
 - 当前 enabled API 有 23 个：`amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`、`product_page`、`parent_product_page`、`kb_product_page`、`fba_warehouse_page`、`store_location_page`、`multi_shop_query`、`crm_tags_page`、`inventory_team_query`、`product_inventory_page`、`storage_inbound_page`、`storage_return_page`、`strategy_template_page`、`base_currency_query`。
-- 当前已配置真实 API 有 38 个，其中 23 个已 enabled，`product_detail`、`market_inventory_query`、`storage_inbound_detail`、`country_province_query`、`transfer_detail`、`lot_no_detail`、`delivery_fee_query`、`amazon_msku_page`、`platform_msku_page`、`fba_inventory_page`、`fba_inventory_v2_page`、`inventory_adjustments_page`、`transfer_page`、`lot_no_page` 和 `purchase_plan_page` 已验证但保持 disabled。
-- 覆盖矩阵显示公开文档 API 185 个，真实配置 API 38 个，enabled 23 个。
+- 当前已配置真实 API 有 39 个，其中 23 个已 enabled，`product_detail`、`market_inventory_query`、`storage_inbound_detail`、`country_province_query`、`transfer_detail`、`lot_no_detail`、`delivery_fee_query`、`amazon_msku_page`、`platform_msku_page`、`fba_inventory_page`、`fba_inventory_v2_page`、`inventory_adjustments_page`、`inventory_event_page`、`transfer_page`、`lot_no_page` 和 `purchase_plan_page` 已验证但保持 disabled。
+- 覆盖矩阵显示公开文档 API 185 个，真实配置 API 39 个，enabled 23 个。
 - 5V 的完整 `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled` 批次为 `sync_20260703_104718_888820`，状态 `success`，23 个 API 全部成功，总请求数 3053，总写入行数 306199，运行耗时 5735 秒。
 - 5W 已修改 `SyncEngine.sync_enabled_apis()`：批次头先提交，每个 enabled API 独立事务提交 raw、log 和 checkpoint，全部结束后独立事务提交批次汇总状态。
 - 5X 新增 `purchase_plan_page`，文档 id 为 `87`，路径为 `POST /purchase/srm/plan/page`，默认 `enabled=false`；验证批次 `sync_20260703_124115_334136` 成功，当前账号 `total_count=0`。
-- 5Y 新增 `fba_inventory_page`，文档 id 为 `172`，路径为 `POST /purchase/store/fbaInventory/page`，默认 `enabled=false`。
-- `fba_inventory_page` 选择依据：旧版 FBA 库存列表无业务必填字段，普通分页，非写操作，可与已配置的 `fba_inventory_v2_page` 形成新旧接口覆盖对照。
-- `fba_inventory_page` 响应为 `data.total` 和 `data.rows`；配置使用 `id` 作为主键，使用 `updateTime` 作为日期字段。
-- 5Y 的 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api fba_inventory_page` 批次为 `sync_20260703_125157_022009`，状态 `success`，`rows=300`、`requests=3`、失败 0。
+- 5Y 新增 `fba_inventory_page`，文档 id 为 `172`，路径为 `POST /purchase/store/fbaInventory/page`，默认 `enabled=false`；验证批次 `sync_20260703_125157_022009` 成功，写入 300 条，总量 `30759`。
+- 5Z 新增 `inventory_event_page`，文档 id 为 `1036`，路径为 `POST /purchase/store/inventoryEvent/page`，默认 `enabled=false`。
+- `inventory_event_page` 选择依据：库存动作列表无业务必填字段，普通分页，非写操作；字段包含动作类型、SKU、仓库、数量和更新时间，可补充库存变动视角。
+- `inventory_event_page` 响应为 `data.total` 和 `data.rows`；配置使用 `id` 作为主键，使用 `updateTime` 作为日期字段。
+- 5Z 的 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api inventory_event_page` 批次为 `sync_20260703_130058_411267`，状态 `success`，`rows=300`、`requests=3`、失败 0。
 - 数据库确认该批次 `sync_batch.status=success`，`total_api_count=1`、`success_api_count=1`、`failed_api_count=0`、耗时 13 秒。
 - 同批次 `sync_api_log` 为 `request_count=3`、`success_count=300`、`failed_count=0`、`error_message=NULL`。
 - 同批次 `raw_api_data` 写入 300 条，0 条缺少 `source_primary_key`，300 条都有 `data_hash`，300 条都有 `data_date`。
-- 同批次 raw 示例确认 `source_primary_key=131601`、`id=131601`、`sku=RG810 Black XL`、`msku=RG810-Test-Black XL`、`warehouseId=27`、`updateTime=2026-07-03 12:44:16`。
-- `fba_inventory_page` checkpoint 已更新到 `sync_20260703_125157_022009`，`checkpoint_value` 为 `last_page=3`、`request_count=3`、`item_count=300`、`total_count=30759`。
-- 数据库确认 `api_config` 总数 40、启用 23；`fba_inventory_page.enabled=0`、`page.max_pages=3`、`primary_key.field=id`、`date_field=updateTime`。
+- 同批次 raw 示例确认 `source_primary_key=4987218`、`id=4987218`、`product=WP005-BA001 All Black 38`、`sku=WP005-BA001 All Black 38`、`warehouseId=35`、`transactionType=WhseTransfers`、`updateTime=2023-02-16T23:46:51`。
+- `inventory_event_page` checkpoint 已更新到 `sync_20260703_130058_411267`，`checkpoint_value` 为 `last_page=3`、`request_count=3`、`item_count=300`、`total_count=2669068`。
+- 数据库确认 `api_config` 总数 41、启用 23；`inventory_event_page.enabled=0`、`page.max_pages=3`、`primary_key.field=id`、`date_field=updateTime`。
 - `.\\.venv\\Scripts\\python.exe -m app.main` dry-run 显示 23 个 enabled API。
-- 已运行 `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary`，公开文档 185 个，真实配置 38 个，enabled 23 个。
+- 已运行 `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary`，公开文档 185 个，真实配置 39 个，enabled 23 个。
 - 已运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
-- 已运行 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过，49 个测试。
+- 已运行 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过，50 个测试。
+- `inventory_event_page` 当前总量约 2669068 条，远超当前 enabled 大表；后续如果要纳入日常同步，必须先设计增量窗口、时间过滤或分批调度策略。
 - 当前依赖参数来源机制支持 `source_primary_key`、单字段 `raw_json`、多字段 `raw_json`、raw_json 固定等值过滤、checkpoint 小窗口推进，以及按 `primary_key.required=true` 过滤缺主键响应对象。
 - 当前响应提取机制支持列表、单对象和标量包装；普通分页列表字段可用 `page.list_field` 点路径指定，例如 `data.rows` 或 `data.records`。
 - 当前仍不支持数组入参、嵌套数组来源或复杂过滤表达式。
@@ -61,7 +63,7 @@
 
 建议目标：
 
-1. 先只读读取覆盖矩阵、当前 disabled 已验证接口清单和 5Y 结果。
+1. 先只读读取覆盖矩阵、当前 disabled 已验证接口清单和 5Y-5Z 结果。
 2. 如果继续启用 disabled 接口，只考虑低体量、已验证、非敏感、非依赖型接口；暂不要启用 `transfer_page`、`lot_no_page`、库存大表、订单、财务、客服文本和物流费用接口。
 3. 如果继续新增接口，优先选择无敏感字段、无写操作、无数组编码不确定性、能明确主键和日期字段的候选。
 4. 如果候选涉及订单、财务、客服文本、物流费用或销售售后，先说明业务风险边界，再决定是否只做小窗口验证。
@@ -76,13 +78,14 @@
 13. 需要刷新覆盖矩阵时，运行 `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary`。
 14. 运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests`。
 15. 运行 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`。
-16. 更新 README、三份 docs，并提交推送；不要提交 `.env`、token 缓存、日志或任何敏感信息。
+16. 6A 完成后更新 5Y-6A 三轮复盘。
+17. 更新 README、三份 docs，并提交推送；不要提交 `.env`、token 缓存、日志或任何敏感信息。
 
 验收：
 
 1. 新接口或启用评估必须由公开文档、真实请求或数据库只读查询证明，不靠猜测字段。
 2. 如新增接口，默认保持 disabled，除非已经明确完成进入日常批量的风险评估。
 3. 如启用接口，必须证明 `api_config.enabled=1`、dry-run enabled 数量变化正确，并用真实同步批次证明成功。
-4. `api_config` 与覆盖矩阵显示真实配置 API 或 enabled 数量变化符合本轮目标；当前基线是真实配置 API 38 个、enabled 23 个。
+4. `api_config` 与覆盖矩阵显示真实配置 API 或 enabled 数量变化符合本轮目标；当前基线是真实配置 API 39 个、enabled 23 个。
 5. `compileall` 和 `unittest discover` 通过。
 6. 不提交 `.env`、token 缓存、日志或真实凭证。
