@@ -310,6 +310,33 @@ apis:
       page: 1
       pagesize: 100
 
+  # 第二十九个真实文档接口：SKU关联亚马逊MSKU，文档 id=1921，先用 3 页窗口验证，默认保持 disabled。
+  - api_code: amazon_msku_page
+    name: 查询SKU关联亚马逊MSKU
+    enabled: false
+    method: POST
+    path: /purchase/goods/amazonMsku/page
+    page:
+      enabled: true
+      page_no_field: page
+      page_size_field: pagesize
+      page_size: 100
+      max_pages: 3
+      list_field: data.rows
+      total_field: data.total
+    primary_key:
+      field: ""
+      required: false
+    date_field: recordDate
+    rate_limit:
+      sleep_seconds: 0.2
+    retry:
+      retries: 3
+      delay_seconds: 1
+    params:
+      page: 1
+      pagesize: 100
+
   # 第十二个真实文档接口：父产品基础资料，文档 id=4835，已通过单接口验证并加入 enabled 批量同步。
   - api_code: parent_product_page
     name: 查询父产品信息

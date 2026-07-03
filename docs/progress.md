@@ -1298,28 +1298,56 @@
   - `base_currency_query` 是低频基础配置接口，已完成真实同步验证，但本轮仍保持 disabled，避免扩大 enabled 日常批次前缺少连续运行观察。
   - 当前仍不支持数组入参、嵌套数组来源或复杂过滤表达式。
 
+## Stage 5N
+
+- 阶段目标：继续回到覆盖矩阵，优先选择普通分页直读接口扩大覆盖，同时避开订单、物流费用、写操作和数组编码未知接口。
+- 已完成：
+  - 从未配置 `direct_read_candidate` 中选择 `amazon_msku_page`，文档 id 为 `1921`，路径为 `POST /purchase/goods/amazonMsku/page`。
+  - 选择依据：该接口属于产品域，公开矩阵显示无必填入参、普通分页、非敏感响应；风险低于订单、物流费用、包裹费用和入库确认候选。
+  - 真实探测确认响应 `code=200`，`data` 为分页对象，包含 `page`、`pagesize`、`rows`、`total`；首批 `total=18430`，`rows` 字段为列表。
+  - 首条记录字段包含 `sku`、`msku`、`warehouseId`、`recordDate`、`memo`；未发现单一稳定业务主键，本轮不编造主键，沿用 `data_hash` 去重。
+  - 已新增 `tests/test_amazon_msku_page_config.py`，先失败后通过，约束 `amazon_msku_page` 默认 disabled、分页字段、`max_pages=3`、空主键和 `recordDate` 日期字段。
+  - 已新增 `amazon_msku_page` YAML 配置，默认 `enabled=false`，`page.list_field=data.rows`、`page.total_field=data.total`、`max_pages=3`。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api amazon_msku_page`，通过，批次 `sync_20260703_091918_162958`，`rows=300`，`requests=3`。
+  - 数据库已确认该批次 `sync_batch.status=success`、`total_api_count=1`、`success_api_count=1`、`failed_api_count=0`。
+  - 同批次 `sync_api_log` 为 `request_count=3`、`success_count=300`、`failed_count=0`、`error_message=NULL`。
+  - 同批次 `raw_api_data` 写入 300 条，300 条都有 `data_hash`，`data_date` 范围为 `2026-05-22` 到 `2026-07-02`。
+  - 同批次 raw 示例字段已确认 `sku`、`msku`、`warehouseId` 和 `data_date` 可从原始 JSON 与 `recordDate` 提取。
+  - `amazon_msku_page` checkpoint 指向批次 `sync_20260703_091918_162958`，`checkpoint_value` 记录 `last_page=3`、`request_count=3`、`item_count=300`、`total_count=18430`。
+  - `failed_request_log` 中该批次该接口为 0 条。
+  - `.\\.venv\\Scripts\\python.exe -m app.main`，通过，dry-run 显示 20 个 enabled API。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，通过，同步配置数为 31；其中 2 个是占位示例，真实接口为 29 个。
+  - 已查询 `api_config`，确认 `amazon_msku_page.enabled=0`、`config_json.enabled=false`、`page.max_pages=3`、`primary_key.field=""`、`date_field=recordDate`，数据库配置总数 31、启用 20。
+  - `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary`，通过，公开文档 API 为 185 个，真实配置 API 为 29 个，enabled 为 20 个。
+  - `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
+  - `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过，38 个测试。
+- 当前结论：
+  - 普通分页直读接口仍可复用现有同步机制；接入阶段必须用 `max_pages` 控制窗口，避免一次拉完整 18430 条。
+  - 对没有单一稳定业务主键的映射类接口，空 `primary_key.field` 加 `data_hash` 去重比强行使用 `sku` 或 `msku` 更符合事实。
+  - `amazon_msku_page` 已完成真实小窗口验证，但仍保持 disabled，后续是否进入日常 enabled 批量同步需评估全量 185 页的运行窗口。
+
 ## Known Issues
 
 - `amazon_shop_page` 第一版以 `data_hash` 去重，不强行编造业务主键。
 - 各业务 API 的具体路径、字段、分页和主键需要逐个阅读文档确认。
 - 新增后续业务接口前，仍需要逐个阅读积加文档确认路径、分页、主键和日期字段。
 - 当前 enabled API 已有 20 个：`amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`、`product_page`、`parent_product_page`、`kb_product_page`、`fba_warehouse_page`、`store_location_page`、`multi_shop_query`、`crm_tags_page`、`inventory_team_query`、`product_inventory_page`、`storage_inbound_page`。
-- 当前已配置真实 API 为 28 个，其中 20 个已加入 enabled，`product_detail`、`market_inventory_query`、`storage_inbound_detail`、`country_province_query`、`transfer_detail`、`lot_no_detail`、`delivery_fee_query` 和 `base_currency_query` 已完成小样本验证但保持 disabled。
+- 当前已配置真实 API 为 29 个，其中 20 个已加入 enabled，`product_detail`、`market_inventory_query`、`storage_inbound_detail`、`country_province_query`、`transfer_detail`、`lot_no_detail`、`delivery_fee_query`、`base_currency_query` 和 `amazon_msku_page` 已完成小样本验证但保持 disabled。
 - 当前依赖参数来源机制支持从 `raw_api_data.source_primary_key` 取单个参数，也支持从 `raw_json` 顶层字段提取多个参数，并可用 `param_source.filters` 做固定等值过滤、用 `param_source.auto_advance` 基于 checkpoint 推进小窗口；响应提取机制已支持列表、单对象和标量包装；尚未把 111307 个库存参数对、6481 个调拨单号、8243 个交货单号或 142281 个发货单号纳入生产级调度。
 - `primary_key.required=true` 会过滤缺少必填主键的响应对象，避免详情接口返回全空对象时写入 `source_primary_key="None"` 的 raw。
 - 覆盖矩阵是公开文档视角，不等同于当前账号真实授权可调用结果；真实可访问性仍需单接口运行验证。
-- `product_page` 当前总量为 8258 条，请求 83 页；`product_inventory_page` 当前总量为 118653 条，请求 1187 页；`storage_inbound_page` 当前总量为 174286 条，请求 1743 页。当前 20 个 enabled API 的真实批量同步约 3052 次请求，必须按长耗时任务安排 cron 窗口。
+- `product_page` 当前总量为 8258 条，请求 83 页；`amazon_msku_page` 当前总量为 18430 条，请求约 185 页；`product_inventory_page` 当前总量为 118653 条，请求 1187 页；`storage_inbound_page` 当前总量为 174286 条，请求 1743 页。当前 20 个 enabled API 的真实批量同步约 3052 次请求，必须按长耗时任务安排 cron 窗口。
 - 后续如果继续增加大分页接口或依赖型批量接口，需要关注运行时长、数据库写入耗时和 cron 窗口。
 - 远程 PolarDB 如出现遗留睡眠未提交事务，可能导致 raw 写入锁等待超时，需要先查 `information_schema.processlist` 和 `information_schema.innodb_trx`。
 
 ## Next Stage
 
-阶段 5N：继续回到覆盖矩阵，选择下一个低风险接口扩大覆盖；优先评估普通分页直读接口，继续避开请求编码未确认的数组入参接口和限流较强的高频探测接口。
+阶段 5O：继续回到覆盖矩阵，选择下一个低风险接口扩大覆盖；优先在剩余直读候选中避开订单、物流费用、写操作、数组编码未知和强限流接口。
 
 建议目标：
 
 - 只读读取覆盖矩阵，筛选尚未配置、参数来源清晰、且不涉及敏感字段或写操作的候选接口。
-- 优先选择能复用普通分页、`response.item_field`、`response.scalar_field`、`source_primary_key`、`param_source.fields` 或 `param_source.filters` 的低风险接口，暂不强行接入数组入参或嵌套数组来源。
+- 优先选择能复用普通分页、`response.item_field`、`response.scalar_field`、`source_primary_key`、`param_source.fields` 或 `param_source.filters` 的低风险接口，暂不强行接入数组入参、嵌套数组来源或疑似写操作接口。
 - 阅读候选接口公开文档详情，确认路径、方法、必填参数、响应形态、主键和日期字段。
 - 如果是依赖型接口，先只读查询数据库证明参数来源真实存在；如果是直读接口，先用一次真实请求确认响应形态。
 - 新增一个 API 配置，默认 `enabled=false`；依赖型接口小样本 `limit` 控制在 3 左右，分页直读接口用 `max_pages` 控制接入窗口。

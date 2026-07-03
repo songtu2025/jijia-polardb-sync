@@ -25,28 +25,30 @@
 
 当前阶段：
 
-阶段 5M 已完成。下一阶段 5N 继续回到覆盖矩阵，选择下一个低风险接口扩大覆盖；优先评估普通分页直读接口，继续避开请求编码未确认的数组入参接口、写操作接口和限流较强的高频探测接口。
+阶段 5N 已完成。下一阶段 5O 继续回到覆盖矩阵，选择下一个低风险接口扩大覆盖；优先在剩余直读候选中避开订单、物流费用、写操作、数组编码未知和强限流接口。
 
 当前事实：
 
 - 当前 enabled API 有 20 个：`amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`、`product_page`、`parent_product_page`、`kb_product_page`、`fba_warehouse_page`、`store_location_page`、`multi_shop_query`、`crm_tags_page`、`inventory_team_query`、`product_inventory_page`、`storage_inbound_page`。
-- 当前已配置真实 API 有 28 个，其中 20 个已 enabled，`product_detail`、`market_inventory_query`、`storage_inbound_detail`、`country_province_query`、`transfer_detail`、`lot_no_detail`、`delivery_fee_query` 和 `base_currency_query` 已验证但保持 disabled。
-- `base_currency_query` 文档 id 为 `66`，路径为 `GET /middle/base/baseCurrency/query`。
-- `base_currency_query` 无必填入参、非分页、非敏感响应；真实探测确认响应 `code=200`，`data` 为字符串标量。
-- 阶段 5M 已新增 `response.scalar_field` 能力，把标量响应包装成单条 raw，例如 `{data: "CNY"}`，并复用现有主键、hash 和 checkpoint 链路。
-- `base_currency_query` 配置默认 `enabled=false`，`response.scalar_field=data`，`response.scalar_target_field=data`，`primary_key.field=data`，`primary_key.required=true`。
-- 阶段 5M 正式同步批次为 `sync_20260703_090810_838473`，`rows=1`，`requests=1`。
+- 当前已配置真实 API 有 29 个，其中 20 个已 enabled，`product_detail`、`market_inventory_query`、`storage_inbound_detail`、`country_province_query`、`transfer_detail`、`lot_no_detail`、`delivery_fee_query`、`base_currency_query` 和 `amazon_msku_page` 已验证但保持 disabled。
+- `amazon_msku_page` 文档 id 为 `1921`，路径为 `POST /purchase/goods/amazonMsku/page`。
+- `amazon_msku_page` 无必填入参、普通分页、非敏感响应；真实探测确认响应 `code=200`，`data` 包含 `page`、`pagesize`、`rows`、`total`。
+- 阶段 5N 探测时当前账号 `amazon_msku_page.total=18430`，首条记录字段包含 `sku`、`msku`、`warehouseId`、`recordDate`、`memo`。
+- `amazon_msku_page` 没有单一明确业务主键，本轮未使用 `sku` 或 `msku` 编造主键，而是保持 `primary_key.field=""`，依赖 `data_hash` 去重。
+- `amazon_msku_page` 配置默认 `enabled=false`，`page.list_field=data.rows`，`page.total_field=data.total`，`page.max_pages=3`，`date_field=recordDate`。
+- 阶段 5N 正式同步批次为 `sync_20260703_091918_162958`，`rows=300`，`requests=3`。
 - 数据库已确认该批次 `total_api_count=1`、`success_api_count=1`、`failed_api_count=0`。
-- `base_currency_query` 同批次 `sync_api_log` 为 `request_count=1`、`success_count=1`、`failed_count=0`、`error_message=NULL`。
-- 同批次 raw 写入 1 条，`source_primary_key=CNY`、`raw_json.data=CNY`、`data_hash` 已生成。
-- `base_currency_query` checkpoint 指向批次 `sync_20260703_090810_838473`，`checkpoint_value` 记录 `last_page=1`、`request_count=1`、`item_count=1`。
+- `amazon_msku_page` 同批次 `sync_api_log` 为 `request_count=3`、`success_count=300`、`failed_count=0`、`error_message=NULL`。
+- 同批次 raw 写入 300 条，300 条都有 `data_hash`；`source_primary_key` 为空是预期，因为该接口没有单一明确主键。
+- 同批次 raw 的 `data_date` 范围为 `2026-05-22` 到 `2026-07-02`。
+- `amazon_msku_page` checkpoint 指向批次 `sync_20260703_091918_162958`，`checkpoint_value` 记录 `last_page=3`、`request_count=3`、`item_count=300`、`total_count=18430`。
 - `failed_request_log` 中该批次该接口为 0 条。
 - `.\\.venv\\Scripts\\python.exe -m app.main` dry-run 显示 20 个 enabled API。
-- 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，同步配置数为 30；其中 2 个是占位示例，真实 API 为 28 个。
-- 数据库已确认 `api_config.base_currency_query.enabled=0`、`config_json.enabled=false`、`response.scalar_field=data`、`primary_key.field=data`，数据库配置总数 30、启用 20。
-- 覆盖矩阵显示公开文档 API 185 个，真实配置 API 28 个，enabled 20 个。
+- 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，同步配置数为 31；其中 2 个是占位示例，真实 API 为 29 个。
+- 数据库已确认 `api_config.amazon_msku_page.enabled=0`、`config_json.enabled=false`、`page.max_pages=3`、`primary_key.field=""`、`date_field=recordDate`，数据库配置总数 31、启用 20。
+- 覆盖矩阵显示公开文档 API 185 个，真实配置 API 29 个，enabled 20 个。
 - 已运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
-- 已运行 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过，37 个测试。
+- 已运行 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过，38 个测试。
 - 当前依赖参数来源机制支持 `source_primary_key`、单字段 `raw_json`、多字段 `raw_json`、raw_json 固定等值过滤、checkpoint 小窗口推进，以及按 `primary_key.required=true` 过滤缺主键响应对象。
 - 当前响应提取机制支持列表、单对象和标量包装。
 - 当前仍不支持数组入参、嵌套数组来源或复杂过滤表达式。
@@ -59,8 +61,8 @@
 建议目标：
 
 1. 只读读取覆盖矩阵，筛选尚未配置、无敏感字段、无写操作、无数组编码不确定性的候选接口。
-2. 优先选择普通分页直读接口或单对象直读接口；也可以选择能复用 `response.scalar_field`、`source_primary_key`、`param_source.fields`、`param_source.filters` 或 `primary_key.required` 的低风险接口。
-3. 暂不强行接入数组入参、嵌套数组来源或请求编码未确认的接口。
+2. 优先选择普通分页直读接口、单对象直读接口，或能复用 `response.scalar_field`、`source_primary_key`、`param_source.fields`、`param_source.filters`、`primary_key.required` 的低风险接口。
+3. 暂不强行接入数组入参、嵌套数组来源、疑似写操作或请求编码未确认的接口。
 4. 阅读候选接口公开文档详情，确认路径、方法、必填参数、响应形态、主键和日期字段。
 5. 如果是依赖型接口，先只读查询数据库证明参数来源真实存在；如果是直读接口，先用一次真实请求确认响应形态。
 6. 新增一个 API 配置，默认 `enabled=false`；分页直读接口用 `max_pages` 控制接入窗口，依赖型接口小样本 `limit` 控制在 3 左右。

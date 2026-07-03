@@ -527,3 +527,12 @@
 - 阶段 5M 已同步 `api_config`，当前数据库总配置 30 条，启用 20 条；`base_currency_query.enabled=0`、`response.scalar_field=data`、`primary_key.field=data`。
 - 阶段 5M 覆盖矩阵已刷新为公开文档 API 185 个、真实配置 API 28 个、enabled 20 个。
 - 下一阶段优先继续从未配置直读接口中选择普通分页或单对象接口，仍避开数组编码未知、写操作和强限流候选。
+- 阶段 5N 新增 `amazon_msku_page`，文档 id 为 `1921`，路径为 `POST /purchase/goods/amazonMsku/page`，默认保持 `enabled=false`。
+- `amazon_msku_page` 选择依据：产品域普通分页直读接口，无必填入参、非敏感响应，风险低于订单、物流费用、包裹费用和入库确认候选。
+- 阶段 5N 真实探测确认该接口返回 `data.rows` 和 `data.total`，当前账号 `total=18430`，接入阶段必须用 `max_pages` 控制窗口。
+- `amazon_msku_page` 响应字段包含 `sku`、`msku`、`warehouseId`、`recordDate`、`memo`，没有单一明确主键；本轮决定不编造主键，使用空 `primary_key.field` 和 `data_hash` 去重。
+- 阶段 5N 已用真实接口验证 `amazon_msku_page`，批次号为 `sync_20260703_091918_162958`，请求 3 次，写入 300 条，失败 0。
+- 阶段 5N 后 `amazon_msku_page` checkpoint 指向批次 `sync_20260703_091918_162958`，`checkpoint_value` 记录 `last_page=3`、`request_count=3`、`item_count=300`、`total_count=18430`。
+- 阶段 5N 已同步 `api_config`，当前数据库总配置 31 条，启用 20 条；`amazon_msku_page.enabled=0`、`page.max_pages=3`、`date_field=recordDate`。
+- 阶段 5N 覆盖矩阵已刷新为公开文档 API 185 个、真实配置 API 29 个、enabled 20 个。
+- 下一阶段继续选低风险候选时，订单、物流费用、包裹费用和疑似写操作接口要先放后；优先找普通分页或清晰依赖参数接口。
