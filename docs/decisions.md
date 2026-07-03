@@ -688,3 +688,10 @@
 - 阶段 6G 已同步 `api_config`，当前数据库总配置 45 条，启用 23 条；覆盖矩阵刷新后为公开文档 API 185 个、真实配置 API 43 个、enabled 23 个。
 - 6E-6G 复盘结论：本组三轮完成 date_window 追平跳过、顶层日期窗口接口验证和嵌套日期窗口接口验证；下一组可继续扩展低风险日期窗口接口，或开始谨慎评估已验证 disabled 接口是否具备进入 enabled 的条件。
 - 后续评估 enabled 时，不能把严格限流、高体量、日期窗口回填、订单、财务、客服文本或物流费用接口直接加入 daily enabled；必须先有真实批次、运行时长、主键和限流证据。
+- 阶段 6H 新增 `inventory_receipts_page`，文档 id 为 `21`，路径为 `POST /purchase/store/inventoryReceipts/page`，默认保持 `enabled=false`。
+- `inventory_receipts_page` 选择依据：已接收库存列表属于报表域普通分页直读接口，可用 `marketDateBegin` 和 `marketDateEnd` 做单日窗口，风险低于订单、财务敏感明细、客服文本和物流费用。
+- `inventory_receipts_page` 真实探测确认 `2026-07-02` 单日窗口返回 `total=735`；样本包含 `id`、`marketTimeZone`、`createDate`、`fbaShipmentId`、`product` 和 `warehouseName`。
+- `inventory_receipts_page` 真实样本中的 `id` 可作为行级主键，本轮配置 `primary_key.field=id`；`date_field` 使用可解析为日期的 `marketTimeZone`。
+- 阶段 6H 已用真实接口验证 `inventory_receipts_page`，批次号为 `sync_20260703_143224_591261`，请求 1 次，写入 100 条，失败 0。
+- 阶段 6H 后 `inventory_receipts_page` checkpoint 指向批次 `sync_20260703_143224_591261`，`checkpoint_value` 记录 `last_page=1`、`request_count=1`、`item_count=100`、`total_count=735`、`window_start=2026-07-02`、`window_end=2026-07-02`、`next_window_start=2026-07-03`、`window_days=1`。
+- 阶段 6H 已同步 `api_config`，当前数据库总配置 46 条，启用 23 条；覆盖矩阵刷新后为公开文档 API 185 个、真实配置 API 44 个、enabled 23 个。
