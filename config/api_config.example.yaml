@@ -707,6 +707,28 @@ apis:
       delay_seconds: 1
     params: {}
 
+  # 第二十八个真实文档接口：获取本位币币种，文档 id=66，返回 data 标量字符串，先保持 disabled。
+  - api_code: base_currency_query
+    name: 获取本位币币种
+    enabled: false
+    method: GET
+    path: /middle/base/baseCurrency/query
+    page:
+      enabled: false
+    response:
+      scalar_field: data
+      scalar_target_field: data
+    primary_key:
+      field: data
+      required: true
+    date_field: ""
+    rate_limit:
+      sleep_seconds: 0.2
+    retry:
+      retries: 3
+      delay_seconds: 1
+    params: {}
+
   # 第二十二个真实文档接口：查询站点库存分布，文档 id=84，依赖 product_inventory_page 的 sku 和 warehouseId，小样本验证阶段保持 disabled。
   - api_code: market_inventory_query
     name: 查询站点库存分布

@@ -633,9 +633,20 @@ class SyncEngine:
         """从接口响应中提取列表数据。
 
         列表路径由 YAML 的 `page.list_field` 控制，例如 `data.rows`。详情接口
-        可以用 `response.item_field` 把单个对象包装成一条 raw 记录。
+        可以用 `response.item_field` 把单个对象包装成一条 raw 记录；少数基础
+        配置接口只返回字符串，用 `response.scalar_field` 包装成单条对象入库。
         """
-        item_field = (api.get("response") or {}).get("item_field")
+        response_config = api.get("response") or {}
+        scalar_field = response_config.get("scalar_field")
+        if scalar_field:
+            value = self._get_by_path(payload, scalar_field)
+            if value is None:
+                return []
+            target_field = response_config.get("scalar_target_field") or str(scalar_field).split(".")[-1]
+            item = {target_field: value}
+            return [item] if self._has_required_primary_key(api, item) else []
+
+        item_field = response_config.get("item_field")
         if item_field:
             item = self._get_by_path(payload, item_field)
             if item is None:

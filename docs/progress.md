@@ -1272,14 +1272,40 @@
   - 对数组入参接口，例如 `marketNames/query`、`warehouseIds/query`，需要先确认真实请求编码，再考虑扩展参数来源机制。
   - 对会返回空对象的接口，新增配置时优先把稳定主键标记为 `required=true`，让同步引擎跳过缺主键对象。
 
+## Stage 5M
+
+- 阶段目标：回到覆盖矩阵，选择一个不需要数组编码、不涉及写操作、非敏感的低风险接口扩大覆盖。
+- 已完成：
+  - 从未配置 `direct_read_candidate` 中选择 `base_currency_query`，文档 id 为 `66`，路径为 `GET /middle/base/baseCurrency/query`。
+  - 公开矩阵显示该接口无必填入参、非分页、非敏感响应；真实探测确认响应 `code=200` 且 `data` 为字符串标量。
+  - 已新增 `tests/test_base_currency_scalar_response.py`，先失败后通过，约束 `base_currency_query` 默认 disabled，并约束标量 `data` 包装为单条 raw。
+  - 已为同步引擎增加最小 `response.scalar_field` 能力：把 `data` 这类标量响应包装成 `{data: <value>}` 后复用现有主键、hash 和 raw 入库链路。
+  - 已新增 `base_currency_query` YAML 配置，默认 `enabled=false`，`response.scalar_field=data`，`primary_key.field=data` 且 `required=true`。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api base_currency_query`，通过，批次 `sync_20260703_090810_838473`，`rows=1`，`requests=1`。
+  - 数据库已确认该批次 `sync_batch.status=success`、`total_api_count=1`、`success_api_count=1`、`failed_api_count=0`。
+  - 同批次 `sync_api_log` 为 `request_count=1`、`success_count=1`、`failed_count=0`、`error_message=NULL`。
+  - 同批次 `raw_api_data` 写入 1 条，`source_primary_key=CNY`，`raw_json.data=CNY`，`data_hash` 已生成。
+  - `base_currency_query` checkpoint 指向批次 `sync_20260703_090810_838473`，`checkpoint_value` 记录 `last_page=1`、`request_count=1`、`item_count=1`。
+  - `failed_request_log` 中该批次该接口为 0 条。
+  - `.\\.venv\\Scripts\\python.exe -m app.main`，通过，dry-run 显示 20 个 enabled API。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，通过，同步配置数为 30；其中 2 个是占位示例，真实接口为 28 个。
+  - 已查询 `api_config`，确认 `base_currency_query.enabled=0`、`config_json.enabled=false`、`response.scalar_field=data`、`primary_key.field=data`，数据库配置总数 30、启用 20。
+  - `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary`，通过，公开文档 API 为 185 个，真实配置 API 为 28 个，enabled 为 20 个。
+  - `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
+  - `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过，37 个测试。
+- 当前结论：
+  - 标量响应是公开文档中的真实形态，不能强行套列表或对象模型；包装为单条 raw 是最小可维护方案。
+  - `base_currency_query` 是低频基础配置接口，已完成真实同步验证，但本轮仍保持 disabled，避免扩大 enabled 日常批次前缺少连续运行观察。
+  - 当前仍不支持数组入参、嵌套数组来源或复杂过滤表达式。
+
 ## Known Issues
 
 - `amazon_shop_page` 第一版以 `data_hash` 去重，不强行编造业务主键。
 - 各业务 API 的具体路径、字段、分页和主键需要逐个阅读文档确认。
 - 新增后续业务接口前，仍需要逐个阅读积加文档确认路径、分页、主键和日期字段。
 - 当前 enabled API 已有 20 个：`amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`、`product_page`、`parent_product_page`、`kb_product_page`、`fba_warehouse_page`、`store_location_page`、`multi_shop_query`、`crm_tags_page`、`inventory_team_query`、`product_inventory_page`、`storage_inbound_page`。
-- 当前已配置真实 API 为 27 个，其中 20 个已加入 enabled，`product_detail`、`market_inventory_query`、`storage_inbound_detail`、`country_province_query`、`transfer_detail`、`lot_no_detail` 和 `delivery_fee_query` 已完成小样本验证但保持 disabled。
-- 当前依赖参数来源机制支持从 `raw_api_data.source_primary_key` 取单个参数，也支持从 `raw_json` 顶层字段提取多个参数，并可用 `param_source.filters` 做固定等值过滤、用 `param_source.auto_advance` 基于 checkpoint 推进小窗口；尚未把 111307 个库存参数对、6481 个调拨单号、8243 个交货单号或 142281 个发货单号纳入生产级调度。
+- 当前已配置真实 API 为 28 个，其中 20 个已加入 enabled，`product_detail`、`market_inventory_query`、`storage_inbound_detail`、`country_province_query`、`transfer_detail`、`lot_no_detail`、`delivery_fee_query` 和 `base_currency_query` 已完成小样本验证但保持 disabled。
+- 当前依赖参数来源机制支持从 `raw_api_data.source_primary_key` 取单个参数，也支持从 `raw_json` 顶层字段提取多个参数，并可用 `param_source.filters` 做固定等值过滤、用 `param_source.auto_advance` 基于 checkpoint 推进小窗口；响应提取机制已支持列表、单对象和标量包装；尚未把 111307 个库存参数对、6481 个调拨单号、8243 个交货单号或 142281 个发货单号纳入生产级调度。
 - `primary_key.required=true` 会过滤缺少必填主键的响应对象，避免详情接口返回全空对象时写入 `source_primary_key="None"` 的 raw。
 - 覆盖矩阵是公开文档视角，不等同于当前账号真实授权可调用结果；真实可访问性仍需单接口运行验证。
 - `product_page` 当前总量为 8258 条，请求 83 页；`product_inventory_page` 当前总量为 118653 条，请求 1187 页；`storage_inbound_page` 当前总量为 174286 条，请求 1743 页。当前 20 个 enabled API 的真实批量同步约 3052 次请求，必须按长耗时任务安排 cron 窗口。
@@ -1288,15 +1314,15 @@
 
 ## Next Stage
 
-阶段 5M：继续回到覆盖矩阵，选择下一个低风险接口扩大覆盖；优先避开请求编码未确认的数组入参接口和限流较强的高频探测接口。
+阶段 5N：继续回到覆盖矩阵，选择下一个低风险接口扩大覆盖；优先评估普通分页直读接口，继续避开请求编码未确认的数组入参接口和限流较强的高频探测接口。
 
 建议目标：
 
 - 只读读取覆盖矩阵，筛选尚未配置、参数来源清晰、且不涉及敏感字段或写操作的候选接口。
-- 优先选择能复用 `source_primary_key`、`param_source.fields`、`param_source.filters` 或普通分页机制的低风险接口，暂不强行接入数组入参或嵌套数组来源。
+- 优先选择能复用普通分页、`response.item_field`、`response.scalar_field`、`source_primary_key`、`param_source.fields` 或 `param_source.filters` 的低风险接口，暂不强行接入数组入参或嵌套数组来源。
 - 阅读候选接口公开文档详情，确认路径、方法、必填参数、响应形态、主键和日期字段。
-- 只读查询数据库，证明所需参数来源真实存在。
-- 新增一个依赖型 API 配置，默认 `enabled=false`，小样本 `limit` 控制在 3 左右。
+- 如果是依赖型接口，先只读查询数据库证明参数来源真实存在；如果是直读接口，先用一次真实请求确认响应形态。
+- 新增一个 API 配置，默认 `enabled=false`；依赖型接口小样本 `limit` 控制在 3 左右，分页直读接口用 `max_pages` 控制接入窗口。
 - 如果现有机制足够，优先不改代码；如果不够，必须测试先行做最小扩展。
 - 运行新接口小样本真实同步，确认批次、日志、raw 和 checkpoint 可追踪。
 - 完成后同步 `api_config`、刷新覆盖矩阵并运行编译与单测。

@@ -518,3 +518,12 @@
 - 阶段 5L 已同步 `api_config`，当前数据库总配置 29 条，启用 20 条；`delivery_fee_query.enabled=0`、`param_source.auto_advance=true`、过滤值为 `OROutbound`、`primary_key.required=true`。
 - 阶段 5L 覆盖矩阵已刷新为公开文档 API 185 个、真实配置 API 27 个、enabled 20 个。
 - 5J-5L 复盘结论：固定等值过滤已可复用于多种业务单据类型，但数组入参编码和强限流接口仍需单独策略；缺主键对象必须在入库前过滤。
+- 阶段 5M 新增 `base_currency_query`，文档 id 为 `66`，路径为 `GET /middle/base/baseCurrency/query`，默认保持 `enabled=false`。
+- `base_currency_query` 选择依据：公开矩阵显示无必填入参、非分页、非敏感响应；真实探测确认 `data` 是字符串标量。
+- 阶段 5M 为响应提取增加最小 `response.scalar_field` 能力，把标量响应包装为单条对象后复用 raw 入库、主键、hash 和 checkpoint 链路。
+- 阶段 5M 的标量包装规则是保留上游字段名，例如 `data` 标量包装为 `{data: "CNY"}`；不要为了显示语义强行编造上游没有返回的字段名。
+- 阶段 5M 已用真实接口验证 `base_currency_query`，批次号为 `sync_20260703_090810_838473`，请求 1 次，写入 1 条，失败 0，`source_primary_key=CNY`。
+- 阶段 5M 后 `base_currency_query` checkpoint 指向批次 `sync_20260703_090810_838473`，`checkpoint_value` 记录 `last_page=1`、`request_count=1`、`item_count=1`。
+- 阶段 5M 已同步 `api_config`，当前数据库总配置 30 条，启用 20 条；`base_currency_query.enabled=0`、`response.scalar_field=data`、`primary_key.field=data`。
+- 阶段 5M 覆盖矩阵已刷新为公开文档 API 185 个、真实配置 API 28 个、enabled 20 个。
+- 下一阶段优先继续从未配置直读接口中选择普通分页或单对象接口，仍避开数组编码未知、写操作和强限流候选。
