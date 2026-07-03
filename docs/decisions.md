@@ -607,3 +607,9 @@
 - 同批次中 `base_currency_query` 请求 1 次写入 1 条，`storage_return_page` 请求 1 次写入 1 条，`strategy_template_page` 请求 1 次写入 19 条，三者失败均为 0 且 checkpoint 更新到该批次。
 - 阶段 5V 排查确认 `--sync-enabled` 运行期间外部看不到新 batch，不是失败，而是当前实现把整个 enabled 批量放在一个数据库事务中，提交前 `sync_batch`、`sync_api_log` 和 raw 写入对其他连接不可见。
 - 后续启用更大体量接口前，必须先把运行窗口和长事务影响纳入评估；不能只根据单接口小窗口成功就加入 daily enabled。
+- 阶段 5W 将 `sync_enabled_apis()` 的事务边界从“整个 enabled 批量一个事务”调整为“批次头一个事务、每个 API 一个事务、最终汇总一个事务”。
+- 该调整只改变提交边界，不改变分页、重试、raw 幂等、失败日志和 checkpoint 的业务语义。
+- 阶段 5W 新增 `tests/test_sync_enabled_transaction_scope.py`，用先失败后通过的测试约束 enabled 批量不会再只有一个长事务。
+- 阶段 5W 的真实轻量回归批次为 `sync_20260703_123218_791772`，只运行 `base_currency_query`、`storage_return_page`、`strategy_template_page` 三个低风险 enabled API，状态 `success`，3 个 API 全部成功，写入 21 条，失败 0。
+- 阶段 5W 不重跑完整 23 API 批量；原因是 5V 已有 5735 秒完整批次证据，本轮目标是验证事务边界，使用测试和 3 API 真实子集即可覆盖风险点。
+- 后续 `--sync-enabled` 已完成 API 的 raw、log 和 checkpoint 可以随单 API 事务提交后对外可见；但总运行时长仍需要按当前约 3053 次请求的长窗口管理。

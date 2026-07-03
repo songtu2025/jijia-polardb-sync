@@ -291,7 +291,7 @@ class SyncEngine:
             raise ValueError("sync enabled requires database engine")
 
         enabled_apis = self._enabled_apis()
-        # 一个 sync_batch 表示一次调度运行；多个 enabled API 共用这个批次，逐个写 sync_api_log。
+        # 一个 sync_batch 表示一次调度运行；批次头先提交，避免长任务运行中外部完全看不到 batch。
         batch_no = self._new_batch_no()
         started_at = datetime.now()
         total_item_count = 0
@@ -317,22 +317,25 @@ class SyncEngine:
                 },
             )
 
-            for api in enabled_apis:
+        # 每个 API 独立事务提交。大批量接口即使耗时很长，已完成接口的 raw、日志和 checkpoint 也能先落库。
+        for api in enabled_apis:
+            with self.engine.begin() as connection:
                 result = self._sync_api_in_batch(connection, api, batch_no, api_client, token)
-                total_item_count += result["item_count"]
-                total_request_count += result["request_count"]
-                if result["failed_count"]:
-                    failed_api_count += 1
-                else:
-                    success_api_count += 1
-
-            if failed_api_count == 0:
-                status = "success"
-            elif success_api_count > 0:
-                status = "partial_failed"
+            total_item_count += result["item_count"]
+            total_request_count += result["request_count"]
+            if result["failed_count"]:
+                failed_api_count += 1
             else:
-                status = "failed"
+                success_api_count += 1
 
+        if failed_api_count == 0:
+            status = "success"
+        elif success_api_count > 0:
+            status = "partial_failed"
+        else:
+            status = "failed"
+
+        with self.engine.begin() as connection:
             connection.execute(
                 text(
                     """

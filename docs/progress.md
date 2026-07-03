@@ -2,7 +2,7 @@
 
 ## Current Stage
 
-阶段 5L 已完成。已新增并验证 `delivery_fee_query` 第一批发货单预估费用窗口，当前真实配置 API 为 27 个，enabled API 仍为 20 个；5J-5L 三轮复盘已完成。
+阶段 5W 已完成。已修复 `--sync-enabled` 长事务可见性问题：批次头、单个 API 和最终汇总分事务提交；当前真实配置 API 为 36 个，enabled API 为 23 个。
 
 ## Completed
 
@@ -1612,6 +1612,28 @@
   - `--sync-enabled` 当前已经接近 96 分钟，长耗时根因是大批量接口在一个事务内执行，提交前外部看不到新 batch；后续需要单独评估批次事务边界或运行窗口，但本轮不改架构。
   - 下一阶段仍应谨慎处理大体量 disabled 接口，不能把 `transfer_page`、`lot_no_page`、库存盘点和库存报表直接加入 enabled。
 
+## Stage 5W
+
+- 阶段目标：先处理 5V 暴露出的 `--sync-enabled` 长事务可见性和故障恢复风险，再继续扩大 enabled 或新增接口。
+- 已完成：
+  - 已定位 5V 现象：23 个 enabled API 批次 `sync_20260703_104718_888820` 耗时 5735 秒，运行期间外部连接长时间看不到新 batch、API log 和 raw 写入，根因是整个 enabled 批量共用一个数据库事务。
+  - 已新增 `tests/test_sync_enabled_transaction_scope.py`，先失败于实际只有 `tx-1` 一个事务，再通过，约束 enabled 批量必须拆成批次头事务、每个 API 独立事务、最终汇总事务。
+  - 已调整 `SyncEngine.sync_enabled_apis()`：先提交 `sync_batch` 批次头；每个 enabled API 用独立事务执行 raw、log、checkpoint 写入；全部结束后再用独立事务更新批次最终状态。
+  - 同步逻辑未改变分页、重试、raw 幂等、失败日志和 checkpoint 的业务行为。
+  - 已运行聚焦测试 `.\\.venv\\Scripts\\python.exe -m unittest tests.test_sync_enabled_transaction_scope`，通过。
+  - 已运行相关回归 `.\\.venv\\Scripts\\python.exe -m unittest tests.test_sync_engine_bulk_insert tests.test_base_currency_scalar_response tests.test_5v_low_risk_enabled_configs`，通过，5 个测试。
+  - 已用 3 个低风险 enabled API 做真实轻量回归，批次 `sync_20260703_123218_791772`，结果 `api_count=3`、`item_count=21`、`request_count=3`、`failed_count=0`。
+  - 数据库确认该批次 `sync_batch.status=success`，`total_api_count=3`、`success_api_count=3`、`failed_api_count=0`、耗时 14 秒。
+  - 同批次 `sync_api_log` 确认 `base_currency_query`、`storage_return_page`、`strategy_template_page` 全部 success，分别写入 1、1、19 条，失败均为 0。
+  - 同批次 `raw_api_data` 确认三者均无空主键，均有 `data_hash`；三个 checkpoint 均已更新到 `sync_20260703_123218_791772`。
+  - `.\\.venv\\Scripts\\python.exe -m app.main`，通过，dry-run 显示 23 个 enabled API。
+  - `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
+  - `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过，47 个测试。
+- 当前结论：
+  - `--sync-enabled` 不再把整个长批量压在一个事务里，已完成 API 的 raw、log 和 checkpoint 可以随 API 完成后提交并对外可见。
+  - 本轮没有重跑完整 23 API 批量，因为 5V 已证明完整批次耗时 5735 秒；5W 用测试约束和 3 API 真实子集验证事务边界即可。
+  - 事务可见性风险已降低，但总请求量和总运行时长没有消失，后续启用大体量接口仍必须按长窗口评估。
+
 ## Known Issues
 
 - `amazon_shop_page` 第一版以 `data_hash` 去重，不强行编造业务主键。
@@ -1622,13 +1644,14 @@
 - 当前依赖参数来源机制支持从 `raw_api_data.source_primary_key` 取单个参数，也支持从 `raw_json` 顶层字段提取多个参数，并可用 `param_source.filters` 做固定等值过滤、用 `param_source.auto_advance` 基于 checkpoint 推进小窗口；响应提取机制已支持列表、单对象和标量包装；尚未把 111307 个库存参数对、6481 个调拨单号、8243 个交货单号或 142281 个发货单号纳入生产级调度。
 - `primary_key.required=true` 会过滤缺少必填主键的响应对象，避免详情接口返回全空对象时写入 `source_primary_key="None"` 的 raw。
 - 覆盖矩阵是公开文档视角，不等同于当前账号真实授权可调用结果；真实可访问性仍需单接口运行验证。
-- `storage_return_page` 当前总量为 1 条；`strategy_template_page` 当前总量为 19 条；`platform_msku_page` 当前总量为 1707 条，请求约 18 页；`transfer_page` 当前总量为 6755 条，请求约 68 页；`product_page` 当前总量为 8258 条，请求 83 页；`lot_no_page` 当前总量为 8602 条，请求约 87 页；`amazon_msku_page` 当前总量为 18430 条，请求约 185 页；`fba_inventory_v2_page` 当前总量为 30759 条，请求约 308 页；`inventory_adjustments_page` 当前总量为 58239 条，请求约 583 页；`product_inventory_page` 当前总量为 118653 条，请求 1187 页；`storage_inbound_page` 当前总量为 174286 条，请求 1743 页。当前 23 个 enabled API 的真实批量同步约 3053 次请求，本轮实测耗时 5735 秒，必须按长耗时任务安排 cron 窗口。
+- `storage_return_page` 当前总量为 1 条；`strategy_template_page` 当前总量为 19 条；`platform_msku_page` 当前总量为 1707 条，请求约 18 页；`transfer_page` 当前总量为 6755 条，请求约 68 页；`product_page` 当前总量为 8258 条，请求 83 页；`lot_no_page` 当前总量为 8602 条，请求约 87 页；`amazon_msku_page` 当前总量为 18430 条，请求约 185 页；`fba_inventory_v2_page` 当前总量为 30759 条，请求约 308 页；`inventory_adjustments_page` 当前总量为 58239 条，请求约 583 页；`product_inventory_page` 当前总量为 118653 条，请求 1187 页；`storage_inbound_page` 当前总量为 174286 条，请求 1743 页。当前 23 个 enabled API 的真实批量同步约 3053 次请求，5V 实测耗时 5735 秒，必须按长耗时任务安排 cron 窗口。
+- `--sync-enabled` 已在 5W 改为批次头、单 API、最终汇总分事务提交，已完成 API 的 raw、log 和 checkpoint 可随 API 完成后提交；但总运行时长仍由接口请求量和数据库写入量决定。
 - 后续如果继续增加大分页接口或依赖型批量接口，需要关注运行时长、数据库写入耗时和 cron 窗口。
 - 远程 PolarDB 如出现遗留睡眠未提交事务，可能导致 raw 写入锁等待超时，需要先查 `information_schema.processlist` 和 `information_schema.innodb_trx`。
 
 ## Next Stage
 
-阶段 5W：继续推进完整覆盖。优先做两类工作之一：继续接入一个低风险未配置接口，或继续评估已验证 disabled 接口的启用条件；但在启用任何大体量接口前，先评估 5V 暴露出的长事务和运行窗口问题。
+阶段 5X：继续推进完整覆盖。5W 已降低 enabled 批量的长事务可见性风险，下一轮可以继续接入一个低风险未配置接口，或继续评估已验证 disabled 接口的启用条件；但仍不能直接启用大体量接口。
 
 建议目标：
 
@@ -1646,6 +1669,6 @@
 - 新接口完成文档确认和小样本真实同步，默认保持 disabled，除非它是已充分验证的低风险直读接口。
 - 参数来源由数据库只读查询证明，不靠猜测字段。
 - 新接口同步批次成功，`sync_api_log`、`raw_api_data` 和 checkpoint 可核验。
-- `api_config` 与覆盖矩阵显示真实配置 API 增加 1 个，enabled 仍为 20 个。
+- `api_config` 与覆盖矩阵显示真实配置 API 或 enabled 数量符合本轮目标；当前基线是真实配置 API 36 个、enabled 23 个。
 - `compileall` 和 `unittest discover` 通过。
 - 继续保持 `.env`、token 缓存、日志和真实凭证不提交。
