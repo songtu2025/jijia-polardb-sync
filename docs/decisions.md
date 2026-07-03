@@ -536,3 +536,12 @@
 - 阶段 5N 已同步 `api_config`，当前数据库总配置 31 条，启用 20 条；`amazon_msku_page.enabled=0`、`page.max_pages=3`、`date_field=recordDate`。
 - 阶段 5N 覆盖矩阵已刷新为公开文档 API 185 个、真实配置 API 29 个、enabled 20 个。
 - 下一阶段继续选低风险候选时，订单、物流费用、包裹费用和疑似写操作接口要先放后；优先找普通分页或清晰依赖参数接口。
+- 阶段 5O 新增 `platform_msku_page`，文档 id 为 `2898`，路径为 `POST /platform/base/platformMsku/page`，默认保持 `enabled=false`。
+- `platform_msku_page` 选择依据：多平台 SKU/MSKU 映射接口，普通分页、非敏感响应，风险低于订单、物流费用、包裹费用和疑似写操作候选。
+- 阶段 5O 真实探测确认该接口返回 `data.rows` 和 `data.total`，当前账号 `total=1707`，接入阶段仍用 `max_pages=3` 控制窗口。
+- `platform_msku_page` 响应字段包含 `sku`、`msku`、`platformId`、`platformName`、`shopId`、`country`、`recordDate`、`memo`，没有单一明确主键；继续使用空 `primary_key.field` 和 `data_hash` 去重。
+- 阶段 5O 已用真实接口验证 `platform_msku_page`，批次号为 `sync_20260703_092856_887088`，请求 3 次，写入 300 条，失败 0。
+- 阶段 5O 后 `platform_msku_page` checkpoint 指向批次 `sync_20260703_092856_887088`，`checkpoint_value` 记录 `last_page=3`、`request_count=3`、`item_count=300`、`total_count=1707`。
+- 阶段 5O 已同步 `api_config`，当前数据库总配置 32 条，启用 20 条；`platform_msku_page.enabled=0`、`page.max_pages=3`、`date_field=recordDate`。
+- 阶段 5O 覆盖矩阵已刷新为公开文档 API 185 个、真实配置 API 30 个、enabled 20 个。
+- 5M-5O 复盘结论：标量响应和映射类分页接口已完成最小接入路径；后续继续扩大覆盖时，需要更严格地区分低风险基础/映射接口和订单、财务、物流费用等高风险接口。

@@ -465,6 +465,33 @@ apis:
       delay_seconds: 1
     params: {}
 
+  # 第三十个真实文档接口：SKU关联多平台MSKU，文档 id=2898，先用 3 页窗口验证，默认保持 disabled。
+  - api_code: platform_msku_page
+    name: 查询SKU关联多平台MSKU
+    enabled: false
+    method: POST
+    path: /platform/base/platformMsku/page
+    page:
+      enabled: true
+      page_no_field: page
+      page_size_field: pagesize
+      page_size: 100
+      max_pages: 3
+      list_field: data.rows
+      total_field: data.total
+    primary_key:
+      field: ""
+      required: false
+    date_field: recordDate
+    rate_limit:
+      sleep_seconds: 0.2
+    retry:
+      retries: 3
+      delay_seconds: 1
+    params:
+      page: 1
+      pagesize: 100
+
   # 第十七个真实文档接口：客服标签基础资料，文档 id=136，先单接口验证后再考虑启用。
   - api_code: crm_tags_page
     name: 查询标签管理信息
