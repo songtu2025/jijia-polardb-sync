@@ -721,6 +721,34 @@ apis:
       page: 1
       pagesize: 100
 
+  # 第三十六个真实文档接口：分时策略NEW，文档 id=102，响应列表字段为 data.records，默认保持 disabled。
+  - api_code: strategy_template_page
+    name: 分时策略NEW
+    enabled: false
+    method: POST
+    path: /operation/ads/strategyTemplate/page
+    page:
+      enabled: true
+      page_no_field: page
+      page_size_field: pagesize
+      page_size: 100
+      max_pages: 3
+      list_field: data.records
+      total_field: data.total
+    primary_key:
+      field: id
+      required: false
+    date_field: updateTime
+    rate_limit:
+      sleep_seconds: 0.2
+    retry:
+      retries: 3
+      delay_seconds: 1
+    params:
+      page: 1
+      pagesize: 100
+      model: {}
+
   # 第二十一个真实文档接口：产品详情，文档 id=211，依赖 product_page 的产品 id，小样本验证阶段保持 disabled。
   - api_code: product_detail
     name: 查询产品详情

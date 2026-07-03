@@ -589,3 +589,13 @@
 - 阶段 5T 已同步 `api_config`，当前数据库总配置 37 条，启用 20 条；`storage_return_page.enabled=0`、`page.max_pages=3`、`primary_key.field=code`、`date_field=createTime`。
 - 阶段 5T 覆盖矩阵已刷新为公开文档 API 185 个、真实配置 API 35 个、enabled 20 个。
 - 阶段 5T 结论：当前低体量采购退货单可作为补充覆盖接口，但不能因为数据量小就进入 enabled；是否进入日常同步仍要放到完整覆盖和运行窗口评估里统一判断。
+- 阶段 5U 新增 `strategy_template_page`，文档 id 为 `102`，路径为 `POST /operation/ads/strategyTemplate/page`，默认保持 `enabled=false`。
+- `strategy_template_page` 选择依据：广告分时策略模板列表是配置类普通分页接口，当前账号 `total=19`，字段清晰，风险低于订单、财务、物流费用和大体量库存报表。
+- 阶段 5U 只读探测确认 `purchase_plan_page` 当前 `total=0`，`inventory_receipts_page.total=493411`，`customer_voice_page` 含订单编号、买家备注和评论文本；本轮都不接入。
+- `strategy_template_page` 响应列表字段为 `data.records`，不是常见的 `data.rows`；现有 `page.list_field` 点路径机制足够支持，不需要新增同步代码。
+- `strategy_template_page` 响应字段包含 `id`、`templateName`、`strategyType`、`templateExpression`、`countryIds`、`countryNames`、`createTime`、`updateTime`、`status`、`useNum`；本轮使用 `id` 作为主键，使用 `updateTime` 作为日期字段。
+- 阶段 5U 已用真实接口验证 `strategy_template_page`，批次号为 `sync_20260703_103557_599935`，请求 1 次，写入 19 条，失败 0。
+- 阶段 5U 后 `strategy_template_page` checkpoint 指向批次 `sync_20260703_103557_599935`，`checkpoint_value` 记录 `last_page=1`、`request_count=1`、`item_count=19`、`total_count=19`。
+- 阶段 5U 已同步 `api_config`，当前数据库总配置 38 条，启用 20 条；`strategy_template_page.enabled=0`、`page.max_pages=3`、`page.list_field=data.records`、`primary_key.field=id`、`date_field=updateTime`。
+- 阶段 5U 覆盖矩阵已刷新为公开文档 API 185 个、真实配置 API 36 个、enabled 20 个。
+- 5S-5U 复盘结论：三轮新增接口都保持 disabled，证明默认 disabled 小窗口策略仍有效；但已验证 disabled 接口数量增加，下一组除了继续扩容，还需要开始评估哪些接口具备进入 enabled 的条件。
