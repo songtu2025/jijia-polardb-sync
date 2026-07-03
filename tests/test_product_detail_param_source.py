@@ -42,7 +42,7 @@ class ProductDetailParamSourceTest(unittest.TestCase):
         self.assertEqual(api["param_source"]["source_api_code"], "product_page")
         self.assertEqual(api["param_source"]["source_field"], "source_primary_key")
         self.assertEqual(api["param_source"]["target_field"], "id")
-        self.assertEqual(api["param_source"]["limit"], 10)
+        self.assertEqual(api["param_source"]["limit"], 100)
         self.assertIn("auto_advance", api["param_source"])
         self.assertTrue(api["param_source"]["auto_advance"])
 
