@@ -485,3 +485,10 @@
 - 阶段 5H 已同步 `api_config`，当前数据库总配置 27 条，启用 20 条；`transfer_detail.enabled=0`、`param_source.source_api_code=storage_inbound_page`、`param_source.auto_advance=true`、过滤值为 `TFOutbound`。
 - 阶段 5H 覆盖矩阵已刷新为公开文档 API 185 个、真实配置 API 25 个、enabled 20 个。
 - 下一阶段优先不改 YAML，验证 `transfer_detail` 从 `next_param_offset=3` 连续推进。
+- 阶段 5I 未修改 YAML，直接复用 `transfer_detail` checkpoint 的 `next_param_offset=3`。
+- 阶段 5I 已按程序真实排序确认第二批调拨单号为 `TF20230616000004`、`TF20230617000005`、`TF20230617000006`，不重复第一批。
+- 阶段 5I 已用第二批调拨单号验证 `transfer_detail`，批次号为 `sync_20260703_081910_520250`，请求 3 次，写入 3 条，失败 0。
+- 阶段 5I 后 `transfer_detail` checkpoint 记录 `param_offset=3`、`param_limit=3`、`next_param_offset=6`。
+- 阶段 5I 已同步 `api_config`，当前数据库总配置 27 条，启用 20 条；`transfer_detail.enabled=0`、`param_source.auto_advance=true`、过滤值为 `TFOutbound`。
+- 阶段 5I 覆盖矩阵保持公开文档 API 185 个、真实配置 API 25 个、enabled 20 个。
+- 5G-5I 复盘结论：依赖型小窗口已能处理固定等值过滤，但数组入参和嵌套数组来源仍未支持；下一阶段应继续选择可复用现有机制的依赖接口。

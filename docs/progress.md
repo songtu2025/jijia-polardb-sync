@@ -2,7 +2,7 @@
 
 ## Current Stage
 
-阶段 5H 已完成。已新增并验证 `transfer_detail`，当前真实配置 API 为 25 个，enabled API 仍为 20 个。
+阶段 5I 已完成。`transfer_detail` 已不改 YAML 自动推进到第二批调拨单号，当前真实配置 API 为 25 个，enabled API 仍为 20 个；5G-5I 三轮复盘已完成。
 
 ## Completed
 
@@ -1018,6 +1018,20 @@
   - `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary`，通过，公开文档 API 为 185 个，真实配置 API 为 25 个，enabled 为 20 个。
   - `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
   - `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过，29 个测试。
+- 阶段 5I 已运行：
+  - 本阶段未修改 YAML，直接复用 `transfer_detail` checkpoint 中的 `next_param_offset=3`。
+  - 已只读确认 checkpoint 为 `param_offset=0`、`param_limit=3`、`next_param_offset=3`。
+  - 已按程序真实排序确认 offset=3 的第二批调拨单号为 `TF20230616000004`、`TF20230617000005`、`TF20230617000006`，不重复第一批。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api transfer_detail`，通过，批次 `sync_20260703_081910_520250`，`rows=3`，`requests=3`。
+  - 已查询数据库摘要，确认该批次 `total_api_count=1`、`success_api_count=1`、`failed_api_count=0`。
+  - 同一批次 `sync_api_log` 记录 `request_count=3`、`success_count=3`、`failed_count=0`，`failed_request_log` 为 0 条。
+  - 同一批次 `raw_api_data` 写入 3 条，主键为 `TF20230616000004`、`TF20230617000005`、`TF20230617000006`，三条都有 `source_primary_key`、`data_hash` 和 `data_date`。
+  - `transfer_detail` checkpoint 更新到批次 `sync_20260703_081910_520250`，记录 `param_offset=3`、`param_limit=3`、`next_param_offset=6`。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，通过，同步配置数为 27。
+  - 已查询 `api_config`，确认 `transfer_detail.enabled=0`、`param_source.source_api_code=storage_inbound_page`、`param_source.limit=3`、`param_source.auto_advance=true`、过滤值为 `TFOutbound`。
+  - `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary`，通过，公开文档 API 为 185 个，真实配置 API 为 25 个，enabled 为 20 个。
+  - `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
+  - `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过，29 个测试。
 
 ## Review 4L-4N
 
@@ -1166,6 +1180,27 @@
   - 之后选择另一个参数来源更干净的依赖型接口，或者开始为依赖型接口设计独立的批量窗口命令。
   - 继续每轮用数据库查询证明参数来源、批次日志、raw、checkpoint，而不是只看命令返回成功。
 
+## Review 5G-5I
+
+- 已完成第八组目标模式闭环：
+  - 5G 验证 `country_province_query` 不改 YAML 自动推进到第二批国家码。
+  - 5H 新增 `transfer_detail`，并为 raw_json 参数来源增加最小固定等值过滤能力。
+  - 5I 验证 `transfer_detail` 不改 YAML 自动推进到第二批调拨单号。
+- 当前覆盖状态：
+  - 公开文档 API：185 个。
+  - 已配置真实 API：25 个。
+  - enabled API：20 个。
+  - `product_detail`、`market_inventory_query`、`storage_inbound_detail`、`country_province_query`、`transfer_detail` 已验证但保持 disabled。
+  - 当前依赖参数来源支持 `source_primary_key`、单字段 `raw_json`、多字段 `raw_json`、raw_json 固定等值过滤和 checkpoint 小窗口推进。
+- 本组三轮发现的问题：
+  - 基础数据类接口可能出现参数窗口成功但部分参数无返回数据，例如 `country_province_query` 的 `EU`、`UK`。
+  - `transfer_detail` 必须过滤 `opType=TFOutbound`，否则 `storage_inbound_page.raw_json.fcode` 会混入其他业务单据。
+  - `param_source.filters` 只解决固定等值过滤，不解决数组入参、嵌套数组、范围条件或复杂依赖调度。
+- 下一组三轮建议：
+  - 回到覆盖矩阵继续选择新的依赖型接口，优先选择可复用已有 `source_primary_key`、`fields` 或 `filters` 的低风险接口。
+  - 对需要数组入参的 `marketNames/query`、`warehouseIds/query` 暂不强行接入，除非先设计清楚数组参数编码。
+  - 依赖型接口继续保持 disabled，用 `--sync-api` 做小窗口验证。
+
 ## Known Issues
 
 - `amazon_shop_page` 第一版以 `data_hash` 去重，不强行编造业务主键。
@@ -1181,20 +1216,23 @@
 
 ## Next Stage
 
-阶段 5I：不改 YAML，继续验证 `transfer_detail` 的 checkpoint 自动推进。
+阶段 5J：从覆盖矩阵中选择下一个依赖型接口，继续扩大可验证覆盖面。
 
 建议目标：
 
-- 只读确认 `transfer_detail` 当前 checkpoint 为 `next_param_offset=3`。
-- 按程序 SQL 预览 offset=3 的第二批调拨单号，确认不会重复第一批 `TF20230616000001`、`TF20230616000002`、`TF20230616000003`。
-- 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api transfer_detail`。
-- 查询数据库确认第二批批次成功，`sync_api_log`、`raw_api_data`、checkpoint 都可追踪。
+- 只读读取覆盖矩阵，筛选 `requires_upstream_params` 中尚未配置、参数可从现有 enabled raw 数据获得、且不涉及敏感字段或写操作的候选接口。
+- 阅读候选接口公开文档详情，确认路径、方法、必填参数、响应形态、主键和日期字段。
+- 只读查询数据库，证明所需参数来源真实存在。
+- 新增一个依赖型 API 配置，默认 `enabled=false`，小样本 `limit` 控制在 3 左右。
+- 如果现有 `param_source.source_primary_key`、`param_source.fields` 或 `param_source.filters` 足够，优先不改代码；如果不够，必须测试先行做最小扩展。
+- 运行新接口小样本真实同步，确认批次、日志、raw 和 checkpoint 可追踪。
 - 完成后同步 `api_config`、刷新覆盖矩阵并运行编译与单测。
 
 验收：
 
-- `transfer_detail` 不改 YAML 自动推进到第二批参数窗口。
-- 第二批同步成功，`sync_api_log`、`raw_api_data` 和 checkpoint 可核验。
-- `api_config` 与覆盖矩阵显示真实配置 API 仍为 25 个，enabled 仍为 20 个。
+- 新依赖型接口完成文档确认和小样本真实同步，默认保持 disabled。
+- 参数来源由数据库只读查询证明，不靠猜测字段。
+- 新接口同步批次成功，`sync_api_log`、`raw_api_data` 和 checkpoint 可核验。
+- `api_config` 与覆盖矩阵显示真实配置 API 增加 1 个，enabled 仍为 20 个。
 - `compileall` 和 `unittest discover` 通过。
 - 继续保持 `.env`、token 缓存、日志和真实凭证不提交。
