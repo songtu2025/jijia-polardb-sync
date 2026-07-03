@@ -201,6 +201,8 @@ logs/sync.log
 
 当前已验证并启用 `amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`、`product_page`、`parent_product_page`、`kb_product_page`、`fba_warehouse_page`、`store_location_page`、`multi_shop_query`、`crm_tags_page`、`inventory_team_query`、`product_inventory_page`、`storage_inbound_page`、`storage_return_page`、`strategy_template_page` 和 `base_currency_query`。
 
+另有一批已完成小窗口或空结果验证但默认未启用的接口，例如 `purchase_plan_page`、`transfer_page`、`lot_no_page` 和若干库存、SKU 映射、详情类接口；这些接口需先评估数据量和业务风险，再决定是否进入每天的 enabled 批量同步。
+
 ### accessToken 如何获取？
 
 根据积加开放平台文档 `id=596`，获取 token 的文档路径是 `POST /api_token`，实际开放接口网关前缀是 `/api/open`，所以程序会请求 `/api/open/api_token`。请求体包含 `appId` 和 `appKey`，响应数据包含 `accessToken`、`expiresIn` 和 `expiresOut`。

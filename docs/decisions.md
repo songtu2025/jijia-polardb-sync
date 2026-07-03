@@ -613,3 +613,11 @@
 - 阶段 5W 的真实轻量回归批次为 `sync_20260703_123218_791772`，只运行 `base_currency_query`、`storage_return_page`、`strategy_template_page` 三个低风险 enabled API，状态 `success`，3 个 API 全部成功，写入 21 条，失败 0。
 - 阶段 5W 不重跑完整 23 API 批量；原因是 5V 已有 5735 秒完整批次证据，本轮目标是验证事务边界，使用测试和 3 API 真实子集即可覆盖风险点。
 - 后续 `--sync-enabled` 已完成 API 的 raw、log 和 checkpoint 可以随单 API 事务提交后对外可见；但总运行时长仍需要按当前约 3053 次请求的长窗口管理。
+- 阶段 5X 新增 `purchase_plan_page`，文档 id 为 `87`，路径为 `POST /purchase/srm/plan/page`，默认保持 `enabled=false`。
+- `purchase_plan_page` 选择依据：采购计划列表只有分页字段为必填，无业务必填参数，普通分页，风险低于订单、财务、物流费用、客服文本和大体量库存报表。
+- `purchase_plan_page` 响应列表字段为 `data.rows`，总数字段为 `data.total`；本轮使用业务计划编号 `code` 作为主键，使用 `createdAt` 作为日期字段。
+- 阶段 5X 已用真实接口验证 `purchase_plan_page`，批次号为 `sync_20260703_124115_334136`，请求 1 次，写入 0 条，失败 0。
+- `purchase_plan_page` 当前账号 `total_count=0`，因此没有 raw 样本；该验证只能证明接口可访问、分页和 checkpoint 正常，不能证明非空字段样本。
+- 阶段 5X 后 `purchase_plan_page` checkpoint 指向批次 `sync_20260703_124115_334136`，`checkpoint_value` 记录 `last_page=1`、`request_count=1`、`item_count=0`、`total_count=0`。
+- 阶段 5X 已同步 `api_config`，当前数据库总配置 39 条，启用 23 条；覆盖矩阵刷新后为公开文档 API 185 个、真实配置 API 37 个、enabled 23 个。
+- 5V-5X 复盘结论：enabled 覆盖、事务边界和新增覆盖都完成一轮推进；下一组继续扩容时，0 数据接口不能作为进入 enabled 的充分证据，大体量和敏感域仍默认 disabled 小窗口验证。
