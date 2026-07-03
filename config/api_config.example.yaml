@@ -865,6 +865,39 @@ apis:
       page: 1
       pagesize: 100
 
+  # 第四十二个真实文档接口：FBA货件看板，文档 id=1034，使用收货日期窗口做单页验证，默认保持 disabled。
+  - api_code: shipment_data_page
+    name: 查询FBA货件看板
+    enabled: false
+    method: POST
+    path: /fulfillment/ship/shipmentData/page
+    page:
+      enabled: true
+      page_no_field: page
+      page_size_field: pagesize
+      page_size: 100
+      max_pages: 1
+      list_field: data.rows
+      total_field: data.total
+    primary_key:
+      field: ""
+      required: false
+    date_field: receivingAt
+    date_window:
+      enabled: true
+      start_field: receivingDateBegin
+      end_field: receivingDateEnd
+      default_start: "2026-07-02"
+      days: 1
+    rate_limit:
+      sleep_seconds: 0.5
+    retry:
+      retries: 3
+      delay_seconds: 1
+    params:
+      page: 1
+      pagesize: 100
+
   # 第三十七个真实文档接口：采购计划列表，文档 id=87，当前作为低风险小窗口候选，默认保持 disabled。
   - api_code: purchase_plan_page
     name: 查询采购计划列表

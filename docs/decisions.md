@@ -670,3 +670,10 @@
 - 阶段 6E 补齐 `date_window` 追平当前日期后的跳过策略：当 checkpoint 的 `next_window_start` 晚于当天时，不再发起真实 API 请求。
 - 阶段 6E 的追平跳过会写入成功日志和 checkpoint，`request_count=0`、`item_count=0`，并保留 `next_window_start`、`window_days` 和 `skipped_reason=date_window_caught_up`，避免空跑后丢失窗口位置。
 - 阶段 6E 保持 `date_window` 只负责单接口窗口推进和跳过，不引入复杂调度器；后续如要完整拉取更多超大表，仍需逐接口验证真实日期字段、限流和主键可靠性。
+- 阶段 6F 新增 `shipment_data_page`，文档 id 为 `1034`，路径为 `POST /fulfillment/ship/shipmentData/page`，默认保持 `enabled=false`。
+- `shipment_data_page` 选择依据：FBA 货件看板是普通分页直读接口，公开矩阵未标敏感响应，且顶层 `receivingDateBegin`、`receivingDateEnd` 可直接复用 `date_window`。
+- `shipment_data_page` 真实探测确认 `2026-07-02` 单日窗口返回 `total=943`；样本包含 `shipmentId`、`receivingAt`、`recordAt`、`updatedAt`、`product`、`sellerSku`、`warehouseId` 和 `status`。
+- `shipment_data_page` 首次用 `shipmentId` 做主键时，100 个 item 只落 6 条 raw，证明 `shipmentId` 是货件级字段，不是行级主键；本轮改为空主键，依赖 `data_hash` 幂等。
+- 阶段 6F 修正后已用真实接口验证 `shipment_data_page`，批次号为 `sync_20260703_140547_384755`，请求 1 次，写入 58 条，失败 0。
+- 阶段 6F 后 `shipment_data_page` checkpoint 指向批次 `sync_20260703_140547_384755`，`checkpoint_value` 记录 `last_page=1`、`request_count=1`、`item_count=58`、`total_count=58`、`window_start=2026-07-03`、`window_end=2026-07-03`、`next_window_start=2026-07-04`、`window_days=1`。
+- 阶段 6F 已同步 `api_config`，当前数据库总配置 44 条，启用 23 条；覆盖矩阵刷新后为公开文档 API 185 个、真实配置 API 42 个、enabled 23 个。
