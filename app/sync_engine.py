@@ -3,7 +3,7 @@ import hashlib
 import json
 import re
 import time
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import text
@@ -14,6 +14,7 @@ from app.retry import retry_call
 
 logger = logging.getLogger(__name__)
 RAW_JSON_FIELD_PATTERN = re.compile(r"^[A-Za-z0-9_.]+$")
+DATE_PARAM_TEMPLATE_PATTERN = re.compile(r"^\{\{\s*(today|yesterday|days_ago:(\d+))\s*\}\}$")
 
 
 class ApiRequestError(Exception):
@@ -451,7 +452,7 @@ class SyncEngine:
             param_sets = self._source_param_sets(connection, api, offset=param_offset)
             total_count = len(param_sets)
             for index, source_params in enumerate(param_sets, start=1):
-                params = dict(api.get("params") or {})
+                params = self._request_params(api)
                 params.update(source_params)
                 payload, attempt_count = self._request_with_retry(api, api_client, token, params)
                 request_count += attempt_count
@@ -693,7 +694,7 @@ class SyncEngine:
         """
         page_config = api.get("page") or {}
         if not page_config.get("enabled", False):
-            params = api.get("params") or {}
+            params = self._request_params(api)
             payload, attempt_count = self._request_with_retry(api, api_client, token, params)
             yield 1, payload, attempt_count
             return
@@ -707,7 +708,7 @@ class SyncEngine:
         pages_requested = 0
 
         while pages_requested < max_pages:
-            params = dict(api.get("params") or {})
+            params = self._request_params(api)
             params[page_no_field] = page_no
             params[page_size_field] = page_size
 
@@ -721,6 +722,37 @@ class SyncEngine:
             if page_no * page_size >= total:
                 break
             page_no += 1
+
+    def _request_params(self, api: dict[str, Any]) -> dict[str, Any]:
+        """读取并解析 YAML 请求参数。
+
+        日期模板只解决滚动窗口这类通用需求；未知占位符保持原样，避免影响历史
+        示例配置或后续更明确的 checkpoint 模板设计。
+        """
+        return self._resolve_param_templates(api.get("params") or {})
+
+    def _resolve_param_templates(self, value: Any, today: date | None = None) -> Any:
+        """递归解析请求参数中的日期占位符。"""
+        current_date = today or date.today()
+        if isinstance(value, dict):
+            return {key: self._resolve_param_templates(item, current_date) for key, item in value.items()}
+        if isinstance(value, list):
+            return [self._resolve_param_templates(item, current_date) for item in value]
+        if not isinstance(value, str):
+            return value
+
+        match = DATE_PARAM_TEMPLATE_PATTERN.match(value)
+        if not match:
+            return value
+
+        token = match.group(1)
+        if token == "today":
+            return current_date.isoformat()
+        if token == "yesterday":
+            return (current_date - timedelta(days=1)).isoformat()
+        if token.startswith("days_ago:"):
+            return (current_date - timedelta(days=int(match.group(2)))).isoformat()
+        return value
 
     def _source_param_sets(
         self,

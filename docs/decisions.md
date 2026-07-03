@@ -647,3 +647,8 @@
 - 阶段 6A 后 `inventory_age_page` checkpoint 指向批次 `sync_20260703_131645_314835`，`checkpoint_value` 记录 `last_page=3`、`request_count=3`、`item_count=30`、`total_count=6597161`。
 - 阶段 6A 已同步 `api_config`，当前数据库总配置 42 条，启用 23 条；覆盖矩阵刷新后为公开文档 API 185 个、真实配置 API 40 个、enabled 23 个。
 - 5Y-6A 复盘结论：库存域普通分页接口可以继续用默认 disabled 小窗口方式验证，但 `inventory_event_page` 和 `inventory_age_page` 已暴露超大体量和慢响应问题；后续不能靠扩大 `max_pages` 做完整拉取，必须设计时间窗口、增量过滤、独立调度和失败恢复。
+- 阶段 6B 不新增 API，先补请求参数日期模板能力；原因是剩余候选已集中在订单、财务、物流、客服文本、销售售后和超大库存报表，继续加 disabled 大表不能解决完整拉取的运行窗口问题。
+- 阶段 6B 新增 `{{ today }}`、`{{ yesterday }}`、`{{ days_ago:N }}` 三类日期占位符，发起请求前统一展开为 `YYYY-MM-DD`。
+- 未知占位符保持原样，避免破坏历史示例配置中的 `{{ checkpoint_or_default_start }}`，也为后续 checkpoint 驱动窗口保留设计空间。
+- 日期模板会在非分页、分页和依赖参数请求路径统一生效；本轮验证目标是参数生成行为，不改变 `api_config` 数量和 enabled 数量。
+- 阶段 6B 后真实配置 API 仍为 40 个，enabled 仍为 23 个；本轮通过 dry-run、compileall 和 53 个单测验证。

@@ -25,7 +25,7 @@
 
 当前阶段：
 
-阶段 6A 已完成。下一阶段 6B 继续推进完整覆盖；6B-6D 是下一组三轮。enabled 批量仍是长任务，暂不要直接启用大体量接口。
+阶段 6B 已完成。下一阶段 6C 继续推进完整覆盖；6B-6D 是当前三轮组。enabled 批量仍是长任务，暂不要直接启用大体量接口。
 
 当前事实：
 
@@ -50,9 +50,14 @@
 - 数据库确认 `api_config` 总数 42、启用 23；`inventory_age_page.enabled=0`、`timeout_seconds=90`、`page.page_size=10`、`page.max_pages=3`、`primary_key.field=id`、`date_field=updateDate`。
 - `.\\.venv\\Scripts\\python.exe -m app.main` dry-run 显示 23 个 enabled API。
 - `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary` 已通过，公开文档 185 个，真实配置 40 个，enabled 23 个；该命令会访问公开文档，运行时继续给较长超时。
-- `.\\.venv\\Scripts\\python.exe -m compileall app tests` 已通过。
-- `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"` 已通过，52 个测试。
+- 6B 没有新增 API，也没有改变 enabled 数量；本轮新增请求参数日期模板能力，用来支撑后续大表按日期窗口拆分同步。
+- `SyncEngine` 现在会在非分页、分页和依赖参数请求前解析 YAML `params` 中的日期模板。
+- 当前支持 `{{ today }}`、`{{ yesterday }}`、`{{ days_ago:N }}` 三类占位符，展开格式为 `YYYY-MM-DD`；未知占位符保持原样。
+- 6B 的 `.\\.venv\\Scripts\\python.exe -m app.main` dry-run 显示 23 个 enabled API。
+- 6B 的 `.\\.venv\\Scripts\\python.exe -m compileall app tests` 已通过。
+- 6B 的 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"` 已通过，53 个测试。
 - 5Y-6A 复盘结论：库存域普通分页接口可以继续用默认 disabled 小窗口方式验证，但超大体量和慢响应已经成为主要风险；后续不能靠扩大 `max_pages` 做完整拉取，必须设计时间窗口、增量过滤、独立调度和失败恢复。
+- 6B 结论：日期模板只是滚动窗口基础能力，还不是完整增量系统；当前尚未实现按 checkpoint 自动推进历史窗口。
 - 当前依赖参数来源机制支持 `source_primary_key`、单字段 `raw_json`、多字段 `raw_json`、raw_json 固定等值过滤、checkpoint 小窗口推进，以及按 `primary_key.required=true` 过滤缺主键响应对象。
 - 当前响应提取机制支持列表、单对象和标量包装；普通分页列表字段可用 `page.list_field` 点路径指定，例如 `data.rows` 或 `data.records`。
 - 当前仍不支持数组入参、嵌套数组来源或复杂过滤表达式。
@@ -64,14 +69,14 @@
 
 建议目标：
 
-1. 先只读读取覆盖矩阵、当前 disabled 已验证接口清单和 5Y-6A 复盘结论。
-2. 优先决定 6B 是继续新增低风险接口，还是开始设计超大接口的增量/窗口策略。
-3. 如果继续新增接口，优先选择无敏感字段、无写操作、无数组编码不确定性、能明确主键和日期字段的候选。
+1. 先只读读取覆盖矩阵、当前 disabled 已验证接口清单、5Y-6A 复盘结论和 6B 日期模板实现。
+2. 优先决定 6C 是用日期模板接入一个低风险日期窗口接口，还是继续实现 checkpoint 驱动的历史窗口推进。
+3. 如果继续新增接口，优先选择需要日期窗口且业务风险可控的统计、报表或配置类接口；暂不要直接进入订单、财务敏感明细、客服文本或物流费用。
 4. 如果候选涉及订单、财务、客服文本、物流费用或销售售后，先说明业务风险边界，再决定是否只做小窗口验证。
 5. 暂不强行接入数组入参、嵌套数组来源、疑似写操作或请求编码未确认的接口。
 6. 阅读候选接口公开文档详情，确认路径、方法、必填参数、响应形态、主键和日期字段。
 7. 如果是依赖型接口，先只读查询数据库证明参数来源真实存在；如果是直读接口，先用一次真实请求确认响应形态和响应耗时。
-8. 新增一个 API 配置时默认 `enabled=false`；分页直读接口用 `max_pages` 控制接入窗口，必要时用 `timeout_seconds` 处理慢接口，依赖型接口小样本 `limit` 控制在 3 左右。
+8. 新增一个 API 配置时默认 `enabled=false`；分页直读接口用 `max_pages` 控制接入窗口，必要时用 `timeout_seconds` 和日期模板控制慢接口或大接口，依赖型接口小样本 `limit` 控制在 3 左右。
 9. 启用任何接口前，先有测试约束 enabled 数量和目标接口状态，再同步 DB 配置。
 10. 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs` 同步 DB 配置。
 11. 按本轮目标运行单接口同步或 `--sync-enabled` 回归；如果运行完整 `--sync-enabled`，要给足超过 2 小时的窗口。

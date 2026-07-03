@@ -79,6 +79,8 @@ mysql -h <POLARDB_HOST> -P 3306 -u <DB_USER> -p <DB_NAME> < sql/init_tables.sql
 3. 填写真实 `path`、分页字段、主键字段和日期字段。
 4. 如果接口没有稳定业务主键，将由后续同步逻辑使用 `data_hash` 去重。
 
+对需要滚动日期窗口的接口，`params` 支持少量日期占位符：`{{ today }}`、`{{ yesterday }}` 和 `{{ days_ago:7 }}`。程序会在发起请求前展开为 `YYYY-MM-DD`，用于后续把超大表拆成较小日期窗口同步。
+
 ## 本地运行
 
 安装依赖：

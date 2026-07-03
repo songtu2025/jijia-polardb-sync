@@ -2,7 +2,7 @@
 
 ## Current Stage
 
-阶段 6A 已完成。已新增并验证 `inventory_age_page` FBA 库龄列表候选，当前真实配置 API 为 40 个，enabled API 为 23 个。
+阶段 6B 已完成。已新增请求参数日期模板能力，当前真实配置 API 为 40 个，enabled API 为 23 个。
 
 ## Completed
 
@@ -1786,6 +1786,25 @@
   - 如果继续库存域，建议优先设计超大接口的运行窗口和增量策略，而不是继续新增全量大分页候选。
   - 启用任何新接口前，必须先证明真实体量、运行耗时和业务风险都适合 daily enabled。
 
+## Stage 6B
+
+- 阶段目标：不继续简单新增大分页候选，先补齐超大表按日期窗口拆分同步所需的最小参数模板能力。
+- 已完成：
+  - 只读校准后确认当前剩余 `direct_read_candidate` 已集中在多平台订单、客服文本、库存报表、物流、财务、采购和销售售后；直接新增候选会继续增加高风险 disabled 接口，但不能解决完整拉取超大表的问题。
+  - 本轮决定优先处理 5Y-6A 复盘暴露的共性缺口：现有分页同步只能使用静态 `params`，不能把 daily 窗口参数按运行日期展开。
+  - 已新增 `tests/test_sync_engine_param_templates.py`，先失败于 `SyncEngine` 缺少 `_resolve_param_templates()`，再通过。
+  - `SyncEngine` 现在会在发起非分页、分页和依赖参数请求前解析 YAML `params` 中的日期模板。
+  - 当前支持 `{{ today }}`、`{{ yesterday }}`、`{{ days_ago:N }}` 三类日期占位符，统一展开为 `YYYY-MM-DD`；未知占位符保持原样，避免影响历史占位示例和未来 checkpoint 模板设计。
+  - 该能力是后续接入统计、广告、财务、库存分类账和超大库存接口时的基础能力，可把接口请求限制在小日期窗口内，而不是直接全量分页。
+  - 本轮不新增 API，不改变 `api_config` 和覆盖矩阵数量；真实配置 API 仍为 40 个，enabled 仍为 23 个。
+  - `.\\.venv\\Scripts\\python.exe -m app.main`，通过，dry-run 显示 23 个 enabled API。
+  - `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
+  - `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过，53 个测试。
+- 当前结论：
+  - 6B 是完整拉取能力的基础改造，不是接口数量扩容；它降低后续高体量 API 的接入风险。
+  - 该能力还不是完整增量系统：当前只支持按运行日期展开静态窗口，尚未实现按 checkpoint 自动推进历史窗口。
+  - 6C 可以选择一个需要日期窗口的低风险统计/报表接口做 disabled 小窗口验证，或继续实现 checkpoint 驱动的日期窗口推进。
+
 ## Known Issues
 
 - `amazon_shop_page` 第一版以 `data_hash` 去重，不强行编造业务主键。
@@ -1798,12 +1817,13 @@
 - 覆盖矩阵是公开文档视角，不等同于当前账号真实授权可调用结果；真实可访问性仍需单接口运行验证。
 - `purchase_plan_page` 当前总量为 0 条；`storage_return_page` 当前总量为 1 条；`strategy_template_page` 当前总量为 19 条；`platform_msku_page` 当前总量为 1707 条，请求约 18 页；`transfer_page` 当前总量为 6755 条，请求约 68 页；`product_page` 当前总量为 8258 条，请求 83 页；`lot_no_page` 当前总量为 8602 条，请求约 87 页；`amazon_msku_page` 当前总量为 18430 条，请求约 185 页；`fba_inventory_page` 和 `fba_inventory_v2_page` 当前总量均为 30759 条，请求约 308 页；`inventory_adjustments_page` 当前总量为 58239 条，请求约 583 页；`product_inventory_page` 当前总量为 118653 条，请求 1187 页；`storage_inbound_page` 当前总量为 174286 条，请求 1743 页；`inventory_event_page` 当前总量为 2669068 条，请求约 26691 页；`inventory_age_page` 当前总量为 6597161 条，当前小窗口配置为每页 10 条且单页响应很慢。当前 23 个 enabled API 的真实批量同步约 3053 次请求，5V 实测耗时 5735 秒，必须按长耗时任务安排 cron 窗口。
 - `--sync-enabled` 已在 5W 改为批次头、单 API、最终汇总分事务提交，已完成 API 的 raw、log 和 checkpoint 可随 API 完成后提交；但总运行时长仍由接口请求量和数据库写入量决定。
+- 请求参数已支持 `{{ today }}`、`{{ yesterday }}`、`{{ days_ago:N }}` 三类日期模板；这只能表达滚动日期窗口，还不能自动补齐历史日期范围。
 - 后续如果继续增加大分页接口或依赖型批量接口，需要关注运行时长、数据库写入耗时和 cron 窗口。
 - 远程 PolarDB 如出现遗留睡眠未提交事务，可能导致 raw 写入锁等待超时，需要先查 `information_schema.processlist` 和 `information_schema.innodb_trx`。
 
 ## Next Stage
 
-阶段 6B：继续推进完整覆盖。6B-6D 是下一组三轮；优先处理低风险候选或开始设计超大表增量/窗口策略，仍不能直接启用大体量接口。
+阶段 6C：继续推进完整覆盖。6B-6D 是下一组三轮；优先用新日期模板验证一个低风险日期窗口接口，或继续补齐 checkpoint 驱动的历史窗口推进。
 
 建议目标：
 
@@ -1821,6 +1841,6 @@
 - 新接口完成文档确认和小样本真实同步，默认保持 disabled，除非它是已充分验证的低风险直读接口。
 - 参数来源由数据库只读查询证明，不靠猜测字段。
 - 新接口同步批次成功，`sync_api_log`、`raw_api_data` 和 checkpoint 可核验。
-- `api_config` 与覆盖矩阵显示真实配置 API 或 enabled 数量符合本轮目标；当前基线是真实配置 API 39 个、enabled 23 个。
+- `api_config` 与覆盖矩阵显示真实配置 API 或 enabled 数量符合本轮目标；当前基线是真实配置 API 40 个、enabled 23 个。
 - `compileall` 和 `unittest discover` 通过。
 - 继续保持 `.env`、token 缓存、日志和真实凭证不提交。
