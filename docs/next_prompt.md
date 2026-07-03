@@ -25,38 +25,39 @@
 
 当前阶段：
 
-阶段 5Q 已完成。下一阶段 5R 继续回到覆盖矩阵，选择下一个低风险接口扩大覆盖；优先选择业务风险可控的普通分页、单对象或清晰依赖参数接口，并继续避开写操作、数组编码未知、强限流和高敏感接口。5R 完成后需要做 5P-5R 三轮复盘。
+阶段 5R 已完成，并已完成 5P-5R 三轮复盘。下一阶段 5S 继续回到覆盖矩阵，选择下一个低风险接口扩大覆盖；优先选择业务风险可控、体量适中、字段清晰的普通分页、单对象或清晰依赖参数接口，并继续避开写操作、数组编码未知、强限流和高敏感接口。
 
 当前事实：
 
 - 当前 enabled API 有 20 个：`amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`、`product_page`、`parent_product_page`、`kb_product_page`、`fba_warehouse_page`、`store_location_page`、`multi_shop_query`、`crm_tags_page`、`inventory_team_query`、`product_inventory_page`、`storage_inbound_page`。
-- 当前已配置真实 API 有 32 个，其中 20 个已 enabled，`product_detail`、`market_inventory_query`、`storage_inbound_detail`、`country_province_query`、`transfer_detail`、`lot_no_detail`、`delivery_fee_query`、`base_currency_query`、`amazon_msku_page`、`platform_msku_page`、`fba_inventory_v2_page` 和 `inventory_adjustments_page` 已验证但保持 disabled。
-- `inventory_adjustments_page` 文档 id 为 `20`，路径为 `POST /purchase/store/inventoryAdjustments/page`。
-- `inventory_adjustments_page` 无必填入参、普通分页、非敏感响应；真实探测确认响应 `code=200`，`data` 包含 `total`、`pagesize`、`page`、`rows`。
-- 阶段 5Q 探测时当前账号 `inventory_adjustments_page.total=58239`，首条记录字段包含 `id`、`msku`、`warehouseId`、`marketTimeZone`、`zeroTimeZone`、`reason`、`quantity`。
-- `inventory_adjustments_page` 使用 `id` 作为 `source_primary_key`，使用 `marketTimeZone` 作为 `data_date` 来源。
-- `inventory_adjustments_page` 配置默认 `enabled=false`，`page.list_field=data.rows`，`page.total_field=data.total`，`page.max_pages=3`，`page.page_size=100`，`primary_key.field=id`，`date_field=marketTimeZone`。
-- 阶段 5Q 正式同步批次为 `sync_20260703_095134_364973`，`rows=300`，`requests=3`。
+- 当前已配置真实 API 有 33 个，其中 20 个已 enabled，`product_detail`、`market_inventory_query`、`storage_inbound_detail`、`country_province_query`、`transfer_detail`、`lot_no_detail`、`delivery_fee_query`、`base_currency_query`、`amazon_msku_page`、`platform_msku_page`、`fba_inventory_v2_page`、`inventory_adjustments_page` 和 `transfer_page` 已验证但保持 disabled。
+- `transfer_page` 文档 id 为 `1020`，路径为 `POST /fulfillment/inventory/transfer/page`。
+- `transfer_page` 无必填入参、普通分页、非敏感响应；真实探测确认响应 `code=200`，`data` 包含 `total`、`pagesize`、`page`、`rows`。
+- 阶段 5R 探测时当前账号 `transfer_page.total=6755`，首条记录字段包含 `id`、`code`、`warehouseId`、`arrivalWarehouseId`、`createDate`、`auditTime`、`deliveryDate`、`updateTime`。
+- `transfer_page` 使用业务单号 `code` 作为 `source_primary_key`，使用 `createDate` 作为 `data_date` 来源。
+- `transfer_page` 配置默认 `enabled=false`，`page.list_field=data.rows`，`page.total_field=data.total`，`page.max_pages=3`，`page.page_size=100`，`primary_key.field=code`，`date_field=createDate`。
+- 阶段 5R 正式同步批次为 `sync_20260703_100202_100619`，`rows=300`，`requests=3`。
 - 数据库已确认该批次 `total_api_count=1`、`success_api_count=1`、`failed_api_count=0`。
-- `inventory_adjustments_page` 同批次 `sync_api_log` 为 `request_count=3`、`success_count=300`、`failed_count=0`、`error_message=NULL`。
+- `transfer_page` 同批次 `sync_api_log` 为 `request_count=3`、`success_count=300`、`failed_count=0`、`error_message=NULL`。
 - 同批次 raw 写入 300 条，0 条缺少 `source_primary_key`，300 条都有 `data_hash`，300 条都有 `data_date`。
-- 同批次 raw 的 `data_date` 范围为 `2022-07-30` 到 `2022-08-28`。
-- `inventory_adjustments_page` checkpoint 指向批次 `sync_20260703_095134_364973`，`checkpoint_value` 记录 `last_page=3`、`request_count=3`、`item_count=300`、`total_count=58239`。
+- 同批次 raw 的 `data_date` 范围为 `2022-09-20` 到 `2022-12-19`。
+- `transfer_page` checkpoint 指向批次 `sync_20260703_100202_100619`，`checkpoint_value` 记录 `last_page=3`、`request_count=3`、`item_count=300`、`total_count=6755`。
 - `failed_request_log` 中该批次该接口为 0 条。
 - `.\\.venv\\Scripts\\python.exe -m app.main` dry-run 显示 20 个 enabled API。
-- 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，同步配置数为 34；其中 2 个是占位示例，真实 API 为 32 个。
-- 数据库已确认 `api_config.inventory_adjustments_page.enabled=0`、`page.max_pages=3`、`page.page_size=100`、`primary_key.field=id`、`date_field=marketTimeZone`，数据库配置总数 34、启用 20。
-- 覆盖矩阵显示公开文档 API 185 个，真实配置 API 32 个，enabled 20 个。
+- 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，同步配置数为 35；其中 2 个是占位示例，真实 API 为 33 个。
+- 数据库已确认 `api_config.transfer_page.enabled=0`、`page.max_pages=3`、`page.page_size=100`、`primary_key.field=code`、`date_field=createDate`，数据库配置总数 35、启用 20。
+- 覆盖矩阵显示公开文档 API 185 个，真实配置 API 33 个，enabled 20 个。
 - 已运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
-- 已运行 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过，41 个测试。
-- 5Q 新增了 `tests/test_inventory_adjustments_page_config.py`，用来约束该接口默认 disabled、分页窗口、主键和日期字段。
+- 已运行 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过，42 个测试。
+- 5R 新增了 `tests/test_transfer_page_config.py`，用来约束该接口默认 disabled、分页窗口、主键和日期字段。
+- 5P-5R 复盘已写入 `docs/progress.md`：三轮新增 `fba_inventory_v2_page`、`inventory_adjustments_page`、`transfer_page`；均保持 disabled。
 - 当前依赖参数来源机制支持 `source_primary_key`、单字段 `raw_json`、多字段 `raw_json`、raw_json 固定等值过滤、checkpoint 小窗口推进，以及按 `primary_key.required=true` 过滤缺主键响应对象。
 - 当前响应提取机制支持列表、单对象和标量包装。
 - 当前仍不支持数组入参、嵌套数组来源或复杂过滤表达式。
 - `marketNames/query` 的常见 GET 数组编码已试过会返回 400，暂不要在未确认真实编码前强行接入。
 - `deliveryFee/query` 和 `relevancePoInfo/query` 高频探测时出现过 509；后续对类似接口应减少手工扫参，优先用小窗口同步和较长等待。
-- 阶段 5Q 探测时，`inventory_event_page` 当前总量过大，`inventory_receipts_page` 当前总量过大，`inventory_age_page` 30 秒超时；后续如果继续库存域接口，需要先评估运行窗口。
-- `inventory_adjustments_page` 全量约 583 页；后续如果要把大库存类接口加入日常 enabled，需要先评估运行窗口和 cron 执行时长。
+- 阶段 5R 探测时，`purchase_plan_page` 当前无数据，`purchase_sale_storage_fba_page` 和 `purchase_sale_storage_self_page` 体量较大；`lot_no_page` 可后续考虑。
+- `transfer_page` 全量约 68 页；后续如果要加入日常 enabled，需要先评估它与相关详情接口的运行窗口。
 - 剩余低风险直读候选减少，后续接口更多涉及库存报表、财务、订单、物流或采购，需要更严格控制 `max_pages` 和业务风险。
 - `app.doc_catalog` 会访问公开文档并重建 185 个详情；如果 120 秒左右超时，可在确认不是代码错误后用更长超时重跑。
 - `app.main` 当前没有 `--dry-run` 参数；如需确认 enabled 数量，用 `.\\.venv\\Scripts\\python.exe -m app.main` 或 `app.doc_catalog` 摘要，不要假设 CLI 支持 `--dry-run`。
@@ -65,21 +66,20 @@
 建议目标：
 
 1. 只读读取覆盖矩阵，筛选尚未配置、无敏感字段、无写操作、无数组编码不确定性的候选接口。
-2. 优先选择业务风险可控的普通分页接口、单对象直读接口，或能复用 `response.scalar_field`、`source_primary_key`、`param_source.fields`、`param_source.filters`、`primary_key.required` 的低风险接口。
+2. 优先选择业务风险可控、体量适中、字段清晰的普通分页接口、单对象直读接口，或能复用 `response.scalar_field`、`source_primary_key`、`param_source.fields`、`param_source.filters`、`primary_key.required` 的低风险接口。
 3. 暂不强行接入数组入参、嵌套数组来源、疑似写操作或请求编码未确认的接口。
 4. 阅读候选接口公开文档详情，确认路径、方法、必填参数、响应形态、主键和日期字段。
 5. 如果是依赖型接口，先只读查询数据库证明参数来源真实存在；如果是直读接口，先用一次真实请求确认响应形态。
 6. 新增一个 API 配置，默认 `enabled=false`；分页直读接口用 `max_pages` 控制接入窗口，依赖型接口小样本 `limit` 控制在 3 左右。
 7. 如果现有机制足够，优先不改代码；如果不够，必须测试先行做最小扩展。
-8. 运行新接口 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api <api_code>` 做小样本真实同步。
-9. 查询数据库确认新接口批次成功，`sync_api_log`、`raw_api_data`、checkpoint 都可追踪；如果返回空对象，确认不会产生缺主键脏 raw。
-10. 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`。
+8. 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs` 同步 DB 配置。
+9. 运行新接口 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api <api_code>` 做小样本真实同步。
+10. 查询数据库确认新接口批次成功，`sync_api_log`、`raw_api_data`、checkpoint 都可追踪；如果返回空对象，确认不会产生缺主键脏 raw。
 11. 查询 `<api_code>.enabled=0`。
 12. 运行 `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary`，确认真实配置 API 增加 1 个、enabled 仍为 20 个。
 13. 运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests`。
 14. 运行 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`。
 15. 更新三份 docs，并提交推送；不要提交 `.env`、token 缓存、日志或任何敏感信息。
-16. 5R 完成后，补充 5P-5R 三轮复盘。
 
 验收：
 
@@ -89,4 +89,3 @@
 4. `api_config` 与覆盖矩阵显示真实配置 API 增加 1 个，enabled 仍为 20 个。
 5. `compileall` 和 `unittest discover` 通过。
 6. 不提交 `.env`、token 缓存、日志或真实凭证。
-7. 5R 结束后完成 5P-5R 复盘。

@@ -640,6 +640,33 @@ apis:
       page: 1
       pagesize: 100
 
+  # 第三十三个真实文档接口：调拨单列表，文档 id=1020，先用 3 页窗口验证，默认保持 disabled。
+  - api_code: transfer_page
+    name: 查询调拨单列表
+    enabled: false
+    method: POST
+    path: /fulfillment/inventory/transfer/page
+    page:
+      enabled: true
+      page_no_field: page
+      page_size_field: pagesize
+      page_size: 100
+      max_pages: 3
+      list_field: data.rows
+      total_field: data.total
+    primary_key:
+      field: code
+      required: false
+    date_field: createDate
+    rate_limit:
+      sleep_seconds: 0.2
+    retry:
+      retries: 3
+      delay_seconds: 1
+    params:
+      page: 1
+      pagesize: 100
+
   # 第二十一个真实文档接口：产品详情，文档 id=211，依赖 product_page 的产品 id，小样本验证阶段保持 disabled。
   - api_code: product_detail
     name: 查询产品详情

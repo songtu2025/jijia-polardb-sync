@@ -563,3 +563,12 @@
 - 阶段 5Q 已同步 `api_config`，当前数据库总配置 34 条，启用 20 条；`inventory_adjustments_page.enabled=0`、`page.max_pages=3`、`primary_key.field=id`、`date_field=marketTimeZone`。
 - 阶段 5Q 覆盖矩阵已刷新为公开文档 API 185 个、真实配置 API 32 个、enabled 20 个。
 - 阶段 5Q 结论：FBA 盘库列表有稳定 `id` 和可解析业务日期，但全量约 583 页，暂不进入日常 enabled，同步窗口需要后续单独评估。
+- 阶段 5R 新增 `transfer_page`，文档 id 为 `1020`，路径为 `POST /fulfillment/inventory/transfer/page`，默认保持 `enabled=false`。
+- `transfer_page` 选择依据：调拨单列表普通分页、响应非敏感，当前账号 `total=6755`，体量小于多个库存大表，且能补齐调拨列表对象。
+- 阶段 5R 真实探测确认该接口返回 `data.rows` 和 `data.total`，接入阶段继续用 `max_pages=3` 控制窗口。
+- `transfer_page` 响应字段包含 `id`、`code`、`warehouseId`、`arrivalWarehouseId`、`createDate`、`auditTime`、`deliveryDate`、`updateTime`；本轮使用业务单号 `code` 作为主键，使用 `createDate` 作为日期字段。
+- 阶段 5R 已用真实接口验证 `transfer_page`，批次号为 `sync_20260703_100202_100619`，请求 3 次，写入 300 条，失败 0。
+- 阶段 5R 后 `transfer_page` checkpoint 指向批次 `sync_20260703_100202_100619`，`checkpoint_value` 记录 `last_page=3`、`request_count=3`、`item_count=300`、`total_count=6755`。
+- 阶段 5R 已同步 `api_config`，当前数据库总配置 35 条，启用 20 条；`transfer_page.enabled=0`、`page.max_pages=3`、`primary_key.field=code`、`date_field=createDate`。
+- 阶段 5R 覆盖矩阵已刷新为公开文档 API 185 个、真实配置 API 33 个、enabled 20 个。
+- 5P-5R 复盘结论：库存和调拨类接口可继续用普通分页小窗口扩容，但大体量接口不能直接加入日常 enabled；有稳定业务主键时优先使用真实业务字段，没有明确主键时才回落到 `data_hash`。
