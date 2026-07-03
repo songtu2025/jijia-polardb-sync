@@ -2,7 +2,7 @@
 
 ## Current Stage
 
-阶段 5J 已完成。已新增并验证 `lot_no_detail` 第一批交货单明细，当前真实配置 API 为 26 个，enabled API 仍为 20 个。
+阶段 5K 已完成。`lot_no_detail` 已不改 YAML 自动推进到第二批交货单号，当前真实配置 API 为 26 个，enabled API 仍为 20 个。
 
 ## Completed
 
@@ -1049,6 +1049,20 @@
   - `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary`，通过，公开文档 API 为 185 个，真实配置 API 为 26 个，enabled 为 20 个。
   - `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
   - `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过，31 个测试。
+- 阶段 5K 已运行：
+  - 本阶段未修改 YAML，直接复用 `lot_no_detail` checkpoint 中的 `next_param_offset=3`。
+  - 已只读确认 checkpoint 为 `param_offset=0`、`param_limit=3`、`next_param_offset=3`。
+  - 已按程序真实排序确认 offset=3 的第二批交货单号为 `LN2209220004`、`LN2209220005`、`LN2209270006`，不重复第一批。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api lot_no_detail`，通过，批次 `sync_20260703_083838_430764`，`rows=3`，`requests=3`。
+  - 已查询数据库摘要，确认该批次 `total_api_count=1`、`success_api_count=1`、`failed_api_count=0`。
+  - 同一批次 `sync_api_log` 记录 `request_count=3`、`success_count=3`、`failed_count=0`，`failed_request_log` 为 0 条。
+  - 同一批次 `raw_api_data` 写入 3 条，主键为 `LN2209220004`、`LN2209220005`、`LN2209270006`，三条都有 `source_primary_key`、`data_hash` 和 `data_date`。
+  - `lot_no_detail` checkpoint 更新到批次 `sync_20260703_083838_430764`，记录 `param_offset=3`、`param_limit=3`、`next_param_offset=6`。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，通过，同步配置数为 28。
+  - 已查询 `api_config`，确认 `lot_no_detail.enabled=0`、`param_source.source_api_code=storage_inbound_page`、`param_source.limit=3`、`param_source.auto_advance=true`、过滤值为 `LNInbound`。
+  - `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary`，第一次 124 秒超时；用 300 秒超时重跑通过，公开文档 API 为 185 个，真实配置 API 为 26 个，enabled 为 20 个。
+  - `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
+  - `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过，31 个测试。
 
 ## Review 4L-4N
 
@@ -1233,22 +1247,24 @@
 
 ## Next Stage
 
-阶段 5K：不改 YAML，验证 `lot_no_detail` 从 `next_param_offset=3` 自动推进到第二批交货单号。
+阶段 5L：回到覆盖矩阵，选择下一个可复用现有机制的依赖型接口，继续扩大可验证覆盖面。
 
 建议目标：
 
-- 只读读取 `lot_no_detail` checkpoint，确认当前 `next_param_offset=3`。
-- 按程序真实 SQL 预览第二批 `LNInbound` 交货单号，确认不重复第一批 `LN2209200001`、`LN2209210002`、`LN2209220003`。
-- 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api lot_no_detail`，继续小样本真实同步。
-- 查询数据库确认新批次 `sync_batch`、`sync_api_log`、`raw_api_data`、`sync_checkpoint` 和 `failed_request_log` 均可追踪。
-- 同步 `api_config`，确认 `lot_no_detail.enabled=0`，覆盖矩阵真实配置 API 保持 26 个、enabled 仍为 20 个。
-- 运行 `compileall` 和 `unittest discover`。
+- 只读读取覆盖矩阵，筛选 `requires_upstream_params` 中尚未配置、参数可从现有 enabled raw 数据获得、且不涉及敏感字段或写操作的候选接口。
+- 优先选择能复用 `source_primary_key`、`param_source.fields` 或 `param_source.filters` 的低风险接口，暂不强行接入数组入参或嵌套数组来源。
+- 阅读候选接口公开文档详情，确认路径、方法、必填参数、响应形态、主键和日期字段。
+- 只读查询数据库，证明所需参数来源真实存在。
+- 新增一个依赖型 API 配置，默认 `enabled=false`，小样本 `limit` 控制在 3 左右。
+- 如果现有机制足够，优先不改代码；如果不够，必须测试先行做最小扩展。
+- 运行新接口小样本真实同步，确认批次、日志、raw 和 checkpoint 可追踪。
+- 完成后同步 `api_config`、刷新覆盖矩阵并运行编译与单测。
 
 验收：
 
-- `lot_no_detail` 第二批参数窗口成功，不重复第一批。
-- 新批次 `sync_api_log`、`raw_api_data` 和 checkpoint 可核验。
-- `lot_no_detail` checkpoint 推进到 `next_param_offset=6`。
-- `api_config` 与覆盖矩阵显示真实配置 API 26 个、enabled 仍为 20 个。
+- 新依赖型接口完成文档确认和小样本真实同步，默认保持 disabled。
+- 参数来源由数据库只读查询证明，不靠猜测字段。
+- 新接口同步批次成功，`sync_api_log`、`raw_api_data` 和 checkpoint 可核验。
+- `api_config` 与覆盖矩阵显示真实配置 API 增加 1 个，enabled 仍为 20 个。
 - `compileall` 和 `unittest discover` 通过。
 - 继续保持 `.env`、token 缓存、日志和真实凭证不提交。

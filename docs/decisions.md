@@ -501,3 +501,10 @@
 - 阶段 5J 后 `lot_no_detail` checkpoint 记录 `param_offset=0`、`param_limit=3`、`next_param_offset=3`；下一阶段应不改 YAML 验证自动推进到第二批。
 - 阶段 5J 已同步 `api_config`，当前数据库总配置 28 条，启用 20 条；`lot_no_detail.enabled=0`、`param_source.auto_advance=true`、过滤值为 `LNInbound`。
 - 阶段 5J 覆盖矩阵已刷新为公开文档 API 185 个、真实配置 API 26 个、enabled 20 个。
+- 阶段 5K 未修改 YAML，直接复用 `lot_no_detail` checkpoint 的 `next_param_offset=3`。
+- 阶段 5K 已按程序真实排序确认第二批交货单号为 `LN2209220004`、`LN2209220005`、`LN2209270006`，不重复第一批。
+- 阶段 5K 已用第二批交货单号验证 `lot_no_detail`，批次号为 `sync_20260703_083838_430764`，请求 3 次，写入 3 条，失败 0。
+- 阶段 5K 后 `lot_no_detail` checkpoint 记录 `param_offset=3`、`param_limit=3`、`next_param_offset=6`。
+- 阶段 5K 已同步 `api_config`，当前数据库总配置 28 条，启用 20 条；`lot_no_detail.enabled=0`、`param_source.auto_advance=true`、过滤值为 `LNInbound`。
+- 阶段 5K 覆盖矩阵保持公开文档 API 185 个、真实配置 API 26 个、enabled 20 个。
+- 阶段 5K 结论：`lot_no_detail` 的固定过滤参数来源已完成连续窗口验证；下一阶段不应继续只重复该接口，应回到覆盖矩阵选择新的依赖型接口。
