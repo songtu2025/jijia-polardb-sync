@@ -580,3 +580,12 @@
 - 阶段 5S 后 `lot_no_page` checkpoint 指向批次 `sync_20260703_101146_180687`，`checkpoint_value` 记录 `last_page=3`、`request_count=3`、`item_count=300`、`total_count=8602`。
 - 阶段 5S 已同步 `api_config`，当前数据库总配置 36 条，启用 20 条；`lot_no_page.enabled=0`、`page.max_pages=3`、`primary_key.field=code`、`date_field=createdAt`。
 - 阶段 5S 覆盖矩阵已刷新为公开文档 API 185 个、真实配置 API 34 个、enabled 20 个。
+- 阶段 5T 新增 `storage_return_page`，文档 id 为 `152`，路径为 `POST /fulfillment/store/storageReturn/page`，默认保持 `enabled=false`。
+- `storage_return_page` 选择依据：采购退货单列表V2是普通分页直读接口，当前账号 `total=1`，字段清晰，风险低于订单、财务、物流费用和大体量库存接口。
+- 阶段 5T 只读探测确认 `purchase_sale_storage_fba_page`、`purchase_sale_storage_self_page` 和 `shipment_data_page` 当前体量较大，本轮暂不接入。
+- `storage_return_page` 响应字段包含 `id`、`code`、`fcode`、`purchaseCode`、`supplierName`、`warehouseName`、`returnNum`、`createTime`、`status`、`refundStatus`、`items`；本轮使用业务单号 `code` 作为主键，使用 `createTime` 作为日期字段。
+- 阶段 5T 已用真实接口验证 `storage_return_page`，批次号为 `sync_20260703_102300_276491`，请求 1 次，写入 1 条，失败 0。
+- 阶段 5T 后 `storage_return_page` checkpoint 指向批次 `sync_20260703_102300_276491`，`checkpoint_value` 记录 `last_page=1`、`request_count=1`、`item_count=1`、`total_count=1`。
+- 阶段 5T 已同步 `api_config`，当前数据库总配置 37 条，启用 20 条；`storage_return_page.enabled=0`、`page.max_pages=3`、`primary_key.field=code`、`date_field=createTime`。
+- 阶段 5T 覆盖矩阵已刷新为公开文档 API 185 个、真实配置 API 35 个、enabled 20 个。
+- 阶段 5T 结论：当前低体量采购退货单可作为补充覆盖接口，但不能因为数据量小就进入 enabled；是否进入日常同步仍要放到完整覆盖和运行窗口评估里统一判断。

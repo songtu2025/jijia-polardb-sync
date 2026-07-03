@@ -694,6 +694,33 @@ apis:
       page: 1
       pagesize: 100
 
+  # 第三十五个真实文档接口：采购退货单列表V2，文档 id=152，当前总量很小，默认仍保持 disabled。
+  - api_code: storage_return_page
+    name: 查询采购退货单列表V2
+    enabled: false
+    method: POST
+    path: /fulfillment/store/storageReturn/page
+    page:
+      enabled: true
+      page_no_field: page
+      page_size_field: pagesize
+      page_size: 100
+      max_pages: 3
+      list_field: data.rows
+      total_field: data.total
+    primary_key:
+      field: code
+      required: false
+    date_field: createTime
+    rate_limit:
+      sleep_seconds: 0.2
+    retry:
+      retries: 3
+      delay_seconds: 1
+    params:
+      page: 1
+      pagesize: 100
+
   # 第二十一个真实文档接口：产品详情，文档 id=211，依赖 product_page 的产品 id，小样本验证阶段保持 disabled。
   - api_code: product_detail
     name: 查询产品详情
