@@ -938,7 +938,7 @@ apis:
       enabled: true
       page_no_field: page
       page_size_field: pagesize
-      page_size: 100
+      page_size: 200
       max_pages: 1
       list_field: data.rows
       total_field: data.total
@@ -961,7 +961,7 @@ apis:
       currency: CNY
       viewType: day
       page: 1
-      pagesize: 100
+      pagesize: 200
 
   # 第四十二个真实文档接口：FBA货件看板，文档 id=1034，使用收货日期窗口做单页验证，默认保持 disabled。
   - api_code: shipment_data_page

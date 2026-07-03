@@ -2,7 +2,7 @@
 
 ## Current Stage
 
-阶段 6P 已完成。已新增 `traffic_page` 默认 disabled 单日窗口同步，并完成 6N-6P 三轮复盘，当前真实配置 API 为 50 个，enabled API 仍为 24 个。
+阶段 6Q 已完成。未新增 API，已将 `traffic_sku_page` 从小窗口推进到 `2026-07-02` 单日完整窗口验证，当前真实配置 API 为 50 个，enabled API 仍为 24 个。
 
 ## Completed
 
@@ -2255,6 +2255,30 @@
   - 6Q 优先不要再盲目新增统计小窗口；应在已验证 disabled 接口中选一类，制定“完整回填候选评估”或选择一个体量可控的 disabled 接口推进到完整单接口验证。
   - 如继续新增 API，仍按公开文档、真实参数来源、默认 disabled、小样本同步、DB 证据、覆盖矩阵刷新闭环推进。
 
+## Stage 6Q
+
+- 阶段目标：不新增 API，选择一个已验证 disabled 且体量可控的接口，从接入小窗口推进到完整单接口窗口验证。
+- 已完成：
+  - 选择 `traffic_sku_page`；原因是它在 6O 已完成非空验证，`2026-07-02` 单日总量为 170 条，低于 200，适合验证完整窗口策略。
+  - 先用 TDD 将 `traffic_sku_page.page.max_pages` 从 1 调到 2，测试先失败于旧配置，再通过。
+  - 同步 DB 配置后运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api traffic_sku_page`，批次 `sync_20260703_180508_797691` 跑到 `2026-07-03` 窗口，`total_count=0`、写入 0 条；该结果证明 checkpoint 已推进，不是 7 月 2 日完整验证。
+  - 为重新验证 7 月 2 日，已只删除 `sync_checkpoint` 中 `traffic_sku_page` 的 1 行 checkpoint，未删除 raw 数据。
+  - 随后运行 2 页策略，批次 `sync_20260703_180601_694776` 在第 2 页触发 509 限流，失败日志显示请求参数为 `page=2`、`beginDate=2026-07-02`、`endDate=2026-07-02`，错误信息为“接口调用次数已超过限制次数”。
+  - 系统化排查结论：该接口不适合用连续翻页完成完整窗口；应改为单请求覆盖窗口，减少触发 509 的机会。
+  - 已将策略改为 `page.page_size=200`、`params.pagesize=200`、`page.max_pages=1`，并用测试约束该配置；`traffic_analysis_page` 和 `traffic_page` 仍保持 `max_pages=1`。
+  - `.\\.venv\\Scripts\\python.exe -m app.main`，通过，dry-run 仍显示 24 个 enabled API。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，通过，同步配置数为 52，数据库配置总数 52、启用 24。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api traffic_sku_page`，通过，正式完整窗口批次 `sync_20260703_180803_993141`，`rows=170`，`requests=1`。
+  - 数据库已确认该批次 `sync_batch.status=success`、`total_api_count=1`、`success_api_count=1`、`failed_api_count=0`。
+  - 同批次 `sync_api_log` 为 `request_count=1`、`success_count=170`、`failed_count=0`、`error_message=NULL`。
+  - 同批次 `raw_api_data` 写入 170 条，170 个不同 `data_hash`，170 条都有 `raw_json` 和 `data_date=2026-07-02`。
+  - `traffic_sku_page` checkpoint 指向批次 `sync_20260703_180803_993141`，记录 `last_page=1`、`request_count=1`、`item_count=170`、`total_count=170`、`window_start=2026-07-02`、`window_end=2026-07-02`、`next_window_start=2026-07-03`。
+  - `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary`，通过，公开文档 API 185 个，真实配置 API 50 个，enabled 24 个。
+  - 执行分层摘要不变：`configured=50`、`needs_upstream_params=63`、`needs_sensitive_review=22`、`defer_or_review=50`。
+- 当前结论：
+  - `traffic_sku_page` 已从单页小窗口推进为单日完整窗口验证；对总量低于页大小的严格限流接口，优先增大 `pagesize`，不要用连续翻页冲 509。
+  - 该接口仍保持 disabled；是否进入 daily enabled 还需要评估每日窗口、限流稳定性和完整 enabled 批次耗时。
+
 ## Known Issues
 
 - `amazon_shop_page` 第一版以 `data_hash` 去重，不强行编造业务主键。
@@ -2265,7 +2289,7 @@
 - 当前依赖参数来源机制支持从 `raw_api_data.source_primary_key` 取单个参数，也支持从 `raw_json` 点路径提取多个参数、从单层数组路径如 `raw_json.marketListVos[].marketId` 展开一个参数，并可用 `param_source.filters` 做固定等值过滤、用 `param_source.auto_advance` 基于 checkpoint 推进小窗口；响应提取机制已支持列表、单对象和标量包装；尚未把 111307 个库存参数对、6481 个调拨单号、8243 个交货单号或 142281 个发货单号纳入生产级调度。
 - `primary_key.required=true` 会过滤缺少必填主键的响应对象，避免详情接口返回全空对象时写入 `source_primary_key="None"` 的 raw。
 - 覆盖矩阵是公开文档视角，不等同于当前账号真实授权可调用结果；真实可访问性仍需单接口运行验证。
-- `purchase_plan_page` 当前总量为 0 条；`storage_return_page` 当前总量为 1 条；`strategy_template_page` 当前总量为 19 条；`traffic_analysis_page` 在 `2026-07-02` 单日 CNY 窗口总量为 528 条且限流严格；`traffic_page` 在 `2026-07-02` 单日 CNY/day 窗口总量为 583 条；`traffic_sku_page` 在 `2026-07-02` 单日 CNY/day 窗口总量为 170 条；`shipment_data_page` 在 `2026-07-02` 单日窗口总量为 943 条，在 `2026-07-03` 单日窗口总量为 58 条；`storage_ledger_page` 在 `2026-07-02` 单日窗口总量为 710 条；`storage_ledger_detail_page` 在 `2026-07-02` 单日窗口总量为 27104 条；`storage_ledger_month_page` 在 `2026-06` 月窗口总量为 6044 条；`inventory_receipts_page` 在 `2026-07-02` 单日窗口总量为 735 条；`purchase_sale_storage_fba_page` 当前 MSKU 数量维度总量为 58955 条；`platform_msku_page` 当前总量为 1707 条，已进入 enabled；`transfer_page` 当前总量为 6755 条，请求约 68 页；`product_page` 当前总量为 8258 条，请求 83 页；`lot_no_page` 当前总量为 8602 条，请求约 87 页；`amazon_msku_page` 当前总量为 18430 条，请求约 185 页；`fba_inventory_page` 和 `fba_inventory_v2_page` 当前总量均为 30759 条，请求约 308 页；`inventory_adjustments_page` 当前总量为 58239 条，请求约 583 页；`product_inventory_page` 当前总量为 118653 条，请求 1187 页；`storage_inbound_page` 当前总量为 174286 条，请求 1743 页；`inventory_event_page` 当前总量为 2669068 条，请求约 26691 页；`inventory_age_page` 当前总量为 6597161 条，当前小窗口配置为每页 10 条且单页响应很慢。当前 24 个 enabled API 的真实批量同步为 3072 次请求，6J 实测耗时 5655 秒，必须按长耗时任务安排 cron 窗口。
+- `purchase_plan_page` 当前总量为 0 条；`storage_return_page` 当前总量为 1 条；`strategy_template_page` 当前总量为 19 条；`traffic_analysis_page` 在 `2026-07-02` 单日 CNY 窗口总量为 528 条且限流严格；`traffic_page` 在 `2026-07-02` 单日 CNY/day 窗口总量为 583 条；`traffic_sku_page` 在 `2026-07-02` 单日 CNY/day 窗口总量为 170 条，已用 `pagesize=200` 完成单请求完整窗口验证；`shipment_data_page` 在 `2026-07-02` 单日窗口总量为 943 条，在 `2026-07-03` 单日窗口总量为 58 条；`storage_ledger_page` 在 `2026-07-02` 单日窗口总量为 710 条；`storage_ledger_detail_page` 在 `2026-07-02` 单日窗口总量为 27104 条；`storage_ledger_month_page` 在 `2026-06` 月窗口总量为 6044 条；`inventory_receipts_page` 在 `2026-07-02` 单日窗口总量为 735 条；`purchase_sale_storage_fba_page` 当前 MSKU 数量维度总量为 58955 条；`platform_msku_page` 当前总量为 1707 条，已进入 enabled；`transfer_page` 当前总量为 6755 条，请求约 68 页；`product_page` 当前总量为 8258 条，请求 83 页；`lot_no_page` 当前总量为 8602 条，请求约 87 页；`amazon_msku_page` 当前总量为 18430 条，请求约 185 页；`fba_inventory_page` 和 `fba_inventory_v2_page` 当前总量均为 30759 条，请求约 308 页；`inventory_adjustments_page` 当前总量为 58239 条，请求约 583 页；`product_inventory_page` 当前总量为 118653 条，请求 1187 页；`storage_inbound_page` 当前总量为 174286 条，请求 1743 页；`inventory_event_page` 当前总量为 2669068 条，请求约 26691 页；`inventory_age_page` 当前总量为 6597161 条，当前小窗口配置为每页 10 条且单页响应很慢。当前 24 个 enabled API 的真实批量同步为 3072 次请求，6J 实测耗时 5655 秒，必须按长耗时任务安排 cron 窗口。
 - `--sync-enabled` 已在 5W 改为批次头、单 API、最终汇总分事务提交，已完成 API 的 raw、log 和 checkpoint 可随 API 完成后提交；但总运行时长仍由接口请求量和数据库写入量决定。
 - 请求参数已支持 `{{ today }}`、`{{ yesterday }}`、`{{ days_ago:N }}` 三类日期模板；`date_window` 已通过 `traffic_analysis_page`、`traffic_page`、`traffic_sku_page`、`shipment_data_page`、`storage_ledger_page`、`storage_ledger_detail_page` 和 `inventory_receipts_page` 真实验证，可用 checkpoint 中的 `next_window_start` 推进历史窗口，支持嵌套字段，并已支持追平当前日期后的自动跳过。
 - 后续如果继续增加大分页接口或依赖型批量接口，需要关注运行时长、数据库写入耗时和 cron 窗口。
@@ -2274,24 +2298,24 @@
 
 ## Next Stage
 
-阶段 6Q：优先从已验证 disabled 接口中选择一个体量可控的候选，评估是否能从“小窗口验证”推进到“完整单接口回填验证”；如果风险过高，再继续按 6K 分层新增默认 disabled 候选。
+阶段 6R：继续从已验证 disabled 接口中选择一个体量可控的候选，评估是否能从“小窗口验证”推进到“完整单接口窗口验证”；优先选择总量低于单请求可承载页大小、且非订单/财务/客服文本/物流费用的接口。
 
 建议目标：
 
-- 只读读取覆盖矩阵、6K 执行分层、6N `storage_ledger_month_page`、6O `traffic_sku_page`、6P `traffic_page`、6N-6P 复盘、6H-6J 复盘和 `platform_msku_page` enabled 批次证据。
-- 优先从 `needs_param_source` 中选择能复用 `param_source.fields`、`param_source.filters`、`response.item_field` 或 `response.scalar_field` 的接口，先证明真实上游参数来源。
-- 阅读候选接口公开文档详情，确认路径、方法、必填参数、响应形态、主键和日期字段。
-- 如果是依赖型接口，先只读查询数据库证明参数来源真实存在；如果是直读接口，先用一次真实请求确认响应形态。
-- 如新增 API，默认 `enabled=false`；如评估启用，必须把 `max_pages` 或窗口策略调整到能覆盖当前目标范围，不能把小窗口误当完整拉取。
-- 如果现有机制足够，优先不改代码；如果不够，必须测试先行做最小扩展。
-- 运行新接口小样本真实同步，确认批次、日志、raw 和 checkpoint 可追踪。
+- 只读读取覆盖矩阵、6K 执行分层、6Q `traffic_sku_page` 完整窗口证据、6N-6P 复盘、6H-6J 复盘和 `platform_msku_page` enabled 批次证据。
+- 优先评估一个已验证 disabled 接口是否可以推进到完整单接口窗口验证；候选应避开订单、财务敏感明细、客服文本、物流费用和严格限流大表。
+- 如果评估完整窗口，必须先确认总量、页大小上限、限流、预估请求数和是否可用单请求大页覆盖。
+- 如果必须连续分页，先确认失败风险；`traffic_sku_page` 已证明第 2 页会触发 509，不要复用 2 页策略。
+- 如果继续新增 API，仍按 6K 分层选择候选；依赖参数必须先由数据库只读查询证明。
+- 如果现有机制不够，必须测试先行做最小扩展。
+- 运行目标接口同步，确认批次、日志、raw 和 checkpoint 可追踪。
 - 完成后同步 `api_config`、刷新覆盖矩阵并运行编译与单测。
 
 验收：
 
-- 新接口完成文档确认和小样本真实同步，默认保持 disabled，除非它是已充分验证的低风险直读接口。
-- 参数来源必须由数据库只读查询证明，不靠猜测字段。
-- 新接口或启用接口同步批次成功，`sync_api_log`、`raw_api_data` 和 checkpoint 可核验。
+- 新接口或完整窗口评估必须由公开文档、覆盖矩阵、真实请求、数据库只读查询或测试证明，不靠猜测字段。
+- 如推进完整单接口窗口，必须证明 `item_count == total_count` 或者明确说明接口返回总量为 0；不能只跑接入小窗口。
+- 新接口、完整窗口或启用接口同步批次成功，`sync_api_log`、`raw_api_data` 和 checkpoint 可核验。
 - `api_config` 与覆盖矩阵显示真实配置 API 或 enabled 数量符合本轮目标；当前基线是真实配置 API 50 个、enabled 24 个。
 - `compileall` 和 `unittest discover` 通过。
 - 继续保持 `.env`、token 缓存、日志和真实凭证不提交。

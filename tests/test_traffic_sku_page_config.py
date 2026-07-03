@@ -17,7 +17,7 @@ class TrafficSkuPageConfigTest(unittest.TestCase):
         self.assertTrue(api["page"]["enabled"])
         self.assertEqual(api["page"]["page_no_field"], "page")
         self.assertEqual(api["page"]["page_size_field"], "pagesize")
-        self.assertEqual(api["page"]["page_size"], 100)
+        self.assertEqual(api["page"]["page_size"], 200)
         self.assertEqual(api["page"]["max_pages"], 1)
         self.assertEqual(api["page"]["list_field"], "data.rows")
         self.assertEqual(api["page"]["total_field"], "data.total")
@@ -32,7 +32,7 @@ class TrafficSkuPageConfigTest(unittest.TestCase):
         self.assertEqual(api["params"]["currency"], "CNY")
         self.assertEqual(api["params"]["viewType"], "day")
         self.assertEqual(api["params"]["page"], 1)
-        self.assertEqual(api["params"]["pagesize"], 100)
+        self.assertEqual(api["params"]["pagesize"], 200)
 
 
 if __name__ == "__main__":
