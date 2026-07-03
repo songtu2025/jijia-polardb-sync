@@ -25,7 +25,7 @@
 
 当前阶段：
 
-阶段 6B 已完成。下一阶段 6C 继续推进完整覆盖；6B-6D 是当前三轮组。enabled 批量仍是长任务，暂不要直接启用大体量接口。
+阶段 6C 已完成。下一阶段 6D 继续推进完整覆盖；6B-6D 是当前三轮组，6D 完成后需要做三轮复盘。enabled 批量仍是长任务，暂不要直接启用大体量接口。
 
 当前事实：
 
@@ -58,6 +58,13 @@
 - 6B 的 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"` 已通过，53 个测试。
 - 5Y-6A 复盘结论：库存域普通分页接口可以继续用默认 disabled 小窗口方式验证，但超大体量和慢响应已经成为主要风险；后续不能靠扩大 `max_pages` 做完整拉取，必须设计时间窗口、增量过滤、独立调度和失败恢复。
 - 6B 结论：日期模板只是滚动窗口基础能力，还不是完整增量系统；当前尚未实现按 checkpoint 自动推进历史窗口。
+- 6C 没有新增 API，也没有改变 enabled 数量；本轮新增 `date_window` 的 checkpoint 推进能力。
+- `date_window` 支持 `enabled=true`、`start_field`、`end_field`、`default_start`、`days`；首次运行从 `default_start` 生成窗口，后续从 checkpoint 的 `next_window_start` 继续。
+- 同步成功后 checkpoint 会记录 `window_start`、`window_end`、`next_window_start` 和 `window_days`。
+- 日期窗口逻辑已接入非分页、分页和依赖参数请求路径。
+- 6C 的 `.\\.venv\\Scripts\\python.exe -m app.main` dry-run 显示 23 个 enabled API。
+- 6C 的 `.\\.venv\\Scripts\\python.exe -m compileall app tests` 已通过。
+- 6C 的 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"` 已通过，55 个测试。
 - 当前依赖参数来源机制支持 `source_primary_key`、单字段 `raw_json`、多字段 `raw_json`、raw_json 固定等值过滤、checkpoint 小窗口推进，以及按 `primary_key.required=true` 过滤缺主键响应对象。
 - 当前响应提取机制支持列表、单对象和标量包装；普通分页列表字段可用 `page.list_field` 点路径指定，例如 `data.rows` 或 `data.records`。
 - 当前仍不支持数组入参、嵌套数组来源或复杂过滤表达式。
@@ -69,14 +76,14 @@
 
 建议目标：
 
-1. 先只读读取覆盖矩阵、当前 disabled 已验证接口清单、5Y-6A 复盘结论和 6B 日期模板实现。
-2. 优先决定 6C 是用日期模板接入一个低风险日期窗口接口，还是继续实现 checkpoint 驱动的历史窗口推进。
+1. 先只读读取覆盖矩阵、当前 disabled 已验证接口清单、5Y-6A 复盘结论、6B 日期模板和 6C `date_window` 实现。
+2. 优先用 `date_window` 接入一个低风险日期窗口接口，默认保持 disabled，并用真实单接口小窗口验证 checkpoint 推进。
 3. 如果继续新增接口，优先选择需要日期窗口且业务风险可控的统计、报表或配置类接口；暂不要直接进入订单、财务敏感明细、客服文本或物流费用。
 4. 如果候选涉及订单、财务、客服文本、物流费用或销售售后，先说明业务风险边界，再决定是否只做小窗口验证。
 5. 暂不强行接入数组入参、嵌套数组来源、疑似写操作或请求编码未确认的接口。
 6. 阅读候选接口公开文档详情，确认路径、方法、必填参数、响应形态、主键和日期字段。
 7. 如果是依赖型接口，先只读查询数据库证明参数来源真实存在；如果是直读接口，先用一次真实请求确认响应形态和响应耗时。
-8. 新增一个 API 配置时默认 `enabled=false`；分页直读接口用 `max_pages` 控制接入窗口，必要时用 `timeout_seconds` 和日期模板控制慢接口或大接口，依赖型接口小样本 `limit` 控制在 3 左右。
+8. 新增一个 API 配置时默认 `enabled=false`；分页直读接口用 `max_pages` 控制接入窗口，必要时用 `timeout_seconds`、日期模板或 `date_window` 控制慢接口或大接口，依赖型接口小样本 `limit` 控制在 3 左右。
 9. 启用任何接口前，先有测试约束 enabled 数量和目标接口状态，再同步 DB 配置。
 10. 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs` 同步 DB 配置。
 11. 按本轮目标运行单接口同步或 `--sync-enabled` 回归；如果运行完整 `--sync-enabled`，要给足超过 2 小时的窗口。
@@ -84,7 +91,8 @@
 13. 需要刷新覆盖矩阵时，运行 `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary`。
 14. 运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests`。
 15. 运行 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`。
-16. 更新 README、三份 docs，并提交推送；不要提交 `.env`、token 缓存、日志或任何敏感信息。
+16. 6D 完成后更新 6B-6D 三轮复盘。
+17. 更新 README、三份 docs，并提交推送；不要提交 `.env`、token 缓存、日志或任何敏感信息。
 
 验收：
 

@@ -652,3 +652,8 @@
 - 未知占位符保持原样，避免破坏历史示例配置中的 `{{ checkpoint_or_default_start }}`，也为后续 checkpoint 驱动窗口保留设计空间。
 - 日期模板会在非分页、分页和依赖参数请求路径统一生效；本轮验证目标是参数生成行为，不改变 `api_config` 数量和 enabled 数量。
 - 阶段 6B 后真实配置 API 仍为 40 个，enabled 仍为 23 个；本轮通过 dry-run、compileall 和 53 个单测验证。
+- 阶段 6C 不新增 API，继续补 `date_window` 的 checkpoint 推进能力；原因是静态滚动日期只能同步固定窗口，不能补齐历史范围。
+- `date_window` 配置使用 `start_field`、`end_field`、`default_start` 和 `days` 生成单次请求日期窗口；首次运行从 `default_start` 开始，后续从 checkpoint 的 `next_window_start` 继续。
+- 阶段 6C 的 checkpoint 额外记录 `window_start`、`window_end`、`next_window_start` 和 `window_days`，用于追踪历史窗口推进。
+- 日期窗口逻辑已接入非分页、分页和依赖参数请求路径；本轮不改变 `api_config`、enabled 数量或覆盖矩阵数量。
+- 阶段 6C 后真实配置 API 仍为 40 个，enabled 仍为 23 个；本轮通过 dry-run、compileall 和 55 个单测验证。

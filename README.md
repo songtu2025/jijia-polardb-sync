@@ -79,7 +79,9 @@ mysql -h <POLARDB_HOST> -P 3306 -u <DB_USER> -p <DB_NAME> < sql/init_tables.sql
 3. 填写真实 `path`、分页字段、主键字段和日期字段。
 4. 如果接口没有稳定业务主键，将由后续同步逻辑使用 `data_hash` 去重。
 
-对需要滚动日期窗口的接口，`params` 支持少量日期占位符：`{{ today }}`、`{{ yesterday }}` 和 `{{ days_ago:7 }}`。程序会在发起请求前展开为 `YYYY-MM-DD`，用于后续把超大表拆成较小日期窗口同步。
+对需要滚动日期窗口的接口，`params` 支持少量日期占位符：`{{ today }}`、`{{ yesterday }}` 和 `{{ days_ago:7 }}`。程序会在发起请求前展开为 `YYYY-MM-DD`。
+
+对需要补历史窗口的接口，可以在 YAML 中增加 `date_window`，用 `default_start`、`days`、`start_field` 和 `end_field` 生成本次请求窗口。同步成功后 checkpoint 会记录 `next_window_start`，下次运行从下一窗口继续，避免超大表只能全量分页。
 
 ## 本地运行
 

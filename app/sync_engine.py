@@ -393,7 +393,7 @@ class SyncEngine:
             return self._sync_api_from_param_source_in_batch(connection, api, batch_no, api_client, token)
 
         try:
-            for page_no, payload, attempt_count in self._paged_payloads(api, api_client, token):
+            for page_no, payload, attempt_count in self._paged_payloads(api, api_client, token, connection):
                 # request_count 统计真实 HTTP 尝试次数，包含失败后的重试次数。
                 request_count += attempt_count
                 last_page = page_no
@@ -403,7 +403,17 @@ class SyncEngine:
                 total_count = self._response_total(payload, api)
                 self._sleep_between_pages(api, page_no, total_count)
 
-            self._update_checkpoint(connection, api_code, batch_no, item_count, request_count, last_page, total_count)
+            checkpoint_extra = self._date_window_checkpoint_extra(api, self._request_params(api, connection))
+            self._update_checkpoint(
+                connection,
+                api_code,
+                batch_no,
+                item_count,
+                request_count,
+                last_page,
+                total_count,
+                extra=checkpoint_extra,
+            )
             self._insert_api_log(connection, batch_no, api_code, "success", request_count, item_count, 0, api_started_at)
         except Exception as error:
             failed_count = 1
@@ -452,7 +462,7 @@ class SyncEngine:
             param_sets = self._source_param_sets(connection, api, offset=param_offset)
             total_count = len(param_sets)
             for index, source_params in enumerate(param_sets, start=1):
-                params = self._request_params(api)
+                params = self._request_params(api, connection)
                 params.update(source_params)
                 payload, attempt_count = self._request_with_retry(api, api_client, token, params)
                 request_count += attempt_count
@@ -460,6 +470,15 @@ class SyncEngine:
                 self._insert_raw_items(connection, api, items, batch_no)
                 item_count += len(items)
                 self._sleep_between_param_requests(api, index, total_count)
+
+            checkpoint_extra = {
+                "param_offset": param_offset,
+                "param_limit": param_limit,
+                "next_param_offset": param_offset + total_count,
+            }
+            date_window_extra = self._date_window_checkpoint_extra(api, self._request_params(api, connection))
+            if date_window_extra:
+                checkpoint_extra.update(date_window_extra)
 
             self._update_checkpoint(
                 connection,
@@ -469,11 +488,7 @@ class SyncEngine:
                 request_count,
                 total_count,
                 total_count,
-                extra={
-                    "param_offset": param_offset,
-                    "param_limit": param_limit,
-                    "next_param_offset": param_offset + total_count,
-                },
+                extra=checkpoint_extra,
             )
             self._insert_api_log(connection, batch_no, api_code, "success", request_count, item_count, 0, api_started_at)
         except Exception as error:
@@ -686,7 +701,13 @@ class SyncEngine:
         value = item.get(primary_key_field)
         return value is not None and str(value) != ""
 
-    def _paged_payloads(self, api: dict[str, Any], api_client: Any, token: Any) -> Any:
+    def _paged_payloads(
+        self,
+        api: dict[str, Any],
+        api_client: Any,
+        token: Any,
+        connection: Any | None = None,
+    ) -> Any:
         """按分页配置逐页产出接口响应。
 
         非分页接口只请求一次。分页接口会在每次请求前覆盖页码和页大小，并用
@@ -694,7 +715,7 @@ class SyncEngine:
         """
         page_config = api.get("page") or {}
         if not page_config.get("enabled", False):
-            params = self._request_params(api)
+            params = self._request_params(api, connection)
             payload, attempt_count = self._request_with_retry(api, api_client, token, params)
             yield 1, payload, attempt_count
             return
@@ -708,7 +729,7 @@ class SyncEngine:
         pages_requested = 0
 
         while pages_requested < max_pages:
-            params = self._request_params(api)
+            params = self._request_params(api, connection)
             params[page_no_field] = page_no
             params[page_size_field] = page_size
 
@@ -723,13 +744,22 @@ class SyncEngine:
                 break
             page_no += 1
 
-    def _request_params(self, api: dict[str, Any]) -> dict[str, Any]:
+    def _request_params(
+        self,
+        api: dict[str, Any],
+        connection: Any | None = None,
+        today: date | None = None,
+    ) -> dict[str, Any]:
         """读取并解析 YAML 请求参数。
 
-        日期模板只解决滚动窗口这类通用需求；未知占位符保持原样，避免影响历史
-        示例配置或后续更明确的 checkpoint 模板设计。
+        日期模板解决滚动窗口这类通用需求；`date_window` 进一步用 checkpoint
+        推进历史窗口，避免超大表只能靠全量分页。
         """
-        return self._resolve_param_templates(api.get("params") or {})
+        params = self._resolve_param_templates(api.get("params") or {}, today)
+        window = self._date_window_params(api, connection, today)
+        if window:
+            params.update(window)
+        return params
 
     def _resolve_param_templates(self, value: Any, today: date | None = None) -> Any:
         """递归解析请求参数中的日期占位符。"""
@@ -753,6 +783,84 @@ class SyncEngine:
         if token.startswith("days_ago:"):
             return (current_date - timedelta(days=int(match.group(2)))).isoformat()
         return value
+
+    def _date_window_params(
+        self,
+        api: dict[str, Any],
+        connection: Any | None = None,
+        today: date | None = None,
+    ) -> dict[str, str] | None:
+        """根据 date_window 配置生成单次请求的日期窗口。"""
+        window_config = api.get("date_window") or {}
+        if not window_config.get("enabled"):
+            return None
+
+        start_field = str(window_config.get("start_field") or "")
+        end_field = str(window_config.get("end_field") or "")
+        default_start = str(window_config.get("default_start") or "")
+        window_days = int(window_config.get("days") or 1)
+        if not start_field or not end_field or not default_start:
+            raise ValueError(f"invalid date_window config: {api.get('api_code')}")
+
+        start_date = self._date_window_start(api, connection) or date.fromisoformat(default_start)
+        end_date = start_date + timedelta(days=max(window_days, 1) - 1)
+        current_date = today or date.today()
+        if end_date > current_date:
+            end_date = current_date
+
+        return {
+            start_field: start_date.isoformat(),
+            end_field: end_date.isoformat(),
+        }
+
+    def _date_window_start(self, api: dict[str, Any], connection: Any | None) -> date | None:
+        """从 checkpoint 中读取下一次日期窗口起点。"""
+        if connection is None:
+            return None
+
+        result = connection.execute(
+            text(
+                """
+                SELECT checkpoint_value
+                FROM sync_checkpoint
+                WHERE api_code = :api_code
+                """
+            ),
+            {"api_code": api["api_code"]},
+        )
+        row = result.mappings().first()
+        if not row or not row.get("checkpoint_value"):
+            return None
+
+        try:
+            checkpoint = json.loads(str(row["checkpoint_value"]))
+        except json.JSONDecodeError:
+            return None
+
+        next_window_start = checkpoint.get("next_window_start")
+        if not next_window_start:
+            return None
+        return date.fromisoformat(str(next_window_start))
+
+    def _date_window_checkpoint_extra(self, api: dict[str, Any], params: dict[str, Any]) -> dict[str, Any] | None:
+        """生成写入 checkpoint 的日期窗口推进信息。"""
+        window_config = api.get("date_window") or {}
+        if not window_config.get("enabled"):
+            return None
+
+        start_field = str(window_config.get("start_field") or "")
+        end_field = str(window_config.get("end_field") or "")
+        if not start_field or not end_field or start_field not in params or end_field not in params:
+            return None
+
+        window_start = date.fromisoformat(str(params[start_field]))
+        window_end = date.fromisoformat(str(params[end_field]))
+        return {
+            "window_start": window_start.isoformat(),
+            "window_end": window_end.isoformat(),
+            "next_window_start": (window_end + timedelta(days=1)).isoformat(),
+            "window_days": int(window_config.get("days") or 1),
+        }
 
     def _source_param_sets(
         self,
