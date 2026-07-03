@@ -695,3 +695,11 @@
 - 阶段 6H 已用真实接口验证 `inventory_receipts_page`，批次号为 `sync_20260703_143224_591261`，请求 1 次，写入 100 条，失败 0。
 - 阶段 6H 后 `inventory_receipts_page` checkpoint 指向批次 `sync_20260703_143224_591261`，`checkpoint_value` 记录 `last_page=1`、`request_count=1`、`item_count=100`、`total_count=735`、`window_start=2026-07-02`、`window_end=2026-07-02`、`next_window_start=2026-07-03`、`window_days=1`。
 - 阶段 6H 已同步 `api_config`，当前数据库总配置 46 条，启用 23 条；覆盖矩阵刷新后为公开文档 API 185 个、真实配置 API 44 个、enabled 23 个。
+- 阶段 6I 新增 `purchase_sale_storage_fba_page`，文档 id 为 `232`，路径为 `POST /purchase/inventory/purchaseSaleStorageFba/page`，默认保持 `enabled=false`。
+- 阶段 6I 候选取舍：`purchaseSaleStorageSelf/page` 无日期请求可访问，但 `dateType=DAY` 配合 `beginDate/endDate` 返回 400/50099；`trafficSkuAnalysis/page` 探测时快速触发 509；`multiTypeWarehouse/page` 虽然可访问但响应包含联系人、手机号、邮箱和地址；`quickInbound/query` 是数组入参且请求不稳定。因此本轮选择风险更低、分页形态明确的 FBA 进销存列表。
+- `purchase_sale_storage_fba_page` 选择依据：FBA 进销存列表属于报表/库存域直读接口，响应包含稳定 `id` 和 `updateTime`，风险低于订单、财务明细、客服文本、物流费用和带联系方式的仓库接口。
+- `purchase_sale_storage_fba_page` 真实探测确认 `type=MSKU`、`valueType=QUANTITY` 时返回 `total=58955`；样本包含 `id=71810`、`month=2023-03`、`sku=RBK037-Pink Pink Mirrored Lens`、`msku=RBK037-pink mirror lens`、`warehouseName=rivbos:JP_FBA`、`updateTime=2023-04-06 16:02:11`。
+- 本轮配置使用 `primary_key.field=id`、`date_field=updateTime`、`page.max_pages=1`、`page.page_size=100`。该接口当前不是 `date_window` 或月窗口接口；后续如要完整回填，需要单独确认 `month` 参数推进策略和接口限流。
+- 阶段 6I 已用真实接口验证 `purchase_sale_storage_fba_page`，批次号为 `sync_20260703_144417_365162`，请求 1 次，写入 100 条，失败 0。
+- 阶段 6I 后 `purchase_sale_storage_fba_page` checkpoint 指向批次 `sync_20260703_144417_365162`，`checkpoint_value` 记录 `last_page=1`、`request_count=1`、`item_count=100`、`total_count=58955`。
+- 阶段 6I 已同步 `api_config`，当前数据库总配置 47 条，启用 23 条；覆盖矩阵刷新后为公开文档 API 185 个、真实配置 API 45 个、enabled 23 个。

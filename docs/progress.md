@@ -2,7 +2,7 @@
 
 ## Current Stage
 
-阶段 6H 已完成。已新增 `inventory_receipts_page` 并用市场日期窗口完成真实小窗口同步，当前真实配置 API 为 44 个，enabled API 为 23 个。
+阶段 6I 已完成。已新增 `purchase_sale_storage_fba_page` 并完成真实单页同步，当前真实配置 API 为 45 个，enabled API 为 23 个。
 
 ## Completed
 
@@ -1999,17 +1999,42 @@
   - 该接口 `2026-07-02` 单日总量为 735 条，本轮只验证单页 100 条，保持 disabled。
   - 与 `shipment_data_page` 不同，该接口真实样本中 `id` 可作为行级主键，本轮不需要回退到空主键。
 
+## Stage 6I
+
+- 阶段目标：继续扩展报表/库存类 API 覆盖，接入一个真实可访问、可幂等入库的默认 disabled 候选。
+- 已完成：
+  - 只读评估多个候选并排除不适合本轮的接口：`purchaseSaleStorageSelf/page` 的 `dateType=DAY` 真实请求返回 400；`trafficSkuAnalysis/page` 触发 509；`multiTypeWarehouse/page` 响应包含联系人、电话、邮箱和地址；`quickInbound/query` 涉及数组入参且真实请求不稳定。
+  - 从剩余候选中选择 `purchase_sale_storage_fba_page`，文档 id 为 `232`，路径为 `POST /purchase/inventory/purchaseSaleStorageFba/page`，接口名称为“查询FBA进销存列表”。
+  - 选择依据：该接口是 FBA 进销存报表，普通分页直读，响应包含 `id`、`month`、`sku`、`msku`、`warehouseName` 和 `updateTime`，可用真实 `id` 做主键；业务风险低于订单、客服文本、物流费用和联系人地址类接口。
+  - 真实探测确认 `type=MSKU`、`valueType=QUANTITY` 时返回 `total=58955`；样本包含 `id=71810`、`month=2023-03`、`sku=RBK037-Pink Pink Mirrored Lens`、`msku=RBK037-pink mirror lens`、`warehouseName=rivbos:JP_FBA`、`updateTime=2023-04-06 16:02:11`。
+  - 已新增 `tests/test_purchase_sale_storage_fba_page_config.py`，先失败于 YAML 中缺少 `purchase_sale_storage_fba_page`，再通过，约束默认 disabled、分页字段、`max_pages=1`、主键 `id`、`date_field=updateTime` 和请求参数。
+  - 已新增 `purchase_sale_storage_fba_page` YAML 配置，默认 `enabled=false`，使用 `type=MSKU` 和 `valueType=QUANTITY`，`primary_key.field=id`，`date_field=updateTime`。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，通过，同步配置数为 47；其中 2 个是占位示例，真实接口为 45 个。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api purchase_sale_storage_fba_page`，通过，批次 `sync_20260703_144417_365162`，`rows=100`，`requests=1`。
+  - 数据库已确认该批次 `sync_batch.status=success`、`total_api_count=1`、`success_api_count=1`、`failed_api_count=0`、耗时 8 秒。
+  - 同批次 `sync_api_log` 为 `request_count=1`、`success_count=100`、`failed_count=0`、`error_message=NULL`。
+  - 同批次 `raw_api_data` 写入 100 条，100 条都有不同 `source_primary_key`，100 条都有 `data_hash`，100 条都有 `data_date`，日期范围为 `2023-04-06` 到 `2023-04-06`。
+  - 同批次 raw 示例确认 `source_primary_key=71711`、`month=2023-03`、`dimension=JP`、`sku=CHG002-Black M`、`msku=CHG002-black-M`、`warehouseName=rivbos:JP_FBA`、`updateTime=2023-04-06 16:02:11`。
+  - `purchase_sale_storage_fba_page` checkpoint 指向批次 `sync_20260703_144417_365162`，`checkpoint_value` 记录 `last_page=1`、`request_count=1`、`item_count=100`、`total_count=58955`。
+  - 已查询 `api_config`，确认 `purchase_sale_storage_fba_page.enabled=0`、`page.max_pages=1`、`primary_key.field=id`、`date_field=updateTime`、`params.type=MSKU`、`params.valueType=QUANTITY`，数据库配置总数 47、启用 23。
+  - `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary`，通过，公开文档 API 为 185 个，真实配置 API 为 45 个，enabled 为 23 个。
+  - `.\\.venv\\Scripts\\python.exe -m app.main`，通过，dry-run 显示 23 个 enabled API。
+- 当前结论：
+  - `purchase_sale_storage_fba_page` 已完成真实单页同步验证，可作为 FBA 进销存月报数据源候选保留。
+  - 该接口总量为 58955 条，本轮只验证单页 100 条，保持 disabled。
+  - 该接口不是日窗口接口；后续若要完整回填，需要设计月度参数推进或独立批量计划，不能直接加入 daily enabled。
+
 ## Known Issues
 
 - `amazon_shop_page` 第一版以 `data_hash` 去重，不强行编造业务主键。
 - 各业务 API 的具体路径、字段、分页和主键需要逐个阅读文档确认。
 - 新增后续业务接口前，仍需要逐个阅读积加文档确认路径、分页、主键和日期字段。
 - 当前 enabled API 已有 23 个：`amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`、`product_page`、`parent_product_page`、`kb_product_page`、`fba_warehouse_page`、`store_location_page`、`multi_shop_query`、`crm_tags_page`、`inventory_team_query`、`product_inventory_page`、`storage_inbound_page`、`storage_return_page`、`strategy_template_page`、`base_currency_query`。
-- 当前已配置真实 API 为 44 个，其中 23 个已加入 enabled，`product_detail`、`market_inventory_query`、`storage_inbound_detail`、`country_province_query`、`transfer_detail`、`lot_no_detail`、`delivery_fee_query`、`amazon_msku_page`、`platform_msku_page`、`fba_inventory_page`、`fba_inventory_v2_page`、`inventory_adjustments_page`、`inventory_event_page`、`inventory_age_page`、`traffic_analysis_page`、`shipment_data_page`、`storage_ledger_page`、`inventory_receipts_page`、`transfer_page`、`lot_no_page` 和 `purchase_plan_page` 已完成验证但保持 disabled。
+- 当前已配置真实 API 为 45 个，其中 23 个已加入 enabled，`product_detail`、`market_inventory_query`、`storage_inbound_detail`、`country_province_query`、`transfer_detail`、`lot_no_detail`、`delivery_fee_query`、`amazon_msku_page`、`platform_msku_page`、`fba_inventory_page`、`fba_inventory_v2_page`、`inventory_adjustments_page`、`inventory_event_page`、`inventory_age_page`、`traffic_analysis_page`、`shipment_data_page`、`storage_ledger_page`、`inventory_receipts_page`、`purchase_sale_storage_fba_page`、`transfer_page`、`lot_no_page` 和 `purchase_plan_page` 已完成验证但保持 disabled。
 - 当前依赖参数来源机制支持从 `raw_api_data.source_primary_key` 取单个参数，也支持从 `raw_json` 顶层字段提取多个参数，并可用 `param_source.filters` 做固定等值过滤、用 `param_source.auto_advance` 基于 checkpoint 推进小窗口；响应提取机制已支持列表、单对象和标量包装；尚未把 111307 个库存参数对、6481 个调拨单号、8243 个交货单号或 142281 个发货单号纳入生产级调度。
 - `primary_key.required=true` 会过滤缺少必填主键的响应对象，避免详情接口返回全空对象时写入 `source_primary_key="None"` 的 raw。
 - 覆盖矩阵是公开文档视角，不等同于当前账号真实授权可调用结果；真实可访问性仍需单接口运行验证。
-- `purchase_plan_page` 当前总量为 0 条；`storage_return_page` 当前总量为 1 条；`strategy_template_page` 当前总量为 19 条；`traffic_analysis_page` 在 `2026-07-02` 单日 CNY 窗口总量为 528 条且限流严格；`shipment_data_page` 在 `2026-07-02` 单日窗口总量为 943 条，在 `2026-07-03` 单日窗口总量为 58 条；`storage_ledger_page` 在 `2026-07-02` 单日窗口总量为 710 条；`inventory_receipts_page` 在 `2026-07-02` 单日窗口总量为 735 条；`platform_msku_page` 当前总量为 1707 条，请求约 18 页；`transfer_page` 当前总量为 6755 条，请求约 68 页；`product_page` 当前总量为 8258 条，请求 83 页；`lot_no_page` 当前总量为 8602 条，请求约 87 页；`amazon_msku_page` 当前总量为 18430 条，请求约 185 页；`fba_inventory_page` 和 `fba_inventory_v2_page` 当前总量均为 30759 条，请求约 308 页；`inventory_adjustments_page` 当前总量为 58239 条，请求约 583 页；`product_inventory_page` 当前总量为 118653 条，请求 1187 页；`storage_inbound_page` 当前总量为 174286 条，请求 1743 页；`inventory_event_page` 当前总量为 2669068 条，请求约 26691 页；`inventory_age_page` 当前总量为 6597161 条，当前小窗口配置为每页 10 条且单页响应很慢。当前 23 个 enabled API 的真实批量同步约 3053 次请求，5V 实测耗时 5735 秒，必须按长耗时任务安排 cron 窗口。
+- `purchase_plan_page` 当前总量为 0 条；`storage_return_page` 当前总量为 1 条；`strategy_template_page` 当前总量为 19 条；`traffic_analysis_page` 在 `2026-07-02` 单日 CNY 窗口总量为 528 条且限流严格；`shipment_data_page` 在 `2026-07-02` 单日窗口总量为 943 条，在 `2026-07-03` 单日窗口总量为 58 条；`storage_ledger_page` 在 `2026-07-02` 单日窗口总量为 710 条；`inventory_receipts_page` 在 `2026-07-02` 单日窗口总量为 735 条；`purchase_sale_storage_fba_page` 当前 MSKU 数量维度总量为 58955 条；`platform_msku_page` 当前总量为 1707 条，请求约 18 页；`transfer_page` 当前总量为 6755 条，请求约 68 页；`product_page` 当前总量为 8258 条，请求 83 页；`lot_no_page` 当前总量为 8602 条，请求约 87 页；`amazon_msku_page` 当前总量为 18430 条，请求约 185 页；`fba_inventory_page` 和 `fba_inventory_v2_page` 当前总量均为 30759 条，请求约 308 页；`inventory_adjustments_page` 当前总量为 58239 条，请求约 583 页；`product_inventory_page` 当前总量为 118653 条，请求 1187 页；`storage_inbound_page` 当前总量为 174286 条，请求 1743 页；`inventory_event_page` 当前总量为 2669068 条，请求约 26691 页；`inventory_age_page` 当前总量为 6597161 条，当前小窗口配置为每页 10 条且单页响应很慢。当前 23 个 enabled API 的真实批量同步约 3053 次请求，5V 实测耗时 5735 秒，必须按长耗时任务安排 cron 窗口。
 - `--sync-enabled` 已在 5W 改为批次头、单 API、最终汇总分事务提交，已完成 API 的 raw、log 和 checkpoint 可随 API 完成后提交；但总运行时长仍由接口请求量和数据库写入量决定。
 - 请求参数已支持 `{{ today }}`、`{{ yesterday }}`、`{{ days_ago:N }}` 三类日期模板；`date_window` 已通过 `traffic_analysis_page`、`shipment_data_page`、`storage_ledger_page` 和 `inventory_receipts_page` 真实验证，可用 checkpoint 中的 `next_window_start` 推进历史窗口，支持嵌套字段，并已支持追平当前日期后的自动跳过。
 - 后续如果继续增加大分页接口或依赖型批量接口，需要关注运行时长、数据库写入耗时和 cron 窗口。
@@ -2017,11 +2042,11 @@
 
 ## Next Stage
 
-阶段 6I：继续推进完整覆盖。可以继续接一个低风险报表/库存日期窗口接口，或评估一个已验证 disabled 接口是否具备进入 enabled 的条件。
+阶段 6J：完成 6H-6J 三轮中的第三轮，并在完成后做三轮复盘。可以继续接一个低风险报表/库存接口，或评估一个已验证 disabled 接口是否具备进入 enabled 的条件。
 
 建议目标：
 
-- 只读读取覆盖矩阵、6H 结果、6E-6G 复盘、6E 追平跳过策略和 `traffic_analysis_page`/`shipment_data_page`/`storage_ledger_page`/`inventory_receipts_page` 的窗口验证证据。
+- 只读读取覆盖矩阵、6H-6I 结果、6E-6G 复盘、6E 追平跳过策略和 `traffic_analysis_page`/`shipment_data_page`/`storage_ledger_page`/`inventory_receipts_page`/`purchase_sale_storage_fba_page` 的验证证据。
 - 优先选择能复用 `date_window`、普通分页、`response.item_field`、`response.scalar_field`、`source_primary_key`、`param_source.fields` 或 `param_source.filters` 的低风险接口，暂不强行接入数组入参、嵌套数组来源或疑似写操作接口。
 - 阅读候选接口公开文档详情，确认路径、方法、必填参数、响应形态、主键和日期字段。
 - 如果是依赖型接口，先只读查询数据库证明参数来源真实存在；如果是直读接口，先用一次真实请求确认响应形态。
@@ -2035,6 +2060,6 @@
 - 新接口完成文档确认和小样本真实同步，默认保持 disabled，除非它是已充分验证的低风险直读接口。
 - 参数来源由数据库只读查询证明，不靠猜测字段。
 - 新接口同步批次成功，`sync_api_log`、`raw_api_data` 和 checkpoint 可核验。
-- `api_config` 与覆盖矩阵显示真实配置 API 或 enabled 数量符合本轮目标；当前基线是真实配置 API 44 个、enabled 23 个。
+- `api_config` 与覆盖矩阵显示真实配置 API 或 enabled 数量符合本轮目标；当前基线是真实配置 API 45 个、enabled 23 个。
 - `compileall` 和 `unittest discover` 通过。
 - 继续保持 `.env`、token 缓存、日志和真实凭证不提交。
