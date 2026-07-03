@@ -880,3 +880,12 @@
 - 阶段 7C 后 `product_detail` checkpoint 指向批次 `sync_20260704_043249_880338`，记录 `param_offset=19`、`param_limit=100`、`next_param_offset=119`、`item_count=100`、`total_count=100`。
 - 阶段 7C 后覆盖矩阵刷新为公开文档 API 185 个、真实配置 API 50 个、enabled 30 个；执行分层仍为 `configured=50`、`needs_upstream_params=63`、`needs_sensitive_review=22`、`defer_or_review=50`。
 - 阶段 7C 决策：`product_detail` 的 100 请求窗口可作为下一轮继续推进的候选基线；是否继续上调，需要先看下一段是否仍无 429/509、无 DB 写入异常。
+- 阶段 7D 继续推进 `product_detail`，不新增 enabled；原因是 7C 后仍只覆盖 119/8258，且 100 请求窗口无 429/509、无 DB 写入异常。
+- 阶段 7D 已用 TDD 约束 `product_detail.param_source.limit=500`；测试先失败于旧配置 `limit=100`，再通过。
+- 阶段 7D 已同步 `api_config`，数据库确认 `product_detail.enabled=0`、`param_source.limit=500`、`param_source.auto_advance=true`。
+- 阶段 7D 的 dry-run 仍显示 30 个 enabled API，说明 `product_detail` 没有误进入 daily enabled。
+- 阶段 7D 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api product_detail`，批次号为 `sync_20260704_044315_780073`，请求 500 次，写入 500 条，失败 0。
+- 阶段 7D DB 核验显示该批次 `sync_batch.status=success`、`sync_api_log.status=success`、`request_count=500`、`success_count=500`、`failed_count=0`，同批次 raw 为 500 条且 500 个不同 `source_primary_key`。
+- 阶段 7D 后 `product_detail` checkpoint 指向批次 `sync_20260704_044315_780073`，记录 `param_offset=119`、`param_limit=500`、`next_param_offset=619`、`item_count=500`、`total_count=500`。
+- 阶段 7D 后覆盖矩阵刷新为公开文档 API 185 个、真实配置 API 50 个、enabled 30 个；执行分层仍为 `configured=50`、`needs_upstream_params=63`、`needs_sensitive_review=22`、`defer_or_review=50`。
+- 阶段 7D 决策：500 请求窗口已通过一次真实验证，下一轮优先复用 500 再推进一段；不要直接跳到全量，避免一次性放大限流和运行时长风险。

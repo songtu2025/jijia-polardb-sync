@@ -1200,7 +1200,7 @@ apis:
       source_api_code: product_page
       source_field: source_primary_key
       target_field: id
-      limit: 100
+      limit: 500
       auto_advance: true
     rate_limit:
       sleep_seconds: 0.2

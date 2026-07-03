@@ -25,25 +25,25 @@
 
 当前阶段：
 
-阶段 7C 已完成。下一阶段 7D 继续推进完整拉取：优先评估 `product_detail` 是否继续用 100 参数窗口推进下一段，或选择另一个低风险参数型接口做更大窗口验证。
+阶段 7D 已完成。下一阶段 7E 继续推进完整拉取：优先用 `product_detail.limit=500` 再推进一段，验证 500 请求窗口是否可稳定重复运行；本阶段完成后需要对 7C-7E 做三轮复盘。
 
 当前事实：
 
 - 当前 enabled API 有 30 个：`amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`、`product_page`、`parent_product_page`、`kb_product_page`、`fba_warehouse_page`、`store_location_page`、`multi_shop_query`、`platform_msku_page`、`crm_tags_page`、`inventory_team_query`、`product_inventory_page`、`storage_inbound_page`、`storage_return_page`、`strategy_template_page`、`traffic_page`、`traffic_sku_page`、`shipment_data_page`、`storage_ledger_page`、`inventory_receipts_page`、`country_province_query`、`base_currency_query`。
 - 当前已配置真实 API 有 50 个，其中 30 个已 enabled；剩余 20 个真实配置 API 已验证但保持 disabled。
 - 覆盖矩阵显示公开文档 API 185 个，真实配置 API 50 个，enabled 30 个。
-- 7C 继续选择 `product_detail`，原因是它属于产品主数据详情，依赖已同步的 `product_page.source_primary_key`，且 7B 后只覆盖到 19/8258。
-- 7C 已将 `product_detail.param_source.limit` 从 10 提升到 100，仍保持 `enabled=false`。
-- 7C 的 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs` 已通过，同步配置数 52；数据库确认 `product_detail.enabled=0`、`param_source.limit=100`、`param_source.auto_advance=true`。
-- 7C 的 `.\\.venv\\Scripts\\python.exe -m app.main` dry-run 显示 30 个 enabled API，说明 `product_detail` 没有误进入 daily enabled。
-- 7C 的真实单接口批次为 `sync_20260704_043249_880338`，`product_detail` 请求 100 次、写入 100 条、失败 0。
-- 7C 数据库核验：该批次 `sync_batch.status=success`、`total_api_count=1`、`success_api_count=1`、`failed_api_count=0`；同批次 `sync_api_log.status=success`、`request_count=100`、`success_count=100`、`failed_count=0`。
-- 7C 同批次 `raw_api_data` 写入 100 条 `product_detail`，100 个不同 `source_primary_key`，100 个不同 `data_hash`，无缺失主键。
-- 7C 后 `product_detail` checkpoint 记录 `param_offset=19`、`param_limit=100`、`next_param_offset=119`、`item_count=100`、`total_count=100`。
-- `product_detail` 当前累计 raw 覆盖 119 条，119 个不同产品主键；上游 `product_page` 当前有 8258 个不同产品主键。
-- 7C 后覆盖矩阵执行分层摘要仍为：`configured=50`、`needs_upstream_params=63`、`needs_sensitive_review=22`、`defer_or_review=50`。
-- 7C 已运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests` 并通过。
-- 7C 已运行 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，76 个测试通过。
+- 7D 继续选择 `product_detail`，原因是它属于产品主数据详情，依赖已同步的 `product_page.source_primary_key`，且 7C 后只覆盖到 119/8258。
+- 7D 已将 `product_detail.param_source.limit` 从 100 提升到 500，仍保持 `enabled=false`。
+- 7D 的 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs` 已通过，同步配置数 52；数据库确认 `product_detail.enabled=0`、`param_source.limit=500`、`param_source.auto_advance=true`。
+- 7D 的 `.\\.venv\\Scripts\\python.exe -m app.main` dry-run 显示 30 个 enabled API，说明 `product_detail` 没有误进入 daily enabled。
+- 7D 的真实单接口批次为 `sync_20260704_044315_780073`，`product_detail` 请求 500 次、写入 500 条、失败 0。
+- 7D 数据库核验：该批次 `sync_batch.status=success`、`total_api_count=1`、`success_api_count=1`、`failed_api_count=0`；同批次 `sync_api_log.status=success`、`request_count=500`、`success_count=500`、`failed_count=0`。
+- 7D 同批次 `raw_api_data` 写入 500 条 `product_detail`，500 个不同 `source_primary_key`，500 个不同 `data_hash`，无缺失主键。
+- 7D 后 `product_detail` checkpoint 记录 `param_offset=119`、`param_limit=500`、`next_param_offset=619`、`item_count=500`、`total_count=500`。
+- `product_detail` 当前累计 raw 覆盖 619 条，619 个不同产品主键；上游 `product_page` 当前有 8258 个不同产品主键。
+- 7D 后覆盖矩阵执行分层摘要仍为：`configured=50`、`needs_upstream_params=63`、`needs_sensitive_review=22`、`defer_or_review=50`。
+- 7D 已运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests` 并通过。
+- 7D 已运行 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，76 个测试通过。
 - `traffic_analysis_page` 在 `2026-07-02` 单日 CNY 窗口总量 528 条，但限流严格，曾在第 2 页触发 509。
 - `storage_ledger_detail_page` 在 `2026-07-02` 单日窗口总量 27104 条，不适合直接完整窗口。
 - `storage_ledger_month_page` 在 `2026-06` 月窗口总量 6044 条，不适合直接进入 daily enabled。
@@ -55,18 +55,19 @@
 
 建议目标：
 
-1. 先只读读取覆盖矩阵、7C `product_detail` 批次证据、7B `product_detail` 批次证据、7A `country_province_query` enabled 批次证据和当前 30 enabled 批次耗时。
-2. 优先评估 `product_detail` 是否继续用 `limit=100` 推进下一段；如果切换接口，选择 `storage_inbound_detail`、`transfer_detail`、`lot_no_detail`、`market_inventory_query` 等参数型接口时，也应避免回到 3 条样本的低效节奏。
-3. 如选择 `purchase_plan_page` 进入 enabled，必须说明它当前总量为 0 的业务意义，并用完整 enabled 批次证明不会影响日常同步。
-4. 如果评估 enabled，必须先测算完整 enabled 批次新增请求数和耗时；当前 30 enabled 批次实测约 4825 秒。
-5. 任何日期窗口完整验证都必须证明 `item_count == total_count`；如触发 `date window page truncated`，先修正分页上限后重跑。
-6. 如果现有机制不够，必须测试先行做最小扩展。
-7. 查询数据库确认批次成功，`sync_api_log`、`raw_api_data` 和 checkpoint 都可追踪。
-8. 需要刷新覆盖矩阵时，运行 `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary`。
-9. 运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests`。
-10. 运行 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`。
-11. 更新三份 docs；如 README 的运行说明或 API 状态变动需要同步，也一起更新。
-12. 提交推送时不要提交 `.env`、token 缓存、日志或任何敏感信息。
+1. 先只读读取覆盖矩阵、7D `product_detail` 批次证据、7C `product_detail` 批次证据和当前 30 enabled 批次耗时。
+2. 优先继续用 `product_detail.limit=500` 推进下一段，从 `next_param_offset=619` 开始；如果切换接口，选择 `storage_inbound_detail`、`transfer_detail`、`lot_no_detail`、`market_inventory_query` 等参数型接口时，也应避免回到 3 条样本的低效节奏。
+3. 7E 完成后需要复盘 7C-7E 三轮，重点看 `product_detail` 从 100 到 500 窗口的真实耗时、稳定性和后续是否适合常规回填调度。
+4. 如选择 `purchase_plan_page` 进入 enabled，必须说明它当前总量为 0 的业务意义，并用完整 enabled 批次证明不会影响日常同步。
+5. 如果评估 enabled，必须先测算完整 enabled 批次新增请求数和耗时；当前 30 enabled 批次实测约 4825 秒。
+6. 任何日期窗口完整验证都必须证明 `item_count == total_count`；如触发 `date window page truncated`，先修正分页上限后重跑。
+7. 如果现有机制不够，必须测试先行做最小扩展。
+8. 查询数据库确认批次成功，`sync_api_log`、`raw_api_data` 和 checkpoint 都可追踪。
+9. 需要刷新覆盖矩阵时，运行 `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary`。
+10. 运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests`。
+11. 运行 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`。
+12. 更新三份 docs；如 README 的运行说明或 API 状态变动需要同步，也一起更新。
+13. 提交推送时不要提交 `.env`、token 缓存、日志或任何敏感信息。
 
 验收：
 
