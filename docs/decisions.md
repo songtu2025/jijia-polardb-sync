@@ -728,3 +728,11 @@
 - 阶段 6L 已同步 `api_config`，数据库总配置 48 条，启用 24 条；`procure_detail.enabled=0`、`source_api_code=lot_no_page`、`source_field=raw_json.poCode`、`target_field=poCode`。
 - 阶段 6L 已用真实接口验证 `procure_detail`，批次号为 `sync_20260703_170038_518908`，请求 3 次，写入 3 条，失败 0；checkpoint 记录 `param_offset=0`、`param_limit=3`、`next_param_offset=3`。
 - 阶段 6L 后覆盖矩阵刷新为公开文档 API 185 个、真实配置 API 46 个、enabled 24 个；执行分层为 `configured=46`、`needs_upstream_params=67`、`needs_sensitive_review=22`、`defer_or_review=50`。
+- 阶段 6M 从 `needs_param_source` 中选择 `storage_ledger_detail_page`，文档 id 为 `773`，路径为 `POST /purchase/inventory/storageLedgerDetail/page`，默认保持 `enabled=false`。
+- 阶段 6M 选择该接口的原因是它与已验证的 `storage_ledger_page` 同属 FBA 库存分类账域，必填 `model` 查询对象可由现有嵌套 `date_window` 提供，不需要新增复杂参数源。
+- `storage_ledger_detail_page` 使用 `model.beginReportDate` 和 `model.endReportDate` 做单日窗口；公开文档响应列表字段为 `data.rows`，总数字段为 `data.total`，日期字段为 `reportDate`。
+- `storage_ledger_detail_page` 未配置稳定单字段主键；原因是公开文档没有给出明确行级唯一字段，本轮依靠 `data_hash` 幂等。
+- 阶段 6M 已用 TDD 约束 `storage_ledger_detail_page` 配置；测试先失败于缺少配置，再通过。本轮未修改同步引擎。
+- 阶段 6M 已同步 `api_config`，数据库总配置 49 条，启用 24 条；`storage_ledger_detail_page.enabled=0`、`date_window.start_field=model.beginReportDate`、`date_window.end_field=model.endReportDate`、`page.max_pages=1`。
+- 阶段 6M 已用真实接口验证 `storage_ledger_detail_page`，批次号为 `sync_20260703_171410_856072`，请求 1 次，写入 100 条，失败 0；checkpoint 记录 `total_count=27104`、`window_start=2026-07-02`、`window_end=2026-07-02`、`next_window_start=2026-07-03`。
+- 阶段 6M 后覆盖矩阵刷新为公开文档 API 185 个、真实配置 API 47 个、enabled 24 个；执行分层为 `configured=47`、`needs_upstream_params=66`、`needs_sensitive_review=22`、`defer_or_review=50`。
