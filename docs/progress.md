@@ -2,7 +2,7 @@
 
 ## Current Stage
 
-阶段 5K 已完成。`lot_no_detail` 已不改 YAML 自动推进到第二批交货单号，当前真实配置 API 为 26 个，enabled API 仍为 20 个。
+阶段 5L 已完成。已新增并验证 `delivery_fee_query` 第一批发货单预估费用窗口，当前真实配置 API 为 27 个，enabled API 仍为 20 个；5J-5L 三轮复盘已完成。
 
 ## Completed
 
@@ -1063,6 +1063,25 @@
   - `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary`，第一次 124 秒超时；用 300 秒超时重跑通过，公开文档 API 为 185 个，真实配置 API 为 26 个，enabled 为 20 个。
   - `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
   - `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过，31 个测试。
+- 阶段 5L 已运行：
+  - 已从覆盖矩阵 `requires_upstream_params` 中选择 `delivery_fee_query`，文档 id=1032，路径为 `GET /fulfillment/ship/deliveryFee/query`。
+  - 公开文档详情本轮 DNS 解析失败；已用本地覆盖矩阵确认该接口必填参数为 `code`，响应非分页、非敏感，并用真实接口探测确认响应字段包含 `code`、`createdAt`、`dlCode` 等费用对象字段。
+  - 已只读查询 `storage_inbound_page.raw_json`，确认 `opType=OROutbound` 有 142281 条 raw，且 142281 个去重 `fcode` 可作为发货单号候选。
+  - 探索阶段发现前三个发货单号返回的是字段齐全但主键为空的费用对象；已清理探索批次 `sync_20260703_085106_741075` 的 `delivery_fee_query` 相关 raw、log、checkpoint 和 batch 记录。
+  - 已新增 `tests/test_delivery_fee_param_source.py`，先失败后通过，约束 `delivery_fee_query` 默认 disabled，并使用 `raw_json.fcode -> code`、`raw_json.opType=OROutbound` 过滤生成请求参数。
+  - 已为 `primary_key.required=true` 增加最小过滤能力：当响应对象缺少必填主键时不写入 raw，避免出现 `source_primary_key="None"` 的脏记录；未声明必填主键的历史接口不受影响。
+  - 已新增 `delivery_fee_query` YAML 配置，默认 `enabled=false`，小样本 `limit=3`，`response.item_field=data`，主键字段为 `code` 且 `required=true`，日期字段为 `createdAt`。
+  - 已按程序真实排序确认第一批发货单号为 `FO2409200112422392484582`、`FO2409200242871875383389`、`FO2409200442555715758134`。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api delivery_fee_query`，通过，批次 `sync_20260703_085804_349693`，`rows=0`，`requests=3`。
+  - 已查询数据库摘要，确认该批次 `total_api_count=1`、`success_api_count=1`、`failed_api_count=0`。
+  - 同一批次 `sync_api_log` 记录 `request_count=3`、`success_count=0`、`failed_count=0`，`failed_request_log` 为 0 条。
+  - 同一批次 `raw_api_data` 写入 0 条，且 `delivery_fee_query` 当前无 `source_primary_key="None"` 的脏 raw。
+  - `delivery_fee_query` checkpoint 更新到批次 `sync_20260703_085804_349693`，记录 `param_offset=0`、`param_limit=3`、`next_param_offset=3`。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，通过，同步配置数为 29。
+  - 已查询 `api_config`，确认 `delivery_fee_query.enabled=0`、`param_source.source_api_code=storage_inbound_page`、`param_source.limit=3`、`param_source.auto_advance=true`、过滤值为 `OROutbound`、`primary_key.required=true`。
+  - `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary`，通过，公开文档 API 为 185 个，真实配置 API 为 27 个，enabled 为 20 个。
+  - `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
+  - `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过，34 个测试。
 
 ## Review 4L-4N
 
@@ -1232,14 +1251,36 @@
   - 对需要数组入参的 `marketNames/query`、`warehouseIds/query` 暂不强行接入，除非先设计清楚数组参数编码。
   - 依赖型接口继续保持 disabled，用 `--sync-api` 做小窗口验证。
 
+## Review 5J-5L
+
+- 已完成第九组目标模式闭环：
+  - 5J 新增 `lot_no_detail`，复用 `raw_json.fcode` 加 `opType=LNInbound` 过滤完成第一批交货单明细验证。
+  - 5K 不改 YAML 验证 `lot_no_detail` 从 checkpoint 自动推进到第二批交货单号。
+  - 5L 新增 `delivery_fee_query`，复用 `raw_json.fcode` 加 `opType=OROutbound` 过滤完成第一批发货单预估费用窗口验证，并补上必填主键过滤，避免空费用对象污染 raw。
+- 当前覆盖状态：
+  - 公开文档 API：185 个。
+  - 已配置真实 API：27 个。
+  - enabled API：20 个。
+  - `product_detail`、`market_inventory_query`、`storage_inbound_detail`、`country_province_query`、`transfer_detail`、`lot_no_detail` 和 `delivery_fee_query` 已验证但保持 disabled。
+  - 当前依赖参数来源支持 `source_primary_key`、单字段 `raw_json`、多字段 `raw_json`、raw_json 固定等值过滤、checkpoint 小窗口推进，以及按 `primary_key.required=true` 过滤缺主键响应对象。
+- 本组三轮发现的问题：
+  - `storage_inbound_page.raw_json.fcode` 是多业务单据共用字段，必须用 `opType` 过滤后才能作为不同详情接口的参数来源。
+  - 部分接口会返回字段齐全但关键字段全为空的对象；这类响应不应写入 raw，否则会形成 `source_primary_key="None"` 的脏数据。
+  - 物流费用接口可能有更严格限流，本轮只验证 3 个参数窗口，不应直接进入 enabled 或大窗口同步。
+- 下一组三轮建议：
+  - 继续回到覆盖矩阵，但优先处理不需要高频探测、不需要数组编码猜测的接口。
+  - 对数组入参接口，例如 `marketNames/query`、`warehouseIds/query`，需要先确认真实请求编码，再考虑扩展参数来源机制。
+  - 对会返回空对象的接口，新增配置时优先把稳定主键标记为 `required=true`，让同步引擎跳过缺主键对象。
+
 ## Known Issues
 
 - `amazon_shop_page` 第一版以 `data_hash` 去重，不强行编造业务主键。
 - 各业务 API 的具体路径、字段、分页和主键需要逐个阅读文档确认。
 - 新增后续业务接口前，仍需要逐个阅读积加文档确认路径、分页、主键和日期字段。
 - 当前 enabled API 已有 20 个：`amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`、`product_page`、`parent_product_page`、`kb_product_page`、`fba_warehouse_page`、`store_location_page`、`multi_shop_query`、`crm_tags_page`、`inventory_team_query`、`product_inventory_page`、`storage_inbound_page`。
-- 当前已配置真实 API 为 26 个，其中 20 个已加入 enabled，`product_detail`、`market_inventory_query`、`storage_inbound_detail`、`country_province_query`、`transfer_detail` 和 `lot_no_detail` 已完成小样本验证但保持 disabled。
-- 当前依赖参数来源机制支持从 `raw_api_data.source_primary_key` 取单个参数，也支持从 `raw_json` 顶层字段提取多个参数，并可用 `param_source.filters` 做固定等值过滤、用 `param_source.auto_advance` 基于 checkpoint 推进小窗口；尚未把 111307 个参数对、6481 个调拨单号或 8243 个交货单号纳入生产级调度。
+- 当前已配置真实 API 为 27 个，其中 20 个已加入 enabled，`product_detail`、`market_inventory_query`、`storage_inbound_detail`、`country_province_query`、`transfer_detail`、`lot_no_detail` 和 `delivery_fee_query` 已完成小样本验证但保持 disabled。
+- 当前依赖参数来源机制支持从 `raw_api_data.source_primary_key` 取单个参数，也支持从 `raw_json` 顶层字段提取多个参数，并可用 `param_source.filters` 做固定等值过滤、用 `param_source.auto_advance` 基于 checkpoint 推进小窗口；尚未把 111307 个库存参数对、6481 个调拨单号、8243 个交货单号或 142281 个发货单号纳入生产级调度。
+- `primary_key.required=true` 会过滤缺少必填主键的响应对象，避免详情接口返回全空对象时写入 `source_primary_key="None"` 的 raw。
 - 覆盖矩阵是公开文档视角，不等同于当前账号真实授权可调用结果；真实可访问性仍需单接口运行验证。
 - `product_page` 当前总量为 8258 条，请求 83 页；`product_inventory_page` 当前总量为 118653 条，请求 1187 页；`storage_inbound_page` 当前总量为 174286 条，请求 1743 页。当前 20 个 enabled API 的真实批量同步约 3052 次请求，必须按长耗时任务安排 cron 窗口。
 - 后续如果继续增加大分页接口或依赖型批量接口，需要关注运行时长、数据库写入耗时和 cron 窗口。
@@ -1247,12 +1288,12 @@
 
 ## Next Stage
 
-阶段 5L：回到覆盖矩阵，选择下一个可复用现有机制的依赖型接口，继续扩大可验证覆盖面。
+阶段 5M：继续回到覆盖矩阵，选择下一个低风险接口扩大覆盖；优先避开请求编码未确认的数组入参接口和限流较强的高频探测接口。
 
 建议目标：
 
-- 只读读取覆盖矩阵，筛选 `requires_upstream_params` 中尚未配置、参数可从现有 enabled raw 数据获得、且不涉及敏感字段或写操作的候选接口。
-- 优先选择能复用 `source_primary_key`、`param_source.fields` 或 `param_source.filters` 的低风险接口，暂不强行接入数组入参或嵌套数组来源。
+- 只读读取覆盖矩阵，筛选尚未配置、参数来源清晰、且不涉及敏感字段或写操作的候选接口。
+- 优先选择能复用 `source_primary_key`、`param_source.fields`、`param_source.filters` 或普通分页机制的低风险接口，暂不强行接入数组入参或嵌套数组来源。
 - 阅读候选接口公开文档详情，确认路径、方法、必填参数、响应形态、主键和日期字段。
 - 只读查询数据库，证明所需参数来源真实存在。
 - 新增一个依赖型 API 配置，默认 `enabled=false`，小样本 `limit` 控制在 3 左右。
@@ -1262,7 +1303,7 @@
 
 验收：
 
-- 新依赖型接口完成文档确认和小样本真实同步，默认保持 disabled。
+- 新接口完成文档确认和小样本真实同步，默认保持 disabled，除非它是已充分验证的低风险直读接口。
 - 参数来源由数据库只读查询证明，不靠猜测字段。
 - 新接口同步批次成功，`sync_api_log`、`raw_api_data` 和 checkpoint 可核验。
 - `api_config` 与覆盖矩阵显示真实配置 API 增加 1 个，enabled 仍为 20 个。

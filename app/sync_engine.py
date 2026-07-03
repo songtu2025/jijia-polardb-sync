@@ -641,9 +641,9 @@ class SyncEngine:
             if item is None:
                 return []
             if isinstance(item, dict):
-                return [item]
+                return [item] if self._has_required_primary_key(api, item) else []
             if isinstance(item, list):
-                return [row for row in item if isinstance(row, dict)]
+                return [row for row in item if isinstance(row, dict) and self._has_required_primary_key(api, row)]
             raise ValueError(f"response item field is not an object or list: {item_field}")
 
         list_field = (api.get("page") or {}).get("list_field", "data.rows")
@@ -652,7 +652,24 @@ class SyncEngine:
             return []
         if not isinstance(items, list):
             raise ValueError(f"response list field is not a list: {list_field}")
-        return [item for item in items if isinstance(item, dict)]
+        return [item for item in items if isinstance(item, dict) and self._has_required_primary_key(api, item)]
+
+    def _has_required_primary_key(self, api: dict[str, Any], item: dict[str, Any]) -> bool:
+        """按配置决定是否保留响应记录。
+
+        有些详情接口查不到数据时会返回一个字段齐全但主键为空的对象。只有当
+        YAML 明确声明主键必填时才过滤，避免影响历史上允许空主键的接口。
+        """
+        primary_key = api.get("primary_key") or {}
+        if not primary_key.get("required"):
+            return True
+
+        primary_key_field = primary_key.get("field")
+        if not primary_key_field:
+            return True
+
+        value = item.get(primary_key_field)
+        return value is not None and str(value) != ""
 
     def _paged_payloads(self, api: dict[str, Any], api_client: Any, token: Any) -> Any:
         """按分页配置逐页产出接口响应。

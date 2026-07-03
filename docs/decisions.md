@@ -508,3 +508,13 @@
 - 阶段 5K 已同步 `api_config`，当前数据库总配置 28 条，启用 20 条；`lot_no_detail.enabled=0`、`param_source.auto_advance=true`、过滤值为 `LNInbound`。
 - 阶段 5K 覆盖矩阵保持公开文档 API 185 个、真实配置 API 26 个、enabled 20 个。
 - 阶段 5K 结论：`lot_no_detail` 的固定过滤参数来源已完成连续窗口验证；下一阶段不应继续只重复该接口，应回到覆盖矩阵选择新的依赖型接口。
+- 阶段 5L 新增 `delivery_fee_query`，文档 id 为 `1032`，路径为 `GET /fulfillment/ship/deliveryFee/query`，默认保持 `enabled=false`。
+- `delivery_fee_query` 选择依据：该接口只需要必填 `code`，可从已同步的 `storage_inbound_page.raw_json.fcode` 获取，并用 `raw_json.opType=OROutbound` 过滤成发货单号。
+- 阶段 5L 已只读确认 `storage_inbound_page` 中 `opType=OROutbound` 有 142281 条 raw，142281 个去重 `fcode`，但不能直接纳入 enabled 批量同步。
+- 阶段 5L 发现费用接口可能返回字段齐全但主键为空的对象；已为 `primary_key.required=true` 增加过滤逻辑，避免写入 `source_primary_key="None"` 的 raw。
+- 阶段 5L 已清理探索批次 `sync_20260703_085106_741075` 的 `delivery_fee_query` 相关 raw、log、checkpoint 和 batch 记录，避免保留空主键脏数据。
+- 阶段 5L 已用前三个发货单号验证 `delivery_fee_query`，批次号为 `sync_20260703_085804_349693`，请求 3 次，写入 0 条，失败 0；空对象被正确过滤。
+- 阶段 5L 后 `delivery_fee_query` checkpoint 记录 `param_offset=0`、`param_limit=3`、`next_param_offset=3`。
+- 阶段 5L 已同步 `api_config`，当前数据库总配置 29 条，启用 20 条；`delivery_fee_query.enabled=0`、`param_source.auto_advance=true`、过滤值为 `OROutbound`、`primary_key.required=true`。
+- 阶段 5L 覆盖矩阵已刷新为公开文档 API 185 个、真实配置 API 27 个、enabled 20 个。
+- 5J-5L 复盘结论：固定等值过滤已可复用于多种业务单据类型，但数组入参编码和强限流接口仍需单独策略；缺主键对象必须在入库前过滤。
