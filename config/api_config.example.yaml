@@ -994,6 +994,35 @@ apis:
       pagesize: 100
       model: {}
 
+  # 第四十八个真实文档接口：FBA库存分类账月维度一览，文档 id=2658，静态月份小窗口验证，默认保持 disabled。
+  - api_code: storage_ledger_month_page
+    name: FBA库存分类账-一览视图-按月维度列表查询
+    enabled: false
+    method: POST
+    path: /fulfillment/inventory/storageLedgerMonth/page
+    page:
+      enabled: true
+      page_no_field: page
+      page_size_field: pagesize
+      page_size: 100
+      max_pages: 1
+      list_field: data.rows
+      total_field: data.total
+    primary_key:
+      field: id
+      required: true
+    date_field: updateTime
+    rate_limit:
+      sleep_seconds: 0.5
+    retry:
+      retries: 3
+      delay_seconds: 1
+    params:
+      page: 1
+      pagesize: 100
+      monthList:
+        - "2026-06"
+
   # 第四十四个真实文档接口：已接收库存列表，文档 id=21，使用市场日期窗口做单页验证，默认保持 disabled。
   - api_code: inventory_receipts_page
     name: 查询已接收库存列表

@@ -737,3 +737,11 @@
 - 阶段 6M 已用真实接口验证 `storage_ledger_detail_page`，批次号为 `sync_20260703_171410_856072`，请求 1 次，写入 100 条，失败 0；checkpoint 记录 `total_count=27104`、`window_start=2026-07-02`、`window_end=2026-07-02`、`next_window_start=2026-07-03`。
 - 阶段 6M 后覆盖矩阵刷新为公开文档 API 185 个、真实配置 API 47 个、enabled 24 个；执行分层为 `configured=47`、`needs_upstream_params=66`、`needs_sensitive_review=22`、`defer_or_review=50`。
 - 6K-6M 三轮复盘结论：覆盖扩展应继续保持“证明参数来源或日期窗口 -> 默认 disabled 小样本真实同步 -> DB 证据 -> 文档交接”的节奏；不能把小窗口成功等同于完整拉取，也不能因为字段名相似就接入参数型接口。
+- 阶段 6N 从 `needs_param_source` 中选择 `storage_ledger_month_page`，文档 id 为 `2658`，路径为 `POST /fulfillment/inventory/storageLedgerMonth/page`，默认保持 `enabled=false`。
+- 阶段 6N 选择该接口的原因是它与已验证的 FBA 库存分类账日报和明细同域，必填 `monthList` 可用静态月份小窗口验证，不需要新增嵌套数组参数源。
+- 阶段 6N 先探测 `2026-07` 返回 `total_count=0`，随后用不落库直接请求确认 `2026-06` 返回 `total=6044`，因此配置改为 `monthList=["2026-06"]` 以获得非空验证证据。
+- `storage_ledger_month_page` 使用 `data.rows` 和 `data.total`；公开文档响应包含行级 `id`，本轮配置 `primary_key.field=id`、`primary_key.required=true`，`date_field=updateTime`。
+- 阶段 6N 已用 TDD 约束 `storage_ledger_month_page` 配置；测试先失败于缺少配置，再通过。本轮未修改同步引擎。
+- 阶段 6N 已同步 `api_config`，数据库总配置 50 条，启用 24 条；`storage_ledger_month_page.enabled=0`、`monthList=["2026-06"]`、`page.max_pages=1`。
+- 阶段 6N 已用真实接口验证 `storage_ledger_month_page`，批次号为 `sync_20260703_173133_727406`，请求 1 次，写入 100 条，失败 0；checkpoint 记录 `last_page=1`、`request_count=1`、`item_count=100`、`total_count=6044`。
+- 阶段 6N 后覆盖矩阵刷新为公开文档 API 185 个、真实配置 API 48 个、enabled 24 个；执行分层为 `configured=48`、`needs_upstream_params=65`、`needs_sensitive_review=22`、`defer_or_review=50`。
