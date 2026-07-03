@@ -2141,6 +2141,24 @@
   - `storage_ledger_detail_page` 已完成真实单日单页同步，可作为 FBA 库存分类账明细数据源候选保留。
   - 该接口 `2026-07-02` 单日总量为 27104 条，本轮只验证单页 100 条，保持 disabled；后续如要完整回填，应继续依赖日期窗口分批推进，不能直接加入 daily enabled。
 
+## Review 6K-6M
+
+- 覆盖推进结果：
+  - 6K 把覆盖矩阵从单纯分类推进到可执行分层，后续选择接口不再依赖早期的 `direct_read_candidate` 口径。
+  - 6L 证明了 `needs_param_source` 可以通过真实 raw 字段继续推进，新增 `procure_detail`，但严格保持小样本和 disabled。
+  - 6M 证明了另一个 `needs_param_source` 可以通过已有嵌套 `date_window` 能力推进，新增 `storage_ledger_detail_page`，同样保持 disabled。
+- 当前有效边界：
+  - 已配置真实 API 从 45 个推进到 47 个，enabled 仍为 24 个，说明覆盖扩展没有扩大 daily 批量风险。
+  - 新增的两个接口分别代表“参数源详情接口”和“日期窗口明细接口”，都能真实入库、写 log、写 checkpoint。
+  - 剩余普通直读候选仍为 0 个，后续必须继续按参数来源、敏感字段、限流风险和写接口风险分层推进。
+- 风险复盘：
+  - 不能把小样本验证当作完整拉取；`storage_ledger_detail_page` 单日总量 27104 条，`procure_detail` 也可能随采购单范围扩大而快速增加请求量。
+  - 参数来源必须继续由数据库只读查询证明，不能用字段名猜测；6L 已排除过无法证明来源的候选。
+  - 严格限流接口仍要减少手工扫参，优先用小窗口、低页数和 checkpoint 推进。
+- 下一步方向：
+  - 6N 可继续找第三个参数源候选，也可以先为日期窗口类大表设计回填节奏。
+  - 若要推动 disabled 接口进入 enabled，必须先把 `max_pages`、窗口、调度时长和限流风险讲清楚，再运行真实批量验证。
+
 ## Known Issues
 
 - `amazon_shop_page` 第一版以 `data_hash` 去重，不强行编造业务主键。

@@ -736,3 +736,4 @@
 - 阶段 6M 已同步 `api_config`，数据库总配置 49 条，启用 24 条；`storage_ledger_detail_page.enabled=0`、`date_window.start_field=model.beginReportDate`、`date_window.end_field=model.endReportDate`、`page.max_pages=1`。
 - 阶段 6M 已用真实接口验证 `storage_ledger_detail_page`，批次号为 `sync_20260703_171410_856072`，请求 1 次，写入 100 条，失败 0；checkpoint 记录 `total_count=27104`、`window_start=2026-07-02`、`window_end=2026-07-02`、`next_window_start=2026-07-03`。
 - 阶段 6M 后覆盖矩阵刷新为公开文档 API 185 个、真实配置 API 47 个、enabled 24 个；执行分层为 `configured=47`、`needs_upstream_params=66`、`needs_sensitive_review=22`、`defer_or_review=50`。
+- 6K-6M 三轮复盘结论：覆盖扩展应继续保持“证明参数来源或日期窗口 -> 默认 disabled 小样本真实同步 -> DB 证据 -> 文档交接”的节奏；不能把小窗口成功等同于完整拉取，也不能因为字段名相似就接入参数型接口。

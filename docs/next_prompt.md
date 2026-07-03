@@ -46,6 +46,7 @@
 - 6M 的 `storage_ledger_detail_page` 单接口批次为 `sync_20260703_171410_856072`，状态 `success`，`rows=100`、`requests=1`、失败 0。
 - 6M 数据库核验：同批次 `sync_batch` 成功，`sync_api_log` 成功，raw 100 条、100 个 distinct hash、100 条都有 `raw_json` 和 `data_date`，`data_date` 为 `2026-07-02`。
 - 6M checkpoint 记录 `last_page=1`、`request_count=1`、`item_count=100`、`total_count=27104`、`window_start=2026-07-02`、`window_end=2026-07-02`、`next_window_start=2026-07-03`。
+- 6K-6M 三轮复盘已写入 `docs/progress.md`：后续继续保持“证明参数来源或日期窗口 -> 默认 disabled 小样本真实同步 -> DB 证据 -> 文档交接”的节奏，不能把小窗口成功等同于完整拉取。
 - 当前未配置且可直接普通探测的候选仍为 0 个；下一步不要继续按早期“未配置 direct_read_candidate 里挑一个”的策略推进。
 - 当前仍不支持数组入参、嵌套数组来源或复杂过滤表达式。
 - `marketNames/query` 的常见 GET 数组编码已试过会返回 400，暂不要在未确认真实编码前强行接入。
