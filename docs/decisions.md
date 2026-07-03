@@ -910,3 +910,11 @@
 - 阶段 7G 后 `product_detail` 累计覆盖 2119 个不同产品主键，上游 `product_page` 为 8258 个不同产品主键。
 - 阶段 7G 的 dry-run 仍显示 30 个 enabled API，覆盖矩阵刷新仍为公开文档 API 185 个、真实配置 API 50 个、enabled 30 个；本轮没有启用 `product_detail`。
 - 阶段 7G 已运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests` 和 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，76 个测试通过。
+- 阶段 7H 不改 YAML，继续复用 `product_detail.param_source.limit=500`；原因是 7F-7G 已证明该窗口稳定，继续回填比切换到新 3 条样本更接近完整拉取目标。
+- 阶段 7H 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api product_detail`，批次号为 `sync_20260704_054820_592161`，请求 500 次，写入 500 条，失败 0。
+- 阶段 7H DB 核验显示该批次 `sync_batch.status=success`、`sync_api_log.status=success`、`request_count=500`、`success_count=500`、`failed_count=0`，同批次 raw 为 500 条且 500 个不同 `source_primary_key`。
+- 阶段 7H 后 `product_detail` checkpoint 指向批次 `sync_20260704_054820_592161`，记录 `param_offset=2119`、`param_limit=500`、`next_param_offset=2619`、`item_count=500`、`total_count=500`。
+- 阶段 7H 后 `product_detail` 累计覆盖 2619 个不同产品主键，上游 `product_page` 为 8258 个不同产品主键。
+- 阶段 7H 的 dry-run 仍显示 30 个 enabled API，覆盖矩阵刷新仍为公开文档 API 185 个、真实配置 API 50 个、enabled 30 个；本轮没有启用 `product_detail`。
+- 阶段 7H 已运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests` 和 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，76 个测试通过。
+- 7F-7H 复盘结论：`product_detail` 500 请求窗口三轮连续成功，累计推进 1500 个产品详情；该粒度可继续作为历史回填单位，但 `product_detail` 仍不应进入 daily enabled，除非后续明确每日增量策略和调度窗口。
