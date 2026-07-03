@@ -851,3 +851,14 @@
 - 阶段 6Z 中 `shipment_data_page` 在同批次内状态成功，请求 3 次，`2026-07-03` 窗口返回 `item_count=241`、`total_count=241`，checkpoint 推进到 `next_window_start=2026-07-04`。
 - 阶段 6Z 后覆盖矩阵刷新为公开文档 API 185 个、真实配置 API 50 个、enabled 29 个；执行分层为 `configured=50`、`needs_upstream_params=63`、`needs_sensitive_review=22`、`defer_or_review=50`。
 - 阶段 6Z 是新一组三轮的第 1 轮；下一次三轮复盘应在 7B 完成后覆盖 6Z-7B。
+- 阶段 7A 选择将 `country_province_query` 从 disabled 提升到 enabled；依据是该接口属于基础数据依赖接口，已在 5F/5G 覆盖当前全部 6 个上游国家/区域码。
+- 阶段 7A 启用前只读 DB 显示 `fba_warehouse_page` 有 36 条带 `country` 的 raw，去重国家/区域码为 `CA`、`EU`、`JP`、`MX`、`UK`、`US` 共 6 个。
+- 阶段 7A 启用前 `country_province_query` checkpoint 已到 `next_param_offset=6`，等于当前去重国家/区域码数量；历史两批验证共写入 150 条 raw，失败 0。
+- 阶段 7A 已用 TDD 约束 `country_province_query.enabled=true`，并将 enabled 基线测试从 29 调整到 30。
+- 阶段 7A 已同步 `api_config`，数据库总配置 52 条、启用 30 条；`country_province_query.enabled=1`、`param_source.auto_advance=true`。
+- 阶段 7A 的 dry-run 已确认 loaded 30 enabled API config(s)，且 `country_province_query` 出现在 enabled 列表中。
+- 阶段 7A 已运行完整 `--sync-enabled`，批次号为 `sync_20260704_025256_508240`，30 个 API 全部成功，失败 0；批次总请求 3074 次、写入 307946 条，运行时间 4825 秒。
+- 阶段 7A 中 `country_province_query` 在同批次内状态成功，请求 0 次，写入 0 条，失败 0；这是参数窗口已追平的预期结果。
+- 阶段 7A 后 `country_province_query` checkpoint 指向批次 `sync_20260704_025256_508240`，记录 `param_offset=6`、`param_limit=3`、`next_param_offset=6`、`request_count=0`、`item_count=0`。
+- 阶段 7A 后覆盖矩阵刷新为公开文档 API 185 个、真实配置 API 50 个、enabled 30 个；执行分层为 `configured=50`、`needs_upstream_params=63`、`needs_sensitive_review=22`、`defer_or_review=50`。
+- 阶段 7A 是 6Z-7B 三轮中的第 2 轮；7B 完成后需要复盘 6Z-7B。

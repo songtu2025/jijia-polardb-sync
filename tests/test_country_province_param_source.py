@@ -29,11 +29,11 @@ class CountryProvinceParamSourceTest(unittest.TestCase):
     def setUp(self):
         self.apis = {api["api_code"]: api for api in load_api_configs("config/api_config.example.yaml")}
 
-    def test_country_province_query_uses_fba_warehouse_country_and_stays_disabled(self):
+    def test_country_province_query_uses_fba_warehouse_country_and_is_enabled(self):
         self.assertIn("country_province_query", self.apis)
         api = self.apis["country_province_query"]
 
-        self.assertFalse(api["enabled"])
+        self.assertTrue(api["enabled"])
         self.assertEqual(api["method"], "GET")
         self.assertEqual(api["path"], "/middle/base/countryProvince/query")
         self.assertFalse(api["page"]["enabled"])

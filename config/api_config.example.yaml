@@ -1237,10 +1237,10 @@ apis:
       delay_seconds: 1
     params: {}
 
-  # 第二十四个真实文档接口：获取国家省州信息，文档 id=5066，依赖 fba_warehouse_page 的国家编码，小样本验证阶段保持 disabled。
+  # 第二十四个真实文档接口：获取国家省州信息，文档 id=5066，已覆盖当前国家编码并加入 daily enabled。
   - api_code: country_province_query
     name: 获取国家省州信息
-    enabled: false
+    enabled: true
     method: GET
     path: /middle/base/countryProvince/query
     page:
