@@ -25,44 +25,53 @@
 
 当前阶段：
 
-阶段 6F 已完成。下一阶段 6G 继续推进完整覆盖；6E-6G 是当前三轮组，6G 完成后需要做三轮复盘。可以继续接一个低风险日期窗口候选，或评估一个已验证 disabled 接口是否具备进入 enabled 的条件。
+阶段 6G 已完成。下一阶段 6H 进入新一组三轮，继续推进“完整拉取所有可访问数据”的覆盖面；可以继续接一个低风险嵌套 `model` 日期窗口接口，或评估一个已验证 disabled 接口是否具备进入 enabled 的条件。
 
 当前事实：
 
 - 当前 enabled API 有 23 个：`amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`、`product_page`、`parent_product_page`、`kb_product_page`、`fba_warehouse_page`、`store_location_page`、`multi_shop_query`、`crm_tags_page`、`inventory_team_query`、`product_inventory_page`、`storage_inbound_page`、`storage_return_page`、`strategy_template_page`、`base_currency_query`。
-- 当前已配置真实 API 有 42 个，其中 23 个已 enabled；`product_detail`、`market_inventory_query`、`storage_inbound_detail`、`country_province_query`、`transfer_detail`、`lot_no_detail`、`delivery_fee_query`、`amazon_msku_page`、`platform_msku_page`、`fba_inventory_page`、`fba_inventory_v2_page`、`inventory_adjustments_page`、`inventory_event_page`、`inventory_age_page`、`traffic_analysis_page`、`shipment_data_page`、`transfer_page`、`lot_no_page` 和 `purchase_plan_page` 已验证但保持 disabled。
-- 覆盖矩阵显示公开文档 API 185 个，真实配置 API 42 个，enabled 23 个。
+- 当前已配置真实 API 有 43 个，其中 23 个已 enabled；`product_detail`、`market_inventory_query`、`storage_inbound_detail`、`country_province_query`、`transfer_detail`、`lot_no_detail`、`delivery_fee_query`、`amazon_msku_page`、`platform_msku_page`、`fba_inventory_page`、`fba_inventory_v2_page`、`inventory_adjustments_page`、`inventory_event_page`、`inventory_age_page`、`traffic_analysis_page`、`shipment_data_page`、`storage_ledger_page`、`transfer_page`、`lot_no_page` 和 `purchase_plan_page` 已验证但保持 disabled。
+- 覆盖矩阵显示公开文档 API 185 个，真实配置 API 43 个，enabled 23 个。
 - 5V 的完整 `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled` 批次为 `sync_20260703_104718_888820`，状态 `success`，23 个 API 全部成功，总请求数 3053，总写入行数 306199，运行耗时 5735 秒。
 - 6B 新增请求参数日期模板，支持 `{{ today }}`、`{{ yesterday }}`、`{{ days_ago:N }}`。
 - 6C 新增 `date_window`：首次从 `default_start` 生成窗口，后续从 checkpoint 的 `next_window_start` 继续。
-- 6D 新增 `traffic_analysis_page`，文档 id 为 `1018`，路径为 `POST /operation/sts/trafficAnalysis/page`，默认 `enabled=false`。
-- 6D 的 `traffic_analysis_page` 成功批次为 `sync_20260703_134351_398121`，`rows=100`、`requests=1`、失败 0；checkpoint 记录 `window_start=2026-07-02`、`window_end=2026-07-02`、`next_window_start=2026-07-03`。
-- 6E 补齐 `date_window` 追平当前日期后的跳过策略：当 checkpoint 的 `next_window_start` 晚于当天时，不再发起真实 API 请求；跳过会写入成功日志和 checkpoint，`request_count=0`、`item_count=0`，并保留 `next_window_start`、`window_days` 和 `skipped_reason=date_window_caught_up`。
-- 6F 新增 `shipment_data_page`，文档 id 为 `1034`，路径为 `POST /fulfillment/ship/shipmentData/page`，默认 `enabled=false`。
-- `shipment_data_page` 是 FBA 货件看板，必填 `page`、`pagesize`，可选顶层日期字段为 `receivingDateBegin` 和 `receivingDateEnd`，响应为 `data.rows` 和 `data.total`。
-- `shipment_data_page` 真实探测确认 `2026-07-02` 单日窗口返回 `total=943`；样本字段包含 `shipmentId`、`receivingAt`、`recordAt`、`updatedAt`、`product`、`sellerSku`、`warehouseId` 和 `status`。
-- `shipment_data_page` 首次用 `shipmentId` 做主键时，100 个 item 只落 6 条 raw，说明 `shipmentId` 是货件级字段，不是行级主键；当前配置使用空 `primary_key.field`，依赖 `data_hash` 幂等。
-- 6F 的修正后 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api shipment_data_page` 批次为 `sync_20260703_140547_384755`，状态 `success`，`rows=58`、`requests=1`、失败 0。
-- 数据库确认该批次 `sync_batch.status=success`、`total_api_count=1`、`success_api_count=1`、`failed_api_count=0`、耗时 7 秒。
-- 同批次 `sync_api_log` 为 `request_count=1`、`success_count=58`、`failed_count=0`、`error_message=NULL`。
-- 同批次 `raw_api_data` 写入 58 条，58 条都有 `data_hash`，58 条都有 `data_date`，日期范围为 `2026-07-03` 到 `2026-07-03`。
-- `shipment_data_page` checkpoint 已更新到 `sync_20260703_140547_384755`，`checkpoint_value` 记录 `last_page=1`、`request_count=1`、`item_count=58`、`total_count=58`、`window_start=2026-07-03`、`window_end=2026-07-03`、`next_window_start=2026-07-04`、`window_days=1`。
-- 数据库确认 `api_config` 总数 44、启用 23；`shipment_data_page.enabled=0`、`page.max_pages=1`、`primary_key.field=""`、`date_field=receivingAt`、`date_window.default_start=2026-07-02`、`date_window.days=1`。
-- 6F 的 `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary` 已通过，公开文档 185 个，真实配置 42 个，enabled 23 个。
-- 6F 的 `.\\.venv\\Scripts\\python.exe -m app.main` dry-run 显示 23 个 enabled API。
-- 6F 的 `.\\.venv\\Scripts\\python.exe -m compileall app tests` 已通过。
-- 6F 的 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"` 已通过，58 个测试。
+- 6D 新增 `traffic_analysis_page`，文档 id 为 `1018`，路径为 `POST /operation/sts/trafficAnalysis/page`，默认 `enabled=false`；批次 `sync_20260703_134351_398121` 写入 100 条，失败 0。
+- 6E 补齐 `date_window` 追平当前日期后的跳过策略：当 checkpoint 的 `next_window_start` 晚于当天时，不再发起真实 API 请求；跳过会写入成功日志和 checkpoint。
+- 6F 新增 `shipment_data_page`，文档 id 为 `1034`，路径为 `POST /fulfillment/ship/shipmentData/page`，默认 `enabled=false`；修正后批次 `sync_20260703_140547_384755` 写入 58 条，失败 0。
+- `shipment_data_page` 已证明 `shipmentId` 是货件级字段，不是行级主键；当前配置使用空 `primary_key.field`，依赖 `data_hash` 幂等。
+- 6G 扩展 `date_window` 支持点路径字段，例如 `model.reportStartDate` 和 `model.reportEndDate`，checkpoint 也会按点路径记录窗口起止。
+- 6G 新增 `storage_ledger_page`，文档 id 为 `1436`，路径为 `POST /fulfillment/inventory/storageLedger/page`，默认 `enabled=false`。
+- `storage_ledger_page` 是 FBA 库存分类账日报一览，必填 `model`、`page`、`pagesize`，日期字段为 `model.reportStartDate` 和 `model.reportEndDate`，响应为 `data.rows` 和 `data.total`。
+- `storage_ledger_page` 真实探测确认 `2026-07-02` 单日窗口返回 `total=710`；样本字段包含 `warehouseId`、`reportDate`、`sku`、`fnsku`、`msku`、`asin`、`disposition` 和 `updateTime`。
+- 6G 的 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api storage_ledger_page` 批次为 `sync_20260703_141606_982745`，状态 `success`，`rows=100`、`requests=1`、失败 0。
+- 数据库确认该批次 `sync_batch.status=success`、`total_api_count=1`、`success_api_count=1`、`failed_api_count=0`、耗时 9 秒。
+- 同批次 `sync_api_log` 为 `request_count=1`、`success_count=100`、`failed_count=0`、`error_message=NULL`。
+- 同批次 `raw_api_data` 写入 100 条，100 条都有 `data_hash`，100 条都有 `data_date`，日期范围为 `2026-07-02` 到 `2026-07-02`。
+- `storage_ledger_page` checkpoint 已更新到 `sync_20260703_141606_982745`，`checkpoint_value` 记录 `last_page=1`、`request_count=1`、`item_count=100`、`total_count=710`、`window_start=2026-07-02`、`window_end=2026-07-02`、`next_window_start=2026-07-03`、`window_days=1`。
+- 数据库确认 `api_config` 总数 45、启用 23；`storage_ledger_page.enabled=0`、`page.max_pages=1`、`primary_key.field=""`、`date_field=reportDate`、`date_window.start_field=model.reportStartDate`、`date_window.end_field=model.reportEndDate`。
+- 6G 的 `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary` 已通过，公开文档 185 个，真实配置 43 个，enabled 23 个。
+- 6G 的 `.\\.venv\\Scripts\\python.exe -m app.main` dry-run 显示 23 个 enabled API。
+- 6G 的 `.\\.venv\\Scripts\\python.exe -m compileall app tests` 已通过。
+- 6G 的 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"` 已通过，60 个测试。
 - 当前仍不支持数组入参、嵌套数组来源或复杂过滤表达式。
 - `marketNames/query` 的常见 GET 数组编码已试过会返回 400，暂不要在未确认真实编码前强行接入。
 - `deliveryFee/query`、`relevancePoInfo/query` 和 `traffic_analysis_page` 高频或连续分页时出现过 509；后续类似接口应减少手工扫参，优先用小窗口同步和较长等待。
 - `app.main` 当前没有 `--dry-run` 参数；如需确认 enabled 数量，用 `.\\.venv\\Scripts\\python.exe -m app.main` 或 `app.doc_catalog` 摘要，不要假设 CLI 支持 `--dry-run`。
 - 本地 Git 应与远端同步；开始前仍请先看 `git status --short --branch` 和 `git log -1 --oneline`。
 
+6E-6G 复盘结论：
+
+- 6E 补齐追平跳过，避免日期窗口接口在已追平时继续空请求。
+- 6F 用 `shipment_data_page` 验证顶层日期窗口，并暴露“父级业务号不能当行级主键”的问题。
+- 6G 用 `storage_ledger_page` 验证嵌套 `model` 日期窗口。
+- 本组三轮重点是让日期窗口能力覆盖更多报表形态，不是扩大 daily enabled。
+- 后续若要完整回填日期窗口接口，需要设计单接口历史回填计划，不能只靠 daily enabled。
+
 建议目标：
 
-1. 先只读读取覆盖矩阵、当前 disabled 已验证接口清单、6E-6F 结果和 6B-6D 复盘。
-2. 优先在两个方向中选择一个最小目标：继续用 `date_window` 接入另一个低风险日期窗口接口，或评估一个低体量、已验证、非敏感、非依赖型 disabled 接口是否可以进入 enabled。
-3. 如果继续新增接口，优先选择需要日期窗口且业务风险可控的统计、报表、库存看板或配置类接口；暂不要直接进入订单、财务敏感明细、客服文本、物流费用或销售售后。
+1. 先只读读取覆盖矩阵、6E-6G 复盘、当前 disabled 已验证接口清单和 6G 的嵌套 date_window 证据。
+2. 优先在两个方向中选择一个最小目标：继续接一个低风险嵌套 `model` 日期窗口接口，或评估一个低体量、已验证、非敏感、非依赖型 disabled 接口是否可以进入 enabled。
+3. 如果继续新增接口，优先选择统计、报表、库存看板或配置类接口；暂不要直接进入订单、财务敏感明细、客服文本、物流费用或销售售后。
 4. 对限流严格的接口，默认使用更小 `max_pages`、更长 `rate_limit.sleep_seconds` 或独立调度，不要直接加入 daily enabled。
 5. 阅读候选接口公开文档详情，确认路径、方法、必填参数、响应形态、主键和日期字段。
 6. 如果候选涉及依赖参数，先只读查询数据库证明参数来源真实存在；如果是直读接口，先用一次真实请求确认响应形态和耗时。
@@ -73,14 +82,13 @@
 11. 需要刷新覆盖矩阵时，运行 `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary`。
 12. 运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests`。
 13. 运行 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`。
-14. 6G 完成后更新 6E-6G 三轮复盘。
-15. 更新 README、三份 docs，并提交推送；不要提交 `.env`、token 缓存、日志或任何敏感信息。
+14. 更新 README、三份 docs，并提交推送；不要提交 `.env`、token 缓存、日志或任何敏感信息。
 
 验收：
 
 1. 新接口或启用评估必须由公开文档、真实请求、数据库只读查询或测试证明，不靠猜测字段。
 2. 如新增接口，默认保持 disabled，除非已经明确完成进入日常批量的风险评估。
 3. 如启用接口，必须证明 `api_config.enabled=1`、dry-run enabled 数量变化正确，并用真实同步批次证明成功。
-4. `api_config` 与覆盖矩阵显示真实配置 API 或 enabled 数量变化符合本轮目标；当前基线是真实配置 API 42 个、enabled 23 个。
+4. `api_config` 与覆盖矩阵显示真实配置 API 或 enabled 数量变化符合本轮目标；当前基线是真实配置 API 43 个、enabled 23 个。
 5. `compileall` 和 `unittest discover` 通过。
 6. 不提交 `.env`、token 缓存、日志或真实凭证。

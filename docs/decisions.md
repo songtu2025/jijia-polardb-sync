@@ -677,3 +677,14 @@
 - 阶段 6F 修正后已用真实接口验证 `shipment_data_page`，批次号为 `sync_20260703_140547_384755`，请求 1 次，写入 58 条，失败 0。
 - 阶段 6F 后 `shipment_data_page` checkpoint 指向批次 `sync_20260703_140547_384755`，`checkpoint_value` 记录 `last_page=1`、`request_count=1`、`item_count=58`、`total_count=58`、`window_start=2026-07-03`、`window_end=2026-07-03`、`next_window_start=2026-07-04`、`window_days=1`。
 - 阶段 6F 已同步 `api_config`，当前数据库总配置 44 条，启用 23 条；覆盖矩阵刷新后为公开文档 API 185 个、真实配置 API 42 个、enabled 23 个。
+- 阶段 6G 扩展 `date_window` 支持点路径写入，`start_field` 和 `end_field` 可以配置为 `model.reportStartDate`、`model.reportEndDate` 这类嵌套字段。
+- 阶段 6G 的 checkpoint 额外信息也改为按点路径读取窗口字段，避免嵌套 date_window 只发请求、不记录 `window_start` 和 `window_end`。
+- 阶段 6G 新增 `storage_ledger_page`，文档 id 为 `1436`，路径为 `POST /fulfillment/inventory/storageLedger/page`，默认保持 `enabled=false`。
+- `storage_ledger_page` 选择依据：FBA 库存分类账日报一览是报表直读接口，日期字段位于 `model.reportStartDate` 和 `model.reportEndDate`，能验证嵌套请求参数；风险低于订单、财务明细、客服文本和物流费用。
+- `storage_ledger_page` 真实探测确认 `2026-07-02` 单日窗口返回 `total=710`；样本包含 `warehouseId`、`reportDate`、`sku`、`fnsku`、`msku`、`asin`、`disposition` 和 `updateTime`。
+- `storage_ledger_page` 响应样本没有稳定行级 `id`，本轮配置空 `primary_key.field`，依赖 `data_hash` 幂等，避免编造业务主键。
+- 阶段 6G 已用真实接口验证 `storage_ledger_page`，批次号为 `sync_20260703_141606_982745`，请求 1 次，写入 100 条，失败 0。
+- 阶段 6G 后 `storage_ledger_page` checkpoint 指向批次 `sync_20260703_141606_982745`，`checkpoint_value` 记录 `last_page=1`、`request_count=1`、`item_count=100`、`total_count=710`、`window_start=2026-07-02`、`window_end=2026-07-02`、`next_window_start=2026-07-03`、`window_days=1`。
+- 阶段 6G 已同步 `api_config`，当前数据库总配置 45 条，启用 23 条；覆盖矩阵刷新后为公开文档 API 185 个、真实配置 API 43 个、enabled 23 个。
+- 6E-6G 复盘结论：本组三轮完成 date_window 追平跳过、顶层日期窗口接口验证和嵌套日期窗口接口验证；下一组可继续扩展低风险日期窗口接口，或开始谨慎评估已验证 disabled 接口是否具备进入 enabled 的条件。
+- 后续评估 enabled 时，不能把严格限流、高体量、日期窗口回填、订单、财务、客服文本或物流费用接口直接加入 daily enabled；必须先有真实批次、运行时长、主键和限流证据。

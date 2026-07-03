@@ -115,6 +115,39 @@ class SyncEngineParamTemplatesTest(unittest.TestCase):
         self.assertEqual(params["startDate"], "2026-06-04")
         self.assertEqual(params["endDate"], "2026-06-05")
 
+    def test_date_window_params_can_write_nested_model_fields(self):
+        engine = SyncEngine([])
+        api = {
+            "api_code": "nested_windowed_report",
+            "params": {"page": 1, "pagesize": 100, "model": {}},
+            "date_window": {
+                "enabled": True,
+                "start_field": "model.reportStartDate",
+                "end_field": "model.reportEndDate",
+                "default_start": "2026-07-02",
+                "days": 1,
+            },
+        }
+
+        params = engine._request_params(
+            api,
+            connection=FakeCheckpointConnection(),
+            today=date(2026, 7, 3),
+        )
+
+        self.assertEqual(params["model"]["reportStartDate"], "2026-07-02")
+        self.assertEqual(params["model"]["reportEndDate"], "2026-07-02")
+        self.assertNotIn("model.reportStartDate", params)
+        self.assertEqual(
+            engine._date_window_checkpoint_extra(api, params),
+            {
+                "window_start": "2026-07-02",
+                "window_end": "2026-07-02",
+                "next_window_start": "2026-07-03",
+                "window_days": 1,
+            },
+        )
+
     def test_date_window_skips_request_when_next_window_is_after_today(self):
         engine = SyncEngine([])
         api_client = FakeApiClient()

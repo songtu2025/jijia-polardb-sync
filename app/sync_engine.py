@@ -841,10 +841,10 @@ class SyncEngine:
         if end_date > current_date:
             end_date = current_date
 
-        return {
-            start_field: start_date.isoformat(),
-            end_field: end_date.isoformat(),
-        }
+        window_params: dict[str, Any] = {}
+        self._set_by_path(window_params, start_field, start_date.isoformat())
+        self._set_by_path(window_params, end_field, end_date.isoformat())
+        return window_params
 
     def _date_window_start(self, api: dict[str, Any], connection: Any | None) -> date | None:
         """从 checkpoint 中读取下一次日期窗口起点。"""
@@ -923,11 +923,16 @@ class SyncEngine:
 
         start_field = str(window_config.get("start_field") or "")
         end_field = str(window_config.get("end_field") or "")
-        if not start_field or not end_field or start_field not in params or end_field not in params:
+        if not start_field or not end_field:
             return None
 
-        window_start = date.fromisoformat(str(params[start_field]))
-        window_end = date.fromisoformat(str(params[end_field]))
+        window_start_value = self._get_by_path(params, start_field)
+        window_end_value = self._get_by_path(params, end_field)
+        if not window_start_value or not window_end_value:
+            return None
+
+        window_start = date.fromisoformat(str(window_start_value))
+        window_end = date.fromisoformat(str(window_end_value))
         return {
             "window_start": window_start.isoformat(),
             "window_end": window_end.isoformat(),
@@ -1262,6 +1267,18 @@ class SyncEngine:
                 return None
             current = current.get(part)
         return current
+
+    def _set_by_path(self, data: dict[str, Any], path: str, value: Any) -> None:
+        """按点分路径写入嵌套字典字段。"""
+        current = data
+        parts = path.split(".")
+        for part in parts[:-1]:
+            nested = current.get(part)
+            if not isinstance(nested, dict):
+                nested = {}
+                current[part] = nested
+            current = nested
+        current[parts[-1]] = value
 
     def _data_date(self, api: dict[str, Any], item: dict[str, Any]) -> date | None:
         """从单条数据中提取业务日期。
