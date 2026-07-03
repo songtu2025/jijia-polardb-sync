@@ -790,3 +790,12 @@
 - 阶段 6T 已运行完整 `--sync-enabled`，批次号为 `sync_20260703_184641_020339`，25 个 API 全部成功，失败 0；批次总请求 3074 次、写入 307943 条，运行时间约 76 分钟。
 - 阶段 6T 中 `traffic_sku_page` 在同批次内状态成功，请求 1 次，`2026-07-03` 窗口返回 `item_count=0`、`total_count=0`，checkpoint 推进到 `next_window_start=2026-07-04`；这说明 daily 路径可追踪，即使当天无数据也会推进窗口。
 - 阶段 6T 后覆盖矩阵刷新为公开文档 API 185 个、真实配置 API 50 个、enabled 25 个；执行分层为 `configured=50`、`needs_upstream_params=63`、`needs_sensitive_review=22`、`defer_or_review=50`。
+- 阶段 6U 选择将 `traffic_page` 从 disabled 提升到 enabled；依据是该接口已完成 `2026-07-02` 单日完整窗口验证，完整窗口为 583 条、2 次请求，页大小上限 500 已由真实错误证明。
+- 阶段 6U 启用前对比：`traffic_page` 比 `traffic_sku_page` 多 1 页和 65 秒页间等待，但远低于库存大表；`storage_ledger_page` 仍需 3 页和更长等待，暂不进入 enabled。
+- 阶段 6U 已用 TDD 约束 `traffic_page.enabled=true`，并将 enabled 基线测试从 25 调整到 26；`traffic_sku_page` 保持 enabled，`storage_ledger_page` 保持 disabled。
+- 阶段 6U 已同步 `api_config`，数据库总配置 52 条、启用 26 条；`traffic_page.enabled=1`、`page_size=500`、`params.pagesize=500`、`page.max_pages=2`、`sleep_seconds=65`、`retries=1`。
+- 阶段 6U 的 dry-run 已确认 loaded 26 enabled API config(s)，且 `traffic_page` 出现在 enabled 列表中。
+- 阶段 6U 已运行完整 `--sync-enabled`，批次号为 `sync_20260703_201550_762153`，26 个 API 全部成功，失败 0；批次总请求 3075 次、写入 307943 条，运行时间约 81 分钟。
+- 阶段 6U 中 `traffic_page` 在同批次内状态成功，请求 1 次，`2026-07-03` 窗口返回 `item_count=0`、`total_count=0`，checkpoint 推进到 `next_window_start=2026-07-04`；这说明 daily 路径可追踪，即使当天无数据也会推进窗口。
+- 阶段 6U 中 `traffic_sku_page` 已追平到 `2026-07-04`，因此在该 enabled 批次按 `date_window` 跳过，`request_count=0` 属于预期行为。
+- 阶段 6U 后覆盖矩阵刷新为公开文档 API 185 个、真实配置 API 50 个、enabled 26 个；执行分层为 `configured=50`、`needs_upstream_params=63`、`needs_sensitive_review=22`、`defer_or_review=50`。
