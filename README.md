@@ -153,7 +153,7 @@ python -m app.main --sync-api amazon_shop_page
 python -m app.main --sync-enabled
 ```
 
-`--sync-enabled` 会读取 `config/api_config.example.yaml` 中 `enabled: true` 的接口，并在同一个 `sync_batch` 下逐个写入 `sync_api_log`。批次头会先提交，每个 API 使用独立事务提交 raw、log 和 checkpoint，最后再提交批次汇总状态，便于长任务运行时查看已完成接口。当前启用了 `amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`、`product_page`、`parent_product_page`、`kb_product_page`、`fba_warehouse_page`、`store_location_page`、`multi_shop_query`、`crm_tags_page`、`inventory_team_query`、`product_inventory_page`、`storage_inbound_page`、`storage_return_page`、`strategy_template_page` 和 `base_currency_query`。
+`--sync-enabled` 会读取 `config/api_config.example.yaml` 中 `enabled: true` 的接口，并在同一个 `sync_batch` 下逐个写入 `sync_api_log`。批次头会先提交，每个 API 使用独立事务提交 raw、log 和 checkpoint，最后再提交批次汇总状态，便于长任务运行时查看已完成接口。当前启用了 `amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`、`product_page`、`parent_product_page`、`kb_product_page`、`fba_warehouse_page`、`store_location_page`、`multi_shop_query`、`platform_msku_page`、`crm_tags_page`、`inventory_team_query`、`product_inventory_page`、`storage_inbound_page`、`storage_return_page`、`strategy_template_page` 和 `base_currency_query`。
 
 生成积加公开文档 API 覆盖矩阵：
 
@@ -183,7 +183,7 @@ python -m app.doc_catalog --output config/jijia_api_catalog.generated.json --sum
 0 2 * * * cd /path/to/jijia-polardb-sync && /path/to/.venv/bin/python -m app.main --sync-enabled >> logs/cron.log 2>&1
 ```
 
-当前 enabled 批量属于长任务，最近一次 23 个接口完整同步耗时约 5735 秒。ECS 上的 cron 窗口应避免和其他重写入任务重叠。
+当前 enabled 批量属于长任务，最近一次 24 个接口完整同步耗时约 5655 秒。ECS 上的 cron 窗口应避免和其他重写入任务重叠。
 
 ## 查看日志
 
@@ -203,7 +203,7 @@ logs/sync.log
 
 ### 当前支持哪些真实积加 API？
 
-当前已验证并启用 `amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`、`product_page`、`parent_product_page`、`kb_product_page`、`fba_warehouse_page`、`store_location_page`、`multi_shop_query`、`crm_tags_page`、`inventory_team_query`、`product_inventory_page`、`storage_inbound_page`、`storage_return_page`、`strategy_template_page` 和 `base_currency_query`。
+当前已验证并启用 `amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`、`product_page`、`parent_product_page`、`kb_product_page`、`fba_warehouse_page`、`store_location_page`、`multi_shop_query`、`platform_msku_page`、`crm_tags_page`、`inventory_team_query`、`product_inventory_page`、`storage_inbound_page`、`storage_return_page`、`strategy_template_page` 和 `base_currency_query`。
 
 另有一批已完成小窗口或空结果验证但默认未启用的接口，例如 `purchase_plan_page`、`fba_inventory_page`、`inventory_event_page`、`inventory_age_page`、`traffic_analysis_page`、`shipment_data_page`、`storage_ledger_page`、`inventory_receipts_page`、`purchase_sale_storage_fba_page`、`transfer_page`、`lot_no_page` 和若干库存、SKU 映射、详情类接口；这些接口需先评估数据量、限流和业务风险，再决定是否进入每天的 enabled 批量同步。
 
@@ -215,7 +215,7 @@ logs/sync.log
 
 ### 当前接入了哪个业务 API？
 
-当前配置并启用了 `amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`、`product_page`、`parent_product_page`、`kb_product_page`、`fba_warehouse_page`、`store_location_page`、`multi_shop_query`、`crm_tags_page`、`inventory_team_query`、`product_inventory_page`、`storage_inbound_page`、`storage_return_page`、`strategy_template_page` 和 `base_currency_query`。`amazon_shop_page` 对应文档 `id=153` 的“查询亚马逊店铺信息”；`org_manage_query` 对应文档 `id=2537` 的“查询部门列表”；`role_list` 对应文档 `id=2885` 的“查询角色列表”；`dictionary_query` 对应文档 `id=2538` 的“查询字典管理列表”；`rate_page` 对应文档 `id=139` 的“查询汇率设置”；`continent_country_tree` 对应文档 `id=4943` 的“获取大洲国家关系”；`ship_transport_list` 对应文档 `id=3059` 的“查询物流方式列表”；`country_tree` 对应文档 `id=4563` 的“获取已授权店铺区域国家”；`category_page` 对应文档 `id=54` 的“查询品类信息”；`brand_page` 对应文档 `id=1752` 的“查询品牌资料”；`product_page` 对应文档 `id=53` 的“查询产品列表”；`parent_product_page` 对应文档 `id=4835` 的“查询父产品信息”；`kb_product_page` 对应文档 `id=1956` 的“查询捆绑产品列表”；`fba_warehouse_page` 对应文档 `id=63` 的“查询仓库-FBA仓”；`store_location_page` 对应文档 `id=141` 的“查询库位信息”；`multi_shop_query` 对应文档 `id=67` 的“查询多平台店铺信息”；`crm_tags_page` 对应文档 `id=136` 的“查询标签管理信息”；`inventory_team_query` 对应文档 `id=5654` 的“查询团队信息”；`product_inventory_page` 对应文档 `id=15` 的“查询产品库存”；`storage_inbound_page` 对应文档 `id=234` 的“出入库记录V2”；`storage_return_page` 对应文档 `id=152` 的“查询采购退货单列表V2”；`strategy_template_page` 对应文档 `id=102` 的“分时策略NEW”；`base_currency_query` 对应文档 `id=66` 的“获取本位币币种”。
+当前配置并启用了 `amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`、`product_page`、`parent_product_page`、`kb_product_page`、`fba_warehouse_page`、`store_location_page`、`multi_shop_query`、`platform_msku_page`、`crm_tags_page`、`inventory_team_query`、`product_inventory_page`、`storage_inbound_page`、`storage_return_page`、`strategy_template_page` 和 `base_currency_query`。`amazon_shop_page` 对应文档 `id=153` 的“查询亚马逊店铺信息”；`org_manage_query` 对应文档 `id=2537` 的“查询部门列表”；`role_list` 对应文档 `id=2885` 的“查询角色列表”；`dictionary_query` 对应文档 `id=2538` 的“查询字典管理列表”；`rate_page` 对应文档 `id=139` 的“查询汇率设置”；`continent_country_tree` 对应文档 `id=4943` 的“获取大洲国家关系”；`ship_transport_list` 对应文档 `id=3059` 的“查询物流方式列表”；`country_tree` 对应文档 `id=4563` 的“获取已授权店铺区域国家”；`category_page` 对应文档 `id=54` 的“查询品类信息”；`brand_page` 对应文档 `id=1752` 的“查询品牌资料”；`product_page` 对应文档 `id=53` 的“查询产品列表”；`parent_product_page` 对应文档 `id=4835` 的“查询父产品信息”；`kb_product_page` 对应文档 `id=1956` 的“查询捆绑产品列表”；`fba_warehouse_page` 对应文档 `id=63` 的“查询仓库-FBA仓”；`store_location_page` 对应文档 `id=141` 的“查询库位信息”；`multi_shop_query` 对应文档 `id=67` 的“查询多平台店铺信息”；`platform_msku_page` 对应文档 `id=2898` 的“SKU关联多平台MSKU”；`crm_tags_page` 对应文档 `id=136` 的“查询标签管理信息”；`inventory_team_query` 对应文档 `id=5654` 的“查询团队信息”；`product_inventory_page` 对应文档 `id=15` 的“查询产品库存”；`storage_inbound_page` 对应文档 `id=234` 的“出入库记录V2”；`storage_return_page` 对应文档 `id=152` 的“查询采购退货单列表V2”；`strategy_template_page` 对应文档 `id=102` 的“分时策略NEW”；`base_currency_query` 对应文档 `id=66` 的“获取本位币币种”。
 
 ### 如何运行测试？
 

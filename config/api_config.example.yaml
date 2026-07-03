@@ -465,10 +465,10 @@ apis:
       delay_seconds: 1
     params: {}
 
-  # 第三十个真实文档接口：SKU关联多平台MSKU，文档 id=2898，先用 3 页窗口验证，默认保持 disabled。
+  # 第三十个真实文档接口：SKU关联多平台MSKU，文档 id=2898，体量较小，已进入 enabled 批量同步。
   - api_code: platform_msku_page
     name: 查询SKU关联多平台MSKU
-    enabled: false
+    enabled: true
     method: POST
     path: /platform/base/platformMsku/page
     page:
@@ -476,7 +476,7 @@ apis:
       page_no_field: page
       page_size_field: pagesize
       page_size: 100
-      max_pages: 3
+      max_pages: 30
       list_field: data.rows
       total_field: data.total
     primary_key:

@@ -703,3 +703,13 @@
 - 阶段 6I 已用真实接口验证 `purchase_sale_storage_fba_page`，批次号为 `sync_20260703_144417_365162`，请求 1 次，写入 100 条，失败 0。
 - 阶段 6I 后 `purchase_sale_storage_fba_page` checkpoint 指向批次 `sync_20260703_144417_365162`，`checkpoint_value` 记录 `last_page=1`、`request_count=1`、`item_count=100`、`total_count=58955`。
 - 阶段 6I 已同步 `api_config`，当前数据库总配置 47 条，启用 23 条；覆盖矩阵刷新后为公开文档 API 185 个、真实配置 API 45 个、enabled 23 个。
+- 阶段 6J 不新增未配置 API；原因是剩余未配置 `direct_read_candidate` 主要集中在订单、财务、客服、物流费用、销售售后，或是 6I 已验证不稳定/敏感的候选，不适合为了数量强行接入。
+- 阶段 6J 选择把 `platform_msku_page` 从 disabled 提升到 enabled；依据是该接口已在 5O 完成真实验证，属于多平台 SKU/MSKU 映射，非敏感、非依赖、非严格限流，当前总量约 1707 条，明显小于库存和报表大表。
+- `platform_msku_page` 进入 enabled 前必须把 `page.max_pages` 从接入验证窗口 3 提升到 30；原因是当前总量约 18 页，若保留 3 页会把小窗口误当 daily 完整同步。
+- 阶段 6J 已用 TDD 约束 `platform_msku_page.enabled=true`、`page.max_pages=30` 和 enabled 数量为 24；测试先失败于旧配置，再通过。
+- 阶段 6J 已同步 `api_config`，当前数据库总配置 47 条，启用 24 条；`platform_msku_page.enabled=1`、`config_json.enabled=true`、`page.max_pages=30`、`primary_key.field=""`、`date_field=recordDate`。
+- 阶段 6J 先运行 `platform_msku_page` 单接口完整窗口，批次号为 `sync_20260703_145814_052711`，请求 18 次，写入 1707 条，失败 0；checkpoint 记录 `last_page=18`、`item_count=1707`、`total_count=1707`。
+- 阶段 6J 完整 enabled 批次号为 `sync_20260703_145933_782443`，24 个 API 全部成功，失败 0，总请求数 3072，总写入行数 307906，耗时 5655 秒。
+- 阶段 6J 后覆盖矩阵刷新为公开文档 API 185 个、真实配置 API 45 个、enabled 24 个。
+- 6H-6J 复盘结论：本组三轮新增两个低风险 disabled 报表/库存候选，并把一个低体量映射接口推进到 daily enabled；下一组应先做剩余 API 分层执行计划，再决定继续新增、启用或暂缓。
+- 后续启用接口时，不能只看单接口成功；必须同时确认数据量、`max_pages`/窗口是否覆盖目标范围、完整 enabled 批次是否成功以及 cron 窗口是否还能承受。

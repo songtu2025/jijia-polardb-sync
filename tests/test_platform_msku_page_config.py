@@ -7,18 +7,18 @@ class PlatformMskuPageConfigTest(unittest.TestCase):
     def setUp(self):
         self.apis = {api["api_code"]: api for api in load_api_configs("config/api_config.example.yaml")}
 
-    def test_platform_msku_page_is_limited_and_stays_disabled(self):
+    def test_platform_msku_page_is_enabled_with_full_small_dataset_window(self):
         self.assertIn("platform_msku_page", self.apis)
         api = self.apis["platform_msku_page"]
 
-        self.assertFalse(api["enabled"])
+        self.assertTrue(api["enabled"])
         self.assertEqual(api["method"], "POST")
         self.assertEqual(api["path"], "/platform/base/platformMsku/page")
         self.assertTrue(api["page"]["enabled"])
         self.assertEqual(api["page"]["page_no_field"], "page")
         self.assertEqual(api["page"]["page_size_field"], "pagesize")
         self.assertEqual(api["page"]["page_size"], 100)
-        self.assertEqual(api["page"]["max_pages"], 3)
+        self.assertEqual(api["page"]["max_pages"], 30)
         self.assertEqual(api["page"]["list_field"], "data.rows")
         self.assertEqual(api["page"]["total_field"], "data.total")
         self.assertEqual(api["primary_key"]["field"], "")
