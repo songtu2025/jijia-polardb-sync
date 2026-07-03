@@ -752,3 +752,11 @@
 - 阶段 6O 已用真实接口验证 `traffic_sku_page`，批次号为 `sync_20260703_174553_317496`，请求 1 次，写入 100 条，失败 0；checkpoint 记录 `total_count=170`、`window_start=2026-07-02`、`window_end=2026-07-02`、`next_window_start=2026-07-03`。
 - 阶段 6O 已同步 `api_config`，数据库总配置 51 条，启用 24 条；`traffic_sku_page.enabled=0`、`primary_key.field=""`、`date_field=recordDate`、`page.max_pages=1`。
 - 阶段 6O 后覆盖矩阵刷新为公开文档 API 185 个、真实配置 API 49 个、enabled 24 个；执行分层为 `configured=49`、`needs_upstream_params=64`、`needs_sensitive_review=22`、`defer_or_review=50`。
+- 阶段 6P 从统计域选择 `traffic_page`，文档 id 为 `122`，路径为 `POST /operation/sts/traffic/page`，默认保持 `enabled=false`。
+- `traffic_page` 与 6O 的 `traffic_sku_page` 同属流量统计域，必填 `currency`、`beginDate`、`endDate`、`page`、`pagesize`、`viewType` 可复用现有 `date_window`，不需要新增同步引擎能力。
+- `traffic_page` 使用 `currency=CNY`、`viewType=day` 和单日窗口；公开文档响应包含 `recordDate`、`asin`、`parentAsin`、`sku`、`marketId` 等字段，本轮不强行使用不可靠行级 `id`，配置为空主键并依靠 `data_hash` 幂等。
+- 阶段 6P 已用 TDD 约束 `traffic_page` 配置；测试先失败于缺少配置，再通过。本轮未修改同步引擎。
+- 阶段 6P 已同步 `api_config`，数据库总配置 52 条，启用 24 条；`traffic_page.enabled=0`、`primary_key.field=""`、`date_field=recordDate`、`page.max_pages=1`。
+- 阶段 6P 已用真实接口验证 `traffic_page`，批次号为 `sync_20260703_175618_116241`，请求 1 次，写入 100 条，失败 0；checkpoint 记录 `total_count=583`、`window_start=2026-07-02`、`window_end=2026-07-02`、`next_window_start=2026-07-03`。
+- 阶段 6P 后覆盖矩阵刷新为公开文档 API 185 个、真实配置 API 50 个、enabled 24 个；执行分层为 `configured=50`、`needs_upstream_params=63`、`needs_sensitive_review=22`、`defer_or_review=50`。
+- 6N-6P 三轮复盘结论：6N/6O/6P 继续扩大统计和库存分类账覆盖，但全部保持 disabled 小窗口；现阶段的核心风险不是能否请求成功，而是如何把单页验证推进为完整回填窗口和可承受的 daily 调度。

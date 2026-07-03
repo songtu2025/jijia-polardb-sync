@@ -81,7 +81,7 @@ mysql -h <POLARDB_HOST> -P 3306 -u <DB_USER> -p <DB_NAME> < sql/init_tables.sql
 
 对需要滚动日期窗口的接口，`params` 支持少量日期占位符：`{{ today }}`、`{{ yesterday }}` 和 `{{ days_ago:7 }}`。程序会在发起请求前展开为 `YYYY-MM-DD`。
 
-对需要补历史窗口的接口，可以在 YAML 中增加 `date_window`，用 `default_start`、`days`、`start_field` 和 `end_field` 生成本次请求窗口；字段可写成 `model.reportStartDate` 这类点路径。同步成功后 checkpoint 会记录 `next_window_start`，下次运行从下一窗口继续；如果下一窗口已经晚于当天，程序会跳过请求，避免严格限流接口空跑。该能力已用 `traffic_analysis_page`、`traffic_sku_page`、`shipment_data_page`、`storage_ledger_page`、`storage_ledger_detail_page` 和 `inventory_receipts_page` 做过真实单日窗口验证。
+对需要补历史窗口的接口，可以在 YAML 中增加 `date_window`，用 `default_start`、`days`、`start_field` 和 `end_field` 生成本次请求窗口；字段可写成 `model.reportStartDate` 这类点路径。同步成功后 checkpoint 会记录 `next_window_start`，下次运行从下一窗口继续；如果下一窗口已经晚于当天，程序会跳过请求，避免严格限流接口空跑。该能力已用 `traffic_analysis_page`、`traffic_page`、`traffic_sku_page`、`shipment_data_page`、`storage_ledger_page`、`storage_ledger_detail_page` 和 `inventory_receipts_page` 做过真实单日窗口验证。
 
 ## 本地运行
 
@@ -205,7 +205,7 @@ logs/sync.log
 
 当前已验证并启用 `amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`、`product_page`、`parent_product_page`、`kb_product_page`、`fba_warehouse_page`、`store_location_page`、`multi_shop_query`、`platform_msku_page`、`crm_tags_page`、`inventory_team_query`、`product_inventory_page`、`storage_inbound_page`、`storage_return_page`、`strategy_template_page` 和 `base_currency_query`。
 
-另有一批已完成小窗口或空结果验证但默认未启用的接口，例如 `purchase_plan_page`、`fba_inventory_page`、`inventory_event_page`、`inventory_age_page`、`traffic_analysis_page`、`traffic_sku_page`、`shipment_data_page`、`storage_ledger_page`、`storage_ledger_detail_page`、`storage_ledger_month_page`、`inventory_receipts_page`、`purchase_sale_storage_fba_page`、`transfer_page`、`lot_no_page`、`procure_detail` 和若干库存、SKU 映射、详情类接口；这些接口需先评估数据量、限流和业务风险，再决定是否进入每天的 enabled 批量同步。
+另有一批已完成小窗口或空结果验证但默认未启用的接口，例如 `purchase_plan_page`、`fba_inventory_page`、`inventory_event_page`、`inventory_age_page`、`traffic_analysis_page`、`traffic_page`、`traffic_sku_page`、`shipment_data_page`、`storage_ledger_page`、`storage_ledger_detail_page`、`storage_ledger_month_page`、`inventory_receipts_page`、`purchase_sale_storage_fba_page`、`transfer_page`、`lot_no_page`、`procure_detail` 和若干库存、SKU 映射、详情类接口；这些接口需先评估数据量、限流和业务风险，再决定是否进入每天的 enabled 批量同步。
 
 ### accessToken 如何获取？
 
