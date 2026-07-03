@@ -475,3 +475,13 @@
 - 阶段 5G 已同步 `api_config`，当前数据库总配置 26 条，启用 20 条；`country_province_query.enabled=0`、`param_source.auto_advance=true`。
 - 阶段 5G 覆盖矩阵保持公开文档 API 185 个、真实配置 API 24 个、enabled 20 个。
 - 下一阶段不应继续只重复 `country_province_query` 小窗口；应回到覆盖矩阵，选择新的依赖型接口继续扩大覆盖。
+- 阶段 5H 新增 `transfer_detail`，文档 id 为 `1021`，路径为 `POST /fulfillment/inventory/transfer/detail`，默认保持 `enabled=false`。
+- `transfer_detail` 依赖参数为必填 `code`，可从已同步的 `storage_inbound_page.raw_json.fcode` 提取；必须同时过滤 `raw_json.opType=TFOutbound`，避免把其他业务单据的 `fcode` 当作调拨单号。
+- 阶段 5H 为 `param_source.fields` 增加最小 `filters` 能力；当前只支持 `raw_json.<field>` 的固定等值过滤，不支持复杂表达式、范围过滤或数组入参。
+- 阶段 5H 已确认 `storage_inbound_page` 中 `opType=TFOutbound` 有 6481 条 raw，且有 6481 个去重 `fcode`。
+- 阶段 5H 已用前三个真实调拨单号 `TF20230616000001`、`TF20230616000002`、`TF20230616000003` 验证 `transfer_detail`，批次号为 `sync_20260703_081028_425736`，请求 3 次，写入 3 条，失败 0。
+- `transfer_detail` 响应主键使用 `code`，日期字段使用 `createDate`，三条 raw 均已写入 `source_primary_key`、`data_hash` 和 `data_date`。
+- 阶段 5H 后 `transfer_detail` checkpoint 记录 `param_offset=0`、`param_limit=3`、`next_param_offset=3`。
+- 阶段 5H 已同步 `api_config`，当前数据库总配置 27 条，启用 20 条；`transfer_detail.enabled=0`、`param_source.source_api_code=storage_inbound_page`、`param_source.auto_advance=true`、过滤值为 `TFOutbound`。
+- 阶段 5H 覆盖矩阵已刷新为公开文档 API 185 个、真实配置 API 25 个、enabled 20 个。
+- 下一阶段优先不改 YAML，验证 `transfer_detail` 从 `next_param_offset=3` 连续推进。

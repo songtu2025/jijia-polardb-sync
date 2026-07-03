@@ -700,7 +700,7 @@ class SyncEngine:
         """从已入库的上游 raw 数据生成请求参数。
 
         当前支持两种最小来源：`source_primary_key` 单字段，以及从 raw_json
-        顶层字段提取多个参数。后者用于库存站点分布这类多入参接口。
+        顶层字段提取参数。raw_json 来源可附加固定等值过滤，用于只取某类上游单据。
         """
         param_source = api.get("param_source") or {}
         source_api_code = param_source.get("source_api_code")
@@ -709,7 +709,14 @@ class SyncEngine:
         offset = self._param_source_offset(connection, api) if offset is None else offset
 
         if fields:
-            return self._source_param_sets_from_raw_json_fields(connection, source_api_code, fields, limit, offset)
+            return self._source_param_sets_from_raw_json_fields(
+                connection,
+                source_api_code,
+                fields,
+                param_source.get("filters") or [],
+                limit,
+                offset,
+            )
 
         source_field = param_source.get("source_field")
         target_field = param_source.get("target_field")
@@ -779,15 +786,17 @@ class SyncEngine:
         connection: Any,
         source_api_code: str | None,
         fields: list[dict[str, Any]],
+        filters: list[dict[str, Any]],
         limit: int,
         offset: int,
     ) -> list[dict[str, Any]]:
-        """从上游 raw_json 顶层字段生成多参数请求。"""
+        """从上游 raw_json 顶层字段生成请求参数。"""
         if not source_api_code:
             raise ValueError("invalid param_source config: missing source_api_code")
 
         select_parts = []
         where_parts = []
+        query_params: dict[str, Any] = {"source_api_code": source_api_code, "limit": limit, "offset": offset}
         target_fields = []
         for index, field in enumerate(fields):
             source_field = str(field.get("source_field") or "")
@@ -805,6 +814,22 @@ class SyncEngine:
             where_parts.append(f"{expression} IS NOT NULL AND {expression} <> ''")
             target_fields.append(target_field)
 
+        for index, filter_config in enumerate(filters):
+            source_field = str(filter_config.get("source_field") or "")
+            if not source_field.startswith("raw_json."):
+                raise ValueError(f"invalid raw_json param filter: {source_field}")
+
+            raw_json_path = source_field.removeprefix("raw_json.")
+            if not RAW_JSON_FIELD_PATTERN.match(raw_json_path):
+                raise ValueError(f"invalid raw_json param filter: {source_field}")
+            if "equals" not in filter_config:
+                raise ValueError(f"invalid raw_json param filter: {source_field}")
+
+            expression = f"JSON_UNQUOTE(JSON_EXTRACT(raw_json, '$.{raw_json_path}'))"
+            param_name = f"filter_{index}"
+            where_parts.append(f"{expression} = :{param_name}")
+            query_params[param_name] = str(filter_config["equals"])
+
         aliases = [f"source_{index}" for index in range(len(fields))]
         sql = f"""
             SELECT {", ".join(select_parts)}
@@ -816,7 +841,7 @@ class SyncEngine:
             LIMIT :limit
             OFFSET :offset
         """
-        result = connection.execute(text(sql), {"source_api_code": source_api_code, "limit": limit, "offset": offset})
+        result = connection.execute(text(sql), query_params)
         rows = []
         for row in result.mappings().all():
             rows.append({target_field: str(row[f"source_{index}"]) for index, target_field in enumerate(target_fields)})
