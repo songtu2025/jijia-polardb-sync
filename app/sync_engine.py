@@ -404,6 +404,7 @@ class SyncEngine:
                 total_count = self._response_total(payload, api)
                 self._sleep_between_pages(api, page_no, total_count)
 
+            self._ensure_date_window_not_truncated(api, item_count, total_count)
             if date_window_caught_up:
                 checkpoint_extra = self._date_window_caught_up_checkpoint_extra(api, connection)
             else:
@@ -939,6 +940,28 @@ class SyncEngine:
             "next_window_start": (window_end + timedelta(days=1)).isoformat(),
             "window_days": int(window_config.get("days") or 1),
         }
+
+    def _ensure_date_window_not_truncated(
+        self,
+        api: dict[str, Any],
+        item_count: int,
+        total_count: int | None,
+    ) -> None:
+        """阻止日期窗口在分页未拉满时推进 checkpoint。
+
+        日期窗口依赖 checkpoint 推进下一天；如果 `page.max_pages` 太小却仍写入
+        `next_window_start`，后续运行会跳过未拉完的当天数据。
+        """
+        window_config = api.get("date_window") or {}
+        if not window_config.get("enabled") or total_count is None:
+            return
+        if item_count >= total_count:
+            return
+        raise ValueError(
+            "date window page truncated: "
+            f"api_code={api.get('api_code')} item_count={item_count} "
+            f"total_count={total_count}; increase page.max_pages or page.page_size"
+        )
 
     def _source_param_sets(
         self,

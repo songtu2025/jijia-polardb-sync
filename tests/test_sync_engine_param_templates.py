@@ -19,8 +19,10 @@ class FakeResult:
 class FakeCheckpointConnection:
     def __init__(self, checkpoint_value=None):
         self.checkpoint_value = checkpoint_value
+        self.calls = []
 
     def execute(self, statement, params=None):
+        self.calls.append((str(statement), params or {}))
         if "sync_checkpoint" in str(statement):
             if self.checkpoint_value is None:
                 return FakeResult([])
@@ -35,6 +37,15 @@ class FakeApiClient:
     def request(self, api, token, params):
         self.calls.append((api, token, params))
         return {"data": {"rows": [], "total": 0}}
+
+
+class TruncatedApiClient:
+    def __init__(self):
+        self.calls = []
+
+    def request(self, api, token, params):
+        self.calls.append((api, token, params))
+        return {"data": {"rows": [{"id": 1}], "total": 2}}
 
 
 class SyncEngineParamTemplatesTest(unittest.TestCase):
@@ -179,6 +190,46 @@ class SyncEngineParamTemplatesTest(unittest.TestCase):
 
         self.assertEqual(payloads, [])
         self.assertEqual(api_client.calls, [])
+
+    def test_date_window_truncated_page_marks_api_failed_without_checkpoint(self):
+        engine = SyncEngine([])
+        api_client = TruncatedApiClient()
+        connection = FakeCheckpointConnection()
+        api = {
+            "api_code": "windowed_report",
+            "params": {"page": 1, "pagesize": 1},
+            "page": {
+                "enabled": True,
+                "page_no_field": "page",
+                "page_size_field": "pagesize",
+                "page_size": 1,
+                "max_pages": 1,
+                "list_field": "data.rows",
+                "total_field": "data.total",
+            },
+            "primary_key": {"field": "id"},
+            "date_field": "",
+            "date_window": {
+                "enabled": True,
+                "start_field": "beginDate",
+                "end_field": "endDate",
+                "default_start": "2026-07-01",
+                "days": 1,
+            },
+        }
+
+        result = engine._sync_api_in_batch(connection, api, "batch-001", api_client, token="token")
+
+        self.assertEqual(result, {"item_count": 1, "request_count": 1, "failed_count": 1})
+        checkpoint_writes = [
+            call
+            for call in connection.calls
+            if "INSERT INTO sync_checkpoint" in call[0]
+        ]
+        api_log_params = connection.calls[-1][1]
+        self.assertEqual(checkpoint_writes, [])
+        self.assertEqual(api_log_params["status"], "failed")
+        self.assertIn("date window page truncated", api_log_params["error_message"])
 
 
 if __name__ == "__main__":

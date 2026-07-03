@@ -830,3 +830,15 @@
 - 阶段 6X 中 `inventory_receipts_page` 在同批次内状态成功，请求 1 次，`2026-07-04` 窗口返回 `item_count=0`、`total_count=0`，checkpoint 推进到 `next_window_start=2026-07-05`。
 - 阶段 6X 中 `traffic_page`、`traffic_sku_page`、`storage_ledger_page` 也在 `2026-07-04` 窗口请求 1 次并返回 0 条，属于跨日批次的预期行为。
 - 阶段 6X 后覆盖矩阵刷新为公开文档 API 185 个、真实配置 API 50 个、enabled 28 个；执行分层仍为 `configured=50`、`needs_upstream_params=63`、`needs_sensitive_review=22`、`defer_or_review=50`。
+- 阶段 6Y 不新增 enabled，选择 `shipment_data_page` 从历史小窗口推进到完整 `2026-07-02` 单日窗口验证。
+- 阶段 6Y 起点确认 `shipment_data_page.enabled=0`、`page_size=100`、`max_pages=1`，checkpoint 已到 `next_window_start=2026-07-04`；历史 raw 中 `2026-07-02` 只有 6 条，原因是早期误用货件级 `shipmentId` 做行级主键。
+- 阶段 6Y 继续保持 `shipment_data_page.primary_key.field=""`，用 `data_hash` 做行级幂等；真实 raw 证明同一窗口里 `shipmentId` 只有 6 个不同值，不能作为行级主键。
+- 阶段 6Y 首次把 `shipment_data_page.page.max_pages` 提高到 10 后，真实批次 `sync_20260704_005610_532465` 拉取 1000 条，但 checkpoint 显示 `total_count=1191`，证明 10 页仍是截断窗口。
+- 阶段 6Y 新增日期窗口分页截断保护：当 `item_count < total_count` 时，该 API 记为 failed，不更新 checkpoint，避免完整拉取目标被 `page.max_pages` 太小破坏。
+- 阶段 6Y 最终将 `shipment_data_page.page.max_pages` 调整为 12，并重新删除该 API 单条 checkpoint 后重跑完整窗口。
+- 阶段 6Y 完整窗口批次为 `sync_20260704_010012_591837`，状态成功，请求 12 次，写入 1191 条，失败 0。
+- 阶段 6Y checkpoint 记录 `last_page=12`、`request_count=12`、`item_count=1191`、`total_count=1191`、`window_start=2026-07-02`、`window_end=2026-07-02`、`next_window_start=2026-07-03`。
+- 阶段 6Y 后 `shipment_data_page` 仍保持 disabled；数据库总配置 52 条、启用 28 条，覆盖矩阵仍为公开文档 API 185 个、真实配置 API 50 个、enabled 28 个。
+- 6W-6Y 三轮复盘结论：完整窗口验收必须看 `item_count == total_count`，不能只看批次状态 success。
+- 6W-6Y 三轮复盘结论：进入 daily enabled 前仍必须跑完整 enabled 批次；当前 28 个 enabled API 的真实批次约 83 分钟，cron 窗口仍是硬约束。
+- 6W-6Y 三轮复盘结论：历史小窗口和旧 checkpoint 可能掩盖未拉满数据；日期窗口接口必须防止分页截断后推进 checkpoint。

@@ -21,7 +21,7 @@ class ShipmentDataPageConfigTest(unittest.TestCase):
         self.assertEqual(api["page"]["page_no_field"], "page")
         self.assertEqual(api["page"]["page_size_field"], "pagesize")
         self.assertEqual(api["page"]["page_size"], 100)
-        self.assertEqual(api["page"]["max_pages"], 1)
+        self.assertEqual(api["page"]["max_pages"], 12)
         self.assertEqual(api["page"]["list_field"], "data.rows")
         self.assertEqual(api["page"]["total_field"], "data.total")
         self.assertEqual(api["primary_key"]["field"], "")
