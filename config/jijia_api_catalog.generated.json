@@ -7,7 +7,7 @@
     "tree_api_count": 185,
     "detail_success_count": 185,
     "detail_error_count": 0,
-    "configured_real_api_count": 37,
+    "configured_real_api_count": 38,
     "configured_enabled_real_api_count": 23,
     "classification_counts": {
       "direct_read_candidate": 58,
@@ -1623,7 +1623,7 @@
       "has_page_response": true,
       "has_list_response": false,
       "has_sensitive_response_fields": false,
-      "configured_api_code": "",
+      "configured_api_code": "fba_inventory_page",
       "configured_enabled": false
     },
     {

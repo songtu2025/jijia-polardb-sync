@@ -621,3 +621,11 @@
 - 阶段 5X 后 `purchase_plan_page` checkpoint 指向批次 `sync_20260703_124115_334136`，`checkpoint_value` 记录 `last_page=1`、`request_count=1`、`item_count=0`、`total_count=0`。
 - 阶段 5X 已同步 `api_config`，当前数据库总配置 39 条，启用 23 条；覆盖矩阵刷新后为公开文档 API 185 个、真实配置 API 37 个、enabled 23 个。
 - 5V-5X 复盘结论：enabled 覆盖、事务边界和新增覆盖都完成一轮推进；下一组继续扩容时，0 数据接口不能作为进入 enabled 的充分证据，大体量和敏感域仍默认 disabled 小窗口验证。
+- 阶段 5Y 新增 `fba_inventory_page`，文档 id 为 `172`，路径为 `POST /purchase/store/fbaInventory/page`，默认保持 `enabled=false`。
+- `fba_inventory_page` 选择依据：旧版 FBA 库存列表无业务必填字段，普通分页，非写操作，可与已配置的 `fba_inventory_v2_page` 形成新旧接口覆盖对照。
+- `fba_inventory_page` 响应列表字段为 `data.rows`，总数字段为 `data.total`；本轮使用 `id` 作为主键，使用 `updateTime` 作为日期字段。
+- 阶段 5Y 已用真实接口验证 `fba_inventory_page`，批次号为 `sync_20260703_125157_022009`，请求 3 次，写入 300 条，失败 0。
+- `fba_inventory_page` 的 `source_primary_key` 已确认从响应 `id` 写入，`data_date` 已确认从 `updateTime` 写入。
+- 阶段 5Y 后 `fba_inventory_page` checkpoint 指向批次 `sync_20260703_125157_022009`，`checkpoint_value` 记录 `last_page=3`、`request_count=3`、`item_count=300`、`total_count=30759`。
+- 阶段 5Y 已同步 `api_config`，当前数据库总配置 40 条，启用 23 条；覆盖矩阵刷新后为公开文档 API 185 个、真实配置 API 38 个、enabled 23 个。
+- `fba_inventory_page` 和 `fba_inventory_v2_page` 当前总量相同，后续若评估启用，需要先确认旧版与 V2 的字段差异、重复价值和运行窗口。
