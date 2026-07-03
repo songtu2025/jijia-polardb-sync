@@ -862,3 +862,12 @@
 - 阶段 7A 后 `country_province_query` checkpoint 指向批次 `sync_20260704_025256_508240`，记录 `param_offset=6`、`param_limit=3`、`next_param_offset=6`、`request_count=0`、`item_count=0`。
 - 阶段 7A 后覆盖矩阵刷新为公开文档 API 185 个、真实配置 API 50 个、enabled 30 个；执行分层为 `configured=50`、`needs_upstream_params=63`、`needs_sensitive_review=22`、`defer_or_review=50`。
 - 阶段 7A 是 6Z-7B 三轮中的第 2 轮；7B 完成后需要复盘 6Z-7B。
+- 阶段 7B 选择继续推进 `product_detail`，不新增 enabled；原因是产品详情属于产品主数据，依赖 `product_page` 的 8258 个稳定产品 ID，风险低于订单、财务敏感明细、客服文本、物流费用和库存超大表。
+- 阶段 7B 已用 TDD 约束 `product_detail.param_source.limit=10`；测试先失败于旧配置 `limit=3`，再通过。
+- 阶段 7B 已同步 `api_config`，数据库确认 `product_detail.enabled=0`、`param_source.limit=10`、`param_source.auto_advance=true`。
+- 阶段 7B 的 dry-run 仍显示 30 个 enabled API，说明 `product_detail` 没有误进入 daily enabled。
+- 阶段 7B 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api product_detail`，批次号为 `sync_20260704_042403_551628`，请求 10 次，写入 10 条，失败 0。
+- 阶段 7B DB 核验显示该批次 `sync_batch.status=success`、`sync_api_log.status=success`、`request_count=10`、`success_count=10`、`failed_count=0`，同批次 raw 为 10 条且 10 个不同 `source_primary_key`。
+- 阶段 7B 后 `product_detail` checkpoint 指向批次 `sync_20260704_042403_551628`，记录 `param_offset=9`、`param_limit=10`、`next_param_offset=19`、`item_count=10`、`total_count=10`。
+- 阶段 7B 后覆盖矩阵刷新为公开文档 API 185 个、真实配置 API 50 个、enabled 30 个；执行分层仍为 `configured=50`、`needs_upstream_params=63`、`needs_sensitive_review=22`、`defer_or_review=50`。
+- 6Z-7B 复盘结论：enabled 稳定性和剩余 disabled 覆盖推进要分开验收；6Z、7A 证明 daily enabled 可稳定扩大，7B 证明大参数源详情接口应先通过小窗口持续推进覆盖面。
