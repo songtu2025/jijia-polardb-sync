@@ -545,3 +545,12 @@
 - 阶段 5O 已同步 `api_config`，当前数据库总配置 32 条，启用 20 条；`platform_msku_page.enabled=0`、`page.max_pages=3`、`date_field=recordDate`。
 - 阶段 5O 覆盖矩阵已刷新为公开文档 API 185 个、真实配置 API 30 个、enabled 20 个。
 - 5M-5O 复盘结论：标量响应和映射类分页接口已完成最小接入路径；后续继续扩大覆盖时，需要更严格地区分低风险基础/映射接口和订单、财务、物流费用等高风险接口。
+- 阶段 5P 新增 `fba_inventory_v2_page`，文档 id 为 `5136`，路径为 `POST /purchase/store/fbaInventory/page/V2`，默认保持 `enabled=false`。
+- `fba_inventory_v2_page` 选择依据：库存域普通分页直读接口，响应非敏感，风险低于订单、财务、物流费用和疑似写操作候选。
+- 阶段 5P 真实探测确认该接口返回 `data.rows` 和 `data.total`，当前账号 `total=30759`，接入阶段必须用 `max_pages=3` 控制窗口。
+- `fba_inventory_v2_page` 响应字段包含 `id`、`sku`、`warehouseId`、`asin`、`updateTime`；本轮使用 `id` 作为主键，使用 `updateTime` 作为日期字段。
+- 阶段 5P 已用真实接口验证 `fba_inventory_v2_page`，批次号为 `sync_20260703_094024_225221`，请求 3 次，写入 300 条，失败 0。
+- 阶段 5P 后 `fba_inventory_v2_page` checkpoint 指向批次 `sync_20260703_094024_225221`，`checkpoint_value` 记录 `last_page=3`、`request_count=3`、`item_count=300`、`total_count=30759`。
+- 阶段 5P 已同步 `api_config`，当前数据库总配置 33 条，启用 20 条；`fba_inventory_v2_page.enabled=0`、`page.max_pages=3`、`primary_key.field=id`、`date_field=updateTime`。
+- 阶段 5P 覆盖矩阵已刷新为公开文档 API 185 个、真实配置 API 31 个、enabled 20 个。
+- 阶段 5P 结论：FBA 库存 V2 有稳定 `id`，可以用主键幂等；但全量约 308 页，暂不进入日常 enabled，同步窗口需要后续单独评估。

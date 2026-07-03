@@ -25,37 +25,38 @@
 
 当前阶段：
 
-阶段 5O 已完成，并已完成 5M-5O 三轮复盘。下一阶段 5P 继续回到覆盖矩阵，选择下一个低风险接口扩大覆盖；优先选择业务风险可控的普通分页接口，并继续避开写操作、数组编码未知和强限流接口。
+阶段 5P 已完成。下一阶段 5Q 继续回到覆盖矩阵，选择下一个低风险接口扩大覆盖；优先选择业务风险可控的普通分页、单对象或清晰依赖参数接口，并继续避开写操作、数组编码未知、强限流和高敏感接口。
 
 当前事实：
 
 - 当前 enabled API 有 20 个：`amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`、`product_page`、`parent_product_page`、`kb_product_page`、`fba_warehouse_page`、`store_location_page`、`multi_shop_query`、`crm_tags_page`、`inventory_team_query`、`product_inventory_page`、`storage_inbound_page`。
-- 当前已配置真实 API 有 30 个，其中 20 个已 enabled，`product_detail`、`market_inventory_query`、`storage_inbound_detail`、`country_province_query`、`transfer_detail`、`lot_no_detail`、`delivery_fee_query`、`base_currency_query`、`amazon_msku_page` 和 `platform_msku_page` 已验证但保持 disabled。
-- `platform_msku_page` 文档 id 为 `2898`，路径为 `POST /platform/base/platformMsku/page`。
-- `platform_msku_page` 无必填入参、普通分页、非敏感响应；真实探测确认响应 `code=200`，`data` 包含 `page`、`pagesize`、`rows`、`total`。
-- 阶段 5O 探测时当前账号 `platform_msku_page.total=1707`，首条记录字段包含 `sku`、`msku`、`platformId`、`platformName`、`shopId`、`country`、`recordDate`、`memo`。
-- `platform_msku_page` 没有单一明确业务主键，本轮未使用 `sku`、`msku`、`platformId` 或 `shopId` 编造主键，而是保持 `primary_key.field=""`，依赖 `data_hash` 去重。
-- `platform_msku_page` 配置默认 `enabled=false`，`page.list_field=data.rows`，`page.total_field=data.total`，`page.max_pages=3`，`date_field=recordDate`。
-- 阶段 5O 正式同步批次为 `sync_20260703_092856_887088`，`rows=300`，`requests=3`。
+- 当前已配置真实 API 有 31 个，其中 20 个已 enabled，`product_detail`、`market_inventory_query`、`storage_inbound_detail`、`country_province_query`、`transfer_detail`、`lot_no_detail`、`delivery_fee_query`、`base_currency_query`、`amazon_msku_page`、`platform_msku_page` 和 `fba_inventory_v2_page` 已验证但保持 disabled。
+- `fba_inventory_v2_page` 文档 id 为 `5136`，路径为 `POST /purchase/store/fbaInventory/page/V2`。
+- `fba_inventory_v2_page` 无必填入参、普通分页、非敏感响应；真实探测确认响应 `code=200`，`data` 包含 `page`、`pagesize`、`rows`、`total`。
+- 阶段 5P 探测时当前账号 `fba_inventory_v2_page.total=30759`，首条记录字段包含 `id`、`sku`、`warehouseId`、`asin`、`updateTime`。
+- `fba_inventory_v2_page` 使用 `id` 作为 `source_primary_key`，使用 `updateTime` 作为 `data_date` 来源。
+- `fba_inventory_v2_page` 配置默认 `enabled=false`，`page.list_field=data.rows`，`page.total_field=data.total`，`page.max_pages=3`，`page.page_size=100`，`primary_key.field=id`，`date_field=updateTime`。
+- 阶段 5P 正式同步批次为 `sync_20260703_094024_225221`，`rows=300`，`requests=3`。
 - 数据库已确认该批次 `total_api_count=1`、`success_api_count=1`、`failed_api_count=0`。
-- `platform_msku_page` 同批次 `sync_api_log` 为 `request_count=3`、`success_count=300`、`failed_count=0`、`error_message=NULL`。
-- 同批次 raw 写入 300 条，300 条都有 `data_hash`；`source_primary_key` 为空是预期，因为该接口没有单一明确主键。
-- 同批次 raw 的 `data_date` 范围为 `2025-06-25` 到 `2025-12-22`。
-- `platform_msku_page` checkpoint 指向批次 `sync_20260703_092856_887088`，`checkpoint_value` 记录 `last_page=3`、`request_count=3`、`item_count=300`、`total_count=1707`。
+- `fba_inventory_v2_page` 同批次 `sync_api_log` 为 `request_count=3`、`success_count=300`、`failed_count=0`、`error_message=NULL`。
+- 同批次 raw 写入 300 条，0 条缺少 `source_primary_key`，300 条都有 `data_hash`，300 条都有 `data_date`。
+- 同批次 raw 的 `data_date` 范围为 `2026-03-02` 到 `2026-07-03`。
+- `fba_inventory_v2_page` checkpoint 指向批次 `sync_20260703_094024_225221`，`checkpoint_value` 记录 `last_page=3`、`request_count=3`、`item_count=300`、`total_count=30759`。
 - `failed_request_log` 中该批次该接口为 0 条。
 - `.\\.venv\\Scripts\\python.exe -m app.main` dry-run 显示 20 个 enabled API。
-- 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，同步配置数为 32；其中 2 个是占位示例，真实 API 为 30 个。
-- 数据库已确认 `api_config.platform_msku_page.enabled=0`、`config_json.enabled=false`、`page.max_pages=3`、`primary_key.field=""`、`date_field=recordDate`，数据库配置总数 32、启用 20。
-- 覆盖矩阵显示公开文档 API 185 个，真实配置 API 30 个，enabled 20 个。
+- 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，同步配置数为 33；其中 2 个是占位示例，真实 API 为 31 个。
+- 数据库已确认 `api_config.fba_inventory_v2_page.enabled=0`、`page.max_pages=3`、`page.page_size=100`、`primary_key.field=id`、`date_field=updateTime`，数据库配置总数 33、启用 20。
+- 覆盖矩阵显示公开文档 API 185 个，真实配置 API 31 个，enabled 20 个。
 - 已运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
-- 已运行 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过，39 个测试。
-- 5M-5O 复盘已写入 `docs/progress.md`。
+- 已运行 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过，40 个测试。
+- 5P 新增了 `tests/test_fba_inventory_v2_page_config.py`，用来约束该接口默认 disabled、分页窗口、主键和日期字段。
 - 当前依赖参数来源机制支持 `source_primary_key`、单字段 `raw_json`、多字段 `raw_json`、raw_json 固定等值过滤、checkpoint 小窗口推进，以及按 `primary_key.required=true` 过滤缺主键响应对象。
 - 当前响应提取机制支持列表、单对象和标量包装。
 - 当前仍不支持数组入参、嵌套数组来源或复杂过滤表达式。
 - `marketNames/query` 的常见 GET 数组编码已试过会返回 400，暂不要在未确认真实编码前强行接入。
 - `deliveryFee/query` 和 `relevancePoInfo/query` 高频探测时出现过 509；后续对类似接口应减少手工扫参，优先用小窗口同步和较长等待。
 - SKU/MSKU 映射类接口缺少单一稳定主键，当前应优先用 `data_hash` 去重，不应随意选 `sku`、`msku` 或 `shopId` 当主键。
+- `fba_inventory_v2_page` 全量约 308 页；后续如果要把大库存类接口加入日常 enabled，需要先评估运行窗口和 cron 执行时长。
 - 剩余低风险直读候选减少，后续接口更多涉及库存报表、财务、订单、物流或采购，需要更严格控制 `max_pages` 和业务风险。
 - `app.doc_catalog` 会访问公开文档并重建 185 个详情；如果 120 秒左右超时，可在确认不是代码错误后用更长超时重跑。
 - `app.main` 当前没有 `--dry-run` 参数；如需确认 enabled 数量，用 `.\\.venv\\Scripts\\python.exe -m app.main` 或 `app.doc_catalog` 摘要，不要假设 CLI 支持 `--dry-run`。
