@@ -783,3 +783,10 @@
 - 6Q-6S 三轮复盘结论：本组三轮没有新增 API，而是把 3 个已验证 disabled 接口推进到完整单日窗口；完整窗口标准必须以 checkpoint 的 `item_count == total_count` 为准，不能用早期小窗口总量或命令输出的成功状态替代。
 - 6Q-6S 三轮复盘结论：严格限流或分页上限不明的接口，优先减少无效重试、确认页大小上限、按较长页间等待推进；`traffic_sku_page` 适合单页放大，`traffic_page` 和 `storage_ledger_page` 需要少量分页。
 - 6Q-6S 三轮复盘结论：这些接口仍保持 disabled，进入 daily enabled 前还要评估每天窗口、历史回填节奏、完整 enabled 批次耗时和 cron 窗口。
+- 阶段 6T 选择将 `traffic_sku_page` 从 disabled 提升到 enabled；依据是该接口已完成 `2026-07-02` 单日完整窗口验证，完整窗口只需 1 次请求、170 条，增量请求量远低于 `traffic_page` 和 `storage_ledger_page`。
+- 阶段 6T 已用 TDD 约束 `traffic_sku_page.enabled=true`，并将 enabled 基线测试从 24 调整到 25；`traffic_page` 和 `storage_ledger_page` 仍保持 disabled。
+- 阶段 6T 已同步 `api_config`，数据库总配置 52 条，启用 25 条；`traffic_sku_page.enabled=1`、`page_size=200`、`params.pagesize=200`、`page.max_pages=1`。
+- 阶段 6T 的 dry-run 已确认 loaded 25 enabled API config(s)，且 `traffic_sku_page` 出现在 enabled 列表中。
+- 阶段 6T 已运行完整 `--sync-enabled`，批次号为 `sync_20260703_184641_020339`，25 个 API 全部成功，失败 0；批次总请求 3074 次、写入 307943 条，运行时间约 76 分钟。
+- 阶段 6T 中 `traffic_sku_page` 在同批次内状态成功，请求 1 次，`2026-07-03` 窗口返回 `item_count=0`、`total_count=0`，checkpoint 推进到 `next_window_start=2026-07-04`；这说明 daily 路径可追踪，即使当天无数据也会推进窗口。
+- 阶段 6T 后覆盖矩阵刷新为公开文档 API 185 个、真实配置 API 50 个、enabled 25 个；执行分层为 `configured=50`、`needs_upstream_params=63`、`needs_sensitive_review=22`、`defer_or_review=50`。
