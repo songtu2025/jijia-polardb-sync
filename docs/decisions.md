@@ -1485,3 +1485,11 @@
 - 阶段 9E 已运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests` 和 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，78 个测试通过。
 - 9C-9E 复盘结论：三轮从 6006 推进到 6499，累计新增 493 个调拨单详情，失败 0，历史回填已追平当前 `TFOutbound` 上游调拨单号。
 - 9C-9E 复盘结论：`transfer_detail` 当前不能直接加入 enabled；下一步必须先验证 daily 增量边界，优先评估缺失主键扫描方式。
+- 阶段 9F 决定为 `raw_json.fields` 参数来源补充 `exclude_existing_target=true` 支持，语义与 `source_primary_key` 参数来源一致：从上游取候选主键，再反连接目标 API 的 `raw_api_data.source_primary_key`，只同步目标表缺失的记录。
+- 阶段 9F 将 `transfer_detail.param_source.exclude_existing_target` 设为 `true`，但保持 `transfer_detail.enabled=false`；原因是本轮只验证 daily 增量边界，不直接扩大 enabled 范围。
+- 阶段 9F 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api transfer_detail`，批次号为 `sync_20260704_193447_716759`，请求 0 次，写入 0 条，失败 0。
+- 阶段 9F DB 核验显示该批次 `sync_batch.status=success`、`total_api_count=1`、`success_api_count=1`、`failed_api_count=0`；同批次 `sync_api_log.status=success`、`request_count=0`、`success_count=0`、`failed_count=0`，`failed_request_log=0`。
+- 阶段 9F 后 `transfer_detail` checkpoint 指向批次 `sync_20260704_193447_716759`，记录 `param_offset=0`、`param_limit=200`、`next_param_offset=0`、`item_count=0`、`total_count=0`，表示已切换到目标缺失扫描语义。
+- 阶段 9F DB 配置确认 `transfer_detail.enabled=0`、`config_json.enabled=false`、`param_source.exclude_existing_target=true`；dry-run 仍显示 32 个 enabled API。
+- 阶段 9F 已运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests` 和 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，80 个测试通过。
+- 阶段 9F 全面复盘结论：`transfer_detail` 已具备进入 daily enabled 的技术前提，但是否启用第 33 个 API 需要结合 32 个 enabled 批次约 4244 秒的运行成本评估，并用完整 `--sync-enabled` 批次证明。

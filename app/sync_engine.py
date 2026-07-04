@@ -984,11 +984,13 @@ class SyncEngine:
         if fields:
             return self._source_param_sets_from_raw_json_fields(
                 connection,
+                api["api_code"],
                 source_api_code,
                 fields,
                 param_source.get("filters") or [],
                 limit,
                 offset,
+                bool(param_source.get("exclude_existing_target")),
             )
 
         source_field = param_source.get("source_field")
@@ -1087,11 +1089,13 @@ class SyncEngine:
     def _source_param_sets_from_raw_json_fields(
         self,
         connection: Any,
+        target_api_code: str,
         source_api_code: str | None,
         fields: list[dict[str, Any]],
         filters: list[dict[str, Any]],
         limit: int,
         offset: int,
+        exclude_existing_target: bool = False,
     ) -> list[dict[str, Any]]:
         """从上游 raw_json 顶层字段生成请求参数。"""
         if not source_api_code:
@@ -1107,9 +1111,13 @@ class SyncEngine:
             )
 
         select_parts = []
+        select_expressions = []
         where_parts = []
         query_params: dict[str, Any] = {"source_api_code": source_api_code, "limit": limit, "offset": offset}
         target_fields = []
+        raw_json_column = "source_data.raw_json" if exclude_existing_target else "raw_json"
+        from_clause = "raw_api_data source_data" if exclude_existing_target else "raw_api_data"
+        api_code_column = "source_data.api_code" if exclude_existing_target else "api_code"
         for index, field in enumerate(fields):
             source_field = str(field.get("source_field") or "")
             target_field = str(field.get("target_field") or "")
@@ -1120,9 +1128,10 @@ class SyncEngine:
             if not RAW_JSON_FIELD_PATTERN.match(raw_json_path):
                 raise ValueError(f"invalid raw_json param field: {source_field}")
 
-            expression = f"JSON_UNQUOTE(JSON_EXTRACT(raw_json, '$.{raw_json_path}'))"
+            expression = f"JSON_UNQUOTE(JSON_EXTRACT({raw_json_column}, '$.{raw_json_path}'))"
             alias = f"source_{index}"
             select_parts.append(f"{expression} AS {alias}")
+            select_expressions.append(expression)
             where_parts.append(f"{expression} IS NOT NULL AND {expression} <> ''")
             target_fields.append(target_field)
 
@@ -1137,16 +1146,28 @@ class SyncEngine:
             if "equals" not in filter_config:
                 raise ValueError(f"invalid raw_json param filter: {source_field}")
 
-            expression = f"JSON_UNQUOTE(JSON_EXTRACT(raw_json, '$.{raw_json_path}'))"
+            expression = f"JSON_UNQUOTE(JSON_EXTRACT({raw_json_column}, '$.{raw_json_path}'))"
             param_name = f"filter_{index}"
             where_parts.append(f"{expression} = :{param_name}")
             query_params[param_name] = str(filter_config["equals"])
 
+        join_clause = ""
+        if exclude_existing_target:
+            # 目标表缺失扫描用第一个来源字段作为目标 source_primary_key，对应 transfer_detail 的 code。
+            join_clause = f"""
+            LEFT JOIN raw_api_data target_data
+              ON target_data.api_code = :target_api_code
+             AND target_data.source_primary_key = {select_expressions[0]}
+            """
+            where_parts.append("target_data.id IS NULL")
+            query_params["target_api_code"] = target_api_code
+
         aliases = [f"source_{index}" for index in range(len(fields))]
         sql = f"""
             SELECT {", ".join(select_parts)}
-            FROM raw_api_data
-            WHERE api_code = :source_api_code
+            FROM {from_clause}
+            {join_clause}
+            WHERE {api_code_column} = :source_api_code
               AND {" AND ".join(where_parts)}
             GROUP BY {", ".join(aliases)}
             ORDER BY {", ".join(aliases)}
