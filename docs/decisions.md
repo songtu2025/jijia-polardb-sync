@@ -1067,3 +1067,15 @@
 - 阶段 7W 已运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests` 和 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，78 个测试通过；期间同步更新了阶段性测试断言，从 30 enabled 改为 31 enabled，并确认 `product_detail` 已 enabled。
 - 7U-7W 复盘结论：7U 验证空窗口，7V 修正缺失主键增量机制，7W 完成 enabled 批次验证；`product_detail` 已从历史回填任务正式进入 daily enabled。
 - 7U-7W 复盘结论：本轮 enabled 请求数为 3075，比 7A 的 3074 多 1 次；`product_detail` 当前缺失数为 0 不增加请求，多出的请求来自上游数据增长导致的分页变化。
+- 阶段 7X 选择启用 `purchase_plan_page`；依据是该接口已在 5X 和本轮重新验证为可访问，只有普通分页参数，当前账号 `total_count=0` 代表当前无采购计划数据，不是同步失败。
+- 阶段 7X 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api purchase_plan_page`，批次号为 `sync_20260704_103916_762942`，请求 1 次，写入 0 条，失败 0。
+- 阶段 7X 将 `purchase_plan_page.enabled` 从 `false` 改为 `true`，并同步更新测试断言为 enabled 32 个。
+- 阶段 7X 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，同步 52 条 API 配置到 DB；DB 核验显示 `api_config` enabled 32 条，`purchase_plan_page.enabled=1`，`config_json.enabled=true`。
+- 阶段 7X dry-run 显示 loaded 32 enabled API config(s)，且包含 `purchase_plan_page`。
+- 阶段 7X 已运行完整 `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`，批次号为 `sync_20260704_104132_951900`，32 个 API，请求 3075 次，写入 307946 条。
+- 阶段 7X DB 核验显示该批次 `sync_batch.status=success`、`total_api_count=32`、`success_api_count=32`、`failed_api_count=0`，耗时 4244 秒。
+- 阶段 7X 同批次 `sync_api_log` 共 32 条，32 条成功、0 条失败，合计 `request_count=3075`、`success_count=307946`、`failed_count=0`。
+- 阶段 7X 同批次 `purchase_plan_page` 为 `status=success`、`request_count=1`、`success_count=0`、`failed_count=0`，raw 写入 0 条，`failed_request_log` 为 0 条。
+- 阶段 7X 后 `purchase_plan_page` checkpoint 指向批次 `sync_20260704_104132_951900`，记录 `last_page=1`、`request_count=1`、`item_count=0`、`total_count=0`。
+- 阶段 7X 覆盖矩阵刷新为公开文档 API 185 个、真实配置 API 50 个、enabled 32 个。
+- 阶段 7X 已运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests` 和 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，78 个测试通过。

@@ -7,11 +7,11 @@ class PurchasePlanPageConfigTest(unittest.TestCase):
     def setUp(self):
         self.apis = {api["api_code"]: api for api in load_api_configs("config/api_config.example.yaml")}
 
-    def test_purchase_plan_page_is_limited_and_stays_disabled(self):
+    def test_purchase_plan_page_is_limited_and_enabled(self):
         self.assertIn("purchase_plan_page", self.apis)
         api = self.apis["purchase_plan_page"]
 
-        self.assertFalse(api["enabled"])
+        self.assertTrue(api["enabled"])
         self.assertEqual(api["method"], "POST")
         self.assertEqual(api["path"], "/purchase/srm/plan/page")
         self.assertTrue(api["page"]["enabled"])

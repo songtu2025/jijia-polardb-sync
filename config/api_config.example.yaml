@@ -1155,10 +1155,10 @@ apis:
       type: MSKU
       valueType: QUANTITY
 
-  # 第三十七个真实文档接口：采购计划列表，文档 id=87，当前作为低风险小窗口候选，默认保持 disabled。
+  # 第三十七个真实文档接口：采购计划列表，文档 id=87；当前账号无采购计划数据，但接口可访问，已纳入日常 enabled 批量同步。
   - api_code: purchase_plan_page
     name: 查询采购计划列表
-    enabled: false
+    enabled: true
     method: POST
     path: /purchase/srm/plan/page
     page:
