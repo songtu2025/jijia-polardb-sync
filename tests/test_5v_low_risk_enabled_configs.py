@@ -10,7 +10,7 @@ class LowRiskEnabledConfigs5VTest(unittest.TestCase):
     def test_small_verified_configs_are_enabled_for_daily_sync(self):
         enabled_codes = {code for code, api in self.apis.items() if api["enabled"]}
 
-        self.assertEqual(len(enabled_codes), 33)
+        self.assertEqual(len(enabled_codes), 34)
         self.assertIn("base_currency_query", enabled_codes)
         self.assertIn("storage_return_page", enabled_codes)
         self.assertIn("strategy_template_page", enabled_codes)
@@ -24,6 +24,7 @@ class LowRiskEnabledConfigs5VTest(unittest.TestCase):
         self.assertIn("product_detail", enabled_codes)
         self.assertIn("purchase_plan_page", enabled_codes)
         self.assertIn("transfer_detail", enabled_codes)
+        self.assertIn("lot_no_detail", enabled_codes)
 
 
 if __name__ == "__main__":

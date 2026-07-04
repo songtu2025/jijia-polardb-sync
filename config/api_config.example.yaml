@@ -1297,10 +1297,10 @@ apis:
       delay_seconds: 1
     params: {}
 
-  # 第二十六个真实文档接口：查询交货单明细，文档 id=1026，依赖 storage_inbound_page 的交货单号，中等窗口回填验证阶段保持 disabled。
+  # 第二十六个真实文档接口：查询交货单明细，文档 id=1026，依赖 storage_inbound_page 的交货单号，已按目标缺失扫描进入 enabled。
   - api_code: lot_no_detail
     name: 查询交货单明细
-    enabled: false
+    enabled: true
     method: GET
     path: /purchase/srm/lotNo/detail
     page:
@@ -1315,6 +1315,7 @@ apis:
       source_api_code: storage_inbound_page
       limit: 200
       auto_advance: true
+      exclude_existing_target: true
       fields:
         - source_field: raw_json.fcode
           target_field: code

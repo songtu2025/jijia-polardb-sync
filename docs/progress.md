@@ -2,7 +2,7 @@
 
 ## Current Stage
 
-阶段 10U 已完成。`lot_no_detail` 继续按 200 窗口历史回填且保持 disabled；当前真实配置 API 为 50 个，enabled API 为 33 个。
+阶段 10X 已完成。`lot_no_detail` 已通过缺失主键扫描进入 enabled；当前真实配置 API 为 50 个，enabled API 为 34 个。下一阶段 10Y 只读盘点剩余候选并选择下一个低风险目标。
 
 ## Completed
 
@@ -5007,17 +5007,47 @@
   - 当前 configured real API 仍为 50 个，enabled 仍为 33 个。
   - 下一阶段进入 10X：先验证 `lot_no_detail` 的缺失主键扫描边界，再决定是否将 `lot_no_detail.enabled` 从 `false` 改为 `true` 并跑完整 `--sync-enabled`。
 
+## Stage 10X
+
+- 阶段目标：验证 `lot_no_detail` 缺失主键扫描边界，将其从 disabled 切入 enabled，并用完整 `--sync-enabled` 批次证明 34 个 enabled API 同批次成功。
+- 已完成：
+  - TDD 先行补充 `lot_no_detail` 配置边界测试：RED 阶段预期失败 2 项，分别证明 `lot_no_detail.enabled` 仍为 `false`、enabled 清单仍为 33 个。
+  - 将 `config/api_config.example.yaml` 中 `lot_no_detail.enabled` 从 `false` 改为 `true`，并加入 `param_source.exclude_existing_target=true`，使 enabled 后只拾取目标表缺失的交货单号。
+  - 更新 README 当前 enabled 清单和数量，加入 `lot_no_detail`。
+  - `.\\.venv\\Scripts\\python.exe -m unittest tests.test_lot_no_detail_param_source tests.test_5v_low_risk_enabled_configs`，通过，5 个测试通过。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，通过，DB 同步 API 配置 52 条。
+  - `.\\.venv\\Scripts\\python.exe -m app.main` dry-run 显示 loaded 34 enabled API config(s)，确认 `lot_no_detail` 已进入 enabled。
+  - DB 核验显示 `api_config` 总配置 52 条、enabled 34 条；`lot_no_detail.enabled=1`、`config_json.enabled=true`、`param_source.exclude_existing_target=true`。
+  - enabled 前缺失扫描核验显示 `storage_inbound_page` 中 8261 个 LNInbound 交货单号已全部被 `lot_no_detail` 覆盖，剩余缺口 0，缺失候选 0。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`，通过，批次 `sync_20260705_053106_519317`，34 个 API、3078 次请求、写入 307950 条。
+  - DB 核验显示该批次 `sync_batch.status=success`、`total_api_count=34`、`success_api_count=34`、`failed_api_count=0`，从 `2026-07-05 05:31:07` 到 `2026-07-05 06:48:40`。
+  - 同批次 `sync_api_log` 共 34 条，34 条 success，non-success 0；请求数 3078，成功写入数 307950，失败数 0；`failed_request_log=0`。
+  - `lot_no_detail` 同批次日志为 `status=success`、`request_count=0`、`success_count=0`、`failed_count=0`，说明缺口为 0 时没有重复请求 8261 个历史交货单号。
+  - 同批次 `lot_no_detail` raw 写入 0 条；全局覆盖仍为 8261/8261，剩余缺口 0。
+  - `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary`，通过，公开文档 API 185 个、真实配置 API 50 个、enabled 34 个；执行分层为 `configured=50`、`configured_enabled=34`、`configured_disabled=16`、`needs_upstream_params=63`、`needs_sensitive_review=22`、`defer_or_review=50`。
+  - `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
+  - `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过，82 个测试通过。
+- 10V-10X 复盘：
+  - 10V 新增 200 个 `lot_no_detail` 交货单详情，覆盖从 8006/8261 推进到 8206/8261；10W 新增最后 55 个详情，覆盖追平 8261/8261；10X 切入 enabled 后在完整批次中请求 0 次，证明缺失扫描没有重复拉取历史。
+  - 三轮把 `lot_no_detail` 从“历史回填尾段”推进到“daily enabled”，enabled 数量从 33 增加到 34。
+  - 10X 的核心审核点不是新增 raw，而是边界正确：`missing_candidates=0`、`lot_no_detail.request_count=0`、34/34 同批次成功。
+  - 剩余推进方向已经不在 `lot_no_detail`：当前还有 16 个 configured disabled API、63 个需要参数源的 API、22 个敏感审核 API 和 50 个延后或需复核 API。
+- 当前结论：
+  - `lot_no_detail` 已进入 enabled，并通过完整 enabled 批次验证。
+  - 当前 configured real API 仍为 50 个，enabled 已为 34 个。
+  - 下一阶段 10Y 应从剩余 configured disabled 或 needs_param_source 中选择下一个低风险目标，先做只读盘点和真实证据，不再继续 `lot_no_detail`。
+
 ## Known Issues
 
 - `amazon_shop_page` 第一版以 `data_hash` 去重，不强行编造业务主键。
 - 各业务 API 的具体路径、字段、分页和主键需要逐个阅读文档确认。
 - 新增后续业务接口前，仍需要逐个阅读积加文档确认路径、分页、主键和日期字段。
-- 当前 enabled API 已有 33 个：`amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`、`product_page`、`parent_product_page`、`kb_product_page`、`fba_warehouse_page`、`store_location_page`、`multi_shop_query`、`platform_msku_page`、`crm_tags_page`、`inventory_team_query`、`product_inventory_page`、`storage_inbound_page`、`storage_return_page`、`strategy_template_page`、`traffic_page`、`traffic_sku_page`、`shipment_data_page`、`storage_ledger_page`、`inventory_receipts_page`、`purchase_plan_page`、`product_detail`、`country_province_query`、`transfer_detail`、`base_currency_query`。
-- 当前已配置真实 API 为 50 个，其中 33 个已加入 enabled，`market_inventory_query`、`storage_inbound_detail`、`lot_no_detail`、`delivery_fee_query`、`amazon_msku_page`、`fba_inventory_page`、`fba_inventory_v2_page`、`inventory_adjustments_page`、`inventory_event_page`、`inventory_age_page`、`traffic_analysis_page`、`storage_ledger_detail_page`、`storage_ledger_month_page`、`purchase_sale_storage_fba_page`、`transfer_page`、`lot_no_page` 和 `procure_detail` 已完成验证但保持 disabled。
-- 当前依赖参数来源机制支持从 `raw_api_data.source_primary_key` 取单个参数，也支持从 `raw_json` 点路径提取多个参数、从单层数组路径如 `raw_json.marketListVos[].marketId` 展开一个参数，并可用 `param_source.filters` 做固定等值过滤、用 `param_source.auto_advance` 基于 checkpoint 推进小窗口；`source_primary_key` 和 `raw_json` 点路径参数源均已支持 `exclude_existing_target=true` 按目标表缺失主键做增量拾取；响应提取机制已支持列表、单对象和标量包装；`product_detail` 和 `transfer_detail` 已通过该机制进入 enabled；另有 111307 个库存参数对或 142281 个发货单号尚未纳入生产级调度；`lot_no_detail` 已追平当前 8261 个 LNInbound 交货单号，但仍未进入 enabled。
+- 当前 enabled API 已有 34 个：`amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`、`product_page`、`parent_product_page`、`kb_product_page`、`fba_warehouse_page`、`store_location_page`、`multi_shop_query`、`platform_msku_page`、`crm_tags_page`、`inventory_team_query`、`product_inventory_page`、`storage_inbound_page`、`storage_return_page`、`strategy_template_page`、`traffic_page`、`traffic_sku_page`、`shipment_data_page`、`storage_ledger_page`、`inventory_receipts_page`、`purchase_plan_page`、`product_detail`、`country_province_query`、`transfer_detail`、`lot_no_detail`、`base_currency_query`。
+- 当前已配置真实 API 为 50 个，其中 34 个已加入 enabled，`market_inventory_query`、`storage_inbound_detail`、`delivery_fee_query`、`amazon_msku_page`、`fba_inventory_page`、`fba_inventory_v2_page`、`inventory_adjustments_page`、`inventory_event_page`、`inventory_age_page`、`traffic_analysis_page`、`storage_ledger_detail_page`、`storage_ledger_month_page`、`purchase_sale_storage_fba_page`、`transfer_page`、`lot_no_page` 和 `procure_detail` 已完成验证但保持 disabled。
+- 当前依赖参数来源机制支持从 `raw_api_data.source_primary_key` 取单个参数，也支持从 `raw_json` 点路径提取多个参数、从单层数组路径如 `raw_json.marketListVos[].marketId` 展开一个参数，并可用 `param_source.filters` 做固定等值过滤、用 `param_source.auto_advance` 基于 checkpoint 推进小窗口；`source_primary_key` 和 `raw_json` 点路径参数源均已支持 `exclude_existing_target=true` 按目标表缺失主键做增量拾取；响应提取机制已支持列表、单对象和标量包装；`product_detail`、`transfer_detail` 和 `lot_no_detail` 已通过该机制进入 enabled；另有 111307 个库存参数对或 142281 个发货单号尚未纳入生产级调度。
 - `primary_key.required=true` 会过滤缺少必填主键的响应对象，避免详情接口返回全空对象时写入 `source_primary_key="None"` 的 raw。
 - 覆盖矩阵是公开文档视角，不等同于当前账号真实授权可调用结果；真实可访问性仍需单接口运行验证。
-- `purchase_plan_page` 当前总量为 0 条，已进入 enabled；`storage_return_page` 当前总量为 1 条；`strategy_template_page` 当前总量为 19 条；`country_province_query` 已覆盖当前 6 个国家/区域码并进入 enabled，追平批次中请求 0 次；`transfer_detail` 已覆盖 6499/6499 个调拨单详情并进入 enabled，空缺口批次中请求 0 次；`traffic_analysis_page` 在 `2026-07-02` 单日 CNY 窗口总量为 528 条且限流严格；`traffic_page` 在 `2026-07-02` 单日 CNY/day 窗口总量为 583 条，已进入 enabled，`2026-07-04` 窗口当前返回 0 条并已推进 checkpoint；`traffic_sku_page` 在 `2026-07-02` 单日 CNY/day 窗口总量为 170 条，已进入 enabled，`2026-07-04` 窗口当前返回 0 条并已推进 checkpoint；`shipment_data_page` 在 `2026-07-02` 单日窗口完整验证为 1191 条、12 次请求，已进入 enabled，`2026-07-03` 窗口为 241 条、3 次请求并已推进 checkpoint；`storage_ledger_page` 在 `2026-07-02` 单日窗口当前总量为 1163 条，已进入 enabled，`2026-07-04` 窗口当前返回 0 条并已推进 checkpoint；`storage_ledger_detail_page` 在 `2026-07-02` 单日窗口总量为 27104 条；`storage_ledger_month_page` 在 `2026-06` 月窗口总量为 6044 条；`inventory_receipts_page` 在 `2026-07-02` 单日窗口总量为 735 条，在 `2026-07-03` 单日窗口总量为 157 条，已进入 enabled，`2026-07-04` 窗口当前返回 0 条并已推进 checkpoint；`purchase_sale_storage_fba_page` 当前 MSKU 数量维度总量为 58955 条；`platform_msku_page` 当前总量为 1707 条，已进入 enabled；`transfer_page` 当前总量为 6755 条，请求约 68 页；`product_page` 当前总量为 8258 条，请求 83 页；`lot_no_page` 当前总量为 8602 条，请求约 87 页；`amazon_msku_page` 当前总量为 18430 条，请求约 185 页；`fba_inventory_page` 和 `fba_inventory_v2_page` 当前总量均为 30759 条，请求约 308 页；`inventory_adjustments_page` 当前总量为 58239 条，请求约 583 页；`product_inventory_page` 当前总量为 118653 条，请求 1187 页；`storage_inbound_page` 当前总量为 174286 条，请求约 1744 页；`inventory_event_page` 当前总量为 2669068 条，请求约 26691 页；`inventory_age_page` 当前总量为 6597161 条，当前小窗口配置为每页 10 条且单页响应很慢。当前 33 个 enabled API 的真实批量同步为 3076 次请求，9G 实测耗时 3852 秒，必须按长耗时任务安排 cron 窗口。
+- `purchase_plan_page` 当前总量为 0 条，已进入 enabled；`storage_return_page` 当前总量为 1 条；`strategy_template_page` 当前总量为 19 条；`country_province_query` 已覆盖当前 6 个国家/区域码并进入 enabled，追平批次中请求 0 次；`transfer_detail` 已覆盖 6499/6499 个调拨单详情并进入 enabled，空缺口批次中请求 0 次；`lot_no_detail` 已覆盖 8261/8261 个 LNInbound 交货单详情并进入 enabled，空缺口批次中请求 0 次；`traffic_analysis_page` 在 `2026-07-02` 单日 CNY 窗口总量为 528 条且限流严格；`traffic_page` 在 `2026-07-02` 单日 CNY/day 窗口总量为 583 条，已进入 enabled，`2026-07-04` 窗口当前返回 0 条并已推进 checkpoint；`traffic_sku_page` 在 `2026-07-02` 单日 CNY/day 窗口总量为 170 条，已进入 enabled，`2026-07-04` 窗口当前返回 0 条并已推进 checkpoint；`shipment_data_page` 在 `2026-07-02` 单日窗口完整验证为 1191 条、12 次请求，已进入 enabled，`2026-07-03` 窗口为 241 条、3 次请求并已推进 checkpoint；`storage_ledger_page` 在 `2026-07-02` 单日窗口当前总量为 1163 条，已进入 enabled，`2026-07-04` 窗口当前返回 0 条并已推进 checkpoint；`storage_ledger_detail_page` 在 `2026-07-02` 单日窗口总量为 27104 条；`storage_ledger_month_page` 在 `2026-06` 月窗口总量为 6044 条；`inventory_receipts_page` 在 `2026-07-02` 单日窗口总量为 735 条，在 `2026-07-03` 单日窗口总量为 157 条，已进入 enabled，`2026-07-04` 窗口当前返回 0 条并已推进 checkpoint；`purchase_sale_storage_fba_page` 当前 MSKU 数量维度总量为 58955 条；`platform_msku_page` 当前总量为 1707 条，已进入 enabled；`transfer_page` 当前总量为 6755 条，请求约 68 页；`product_page` 当前总量为 8258 条，请求 83 页；`lot_no_page` 当前总量为 8602 条，请求约 87 页；`amazon_msku_page` 当前总量为 18430 条，请求约 185 页；`fba_inventory_page` 和 `fba_inventory_v2_page` 当前总量均为 30759 条，请求约 308 页；`inventory_adjustments_page` 当前总量为 58239 条，请求约 583 页；`product_inventory_page` 当前总量为 118653 条，请求 1187 页；`storage_inbound_page` 当前总量为 174286 条，请求约 1744 页；`inventory_event_page` 当前总量为 2669068 条，请求约 26691 页；`inventory_age_page` 当前总量为 6597161 条，当前小窗口配置为每页 10 条且单页响应很慢。当前 34 个 enabled API 的真实批量同步为 3078 次请求，10X 实测耗时约 4653 秒，必须按长耗时任务安排 cron 窗口。
 - `--sync-enabled` 已在 5W 改为批次头、单 API、最终汇总分事务提交，已完成 API 的 raw、log 和 checkpoint 可随 API 完成后提交；但总运行时长仍由接口请求量和数据库写入量决定。
 - 请求参数已支持 `{{ today }}`、`{{ yesterday }}`、`{{ days_ago:N }}` 三类日期模板；`date_window` 已通过 `traffic_analysis_page`、`traffic_page`、`traffic_sku_page`、`shipment_data_page`、`storage_ledger_page`、`storage_ledger_detail_page` 和 `inventory_receipts_page` 真实验证，可用 checkpoint 中的 `next_window_start` 推进历史窗口，支持嵌套字段，并已支持追平当前日期后的自动跳过；日期窗口接口如果 `item_count < total_count` 会记为 failed 且不推进 checkpoint。
 - 后续如果继续增加大分页接口或依赖型批量接口，需要关注运行时长、数据库写入耗时和 cron 窗口。
@@ -5026,24 +5056,23 @@
 
 ## Next Stage
 
-阶段 10X：继续推进完整拉取。优先评估 `lot_no_detail` 是否可以进入 enabled；先验证历史缺口为 0 和缺失主键扫描边界，再决定是否启用。
+阶段 10Y：继续推进完整拉取。`lot_no_detail` 已进入 enabled，下一阶段应从剩余 16 个 configured disabled API 或 63 个 needs_param_source API 中选择下一个低风险目标；先只读盘点候选，不要直接启用高请求量接口。
 
 建议目标：
 
-- 先只读确认 `lot_no_detail` 当前 checkpoint、累计 raw、剩余缺口为 0、缺失样本为空，并确认 `api_config.enabled=0`。
-- 评估是否需要把 `lot_no_detail.param_source.exclude_existing_target=true` 写入 YAML；目标是启用后只扫描缺失交货单号，不重复请求已覆盖的 8261 个历史单号。
-- 如决定启用，先将 `lot_no_detail.enabled` 从 `false` 改为 `true`，同步 API 配置，并确认 DB 中 `api_config.lot_no_detail.enabled=1`。
-- 运行 `.\\.venv\\Scripts\\python.exe -m app.main` dry-run，确认 enabled API 从 33 变为 34，且包含 `lot_no_detail`。
-- 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`，确认 34 个 enabled API 同批次成功；重点确认 `lot_no_detail` 在缺口为 0 时请求数为 0 或只请求新增缺失项。
-- 下一次三轮复盘放在 10X 完成后，覆盖 10V-10X。
+- 先读取覆盖矩阵、YAML 和 DB 中 configured disabled 清单，按请求量、参数来源、写入风险排序。
+- 优先选择已配置但 disabled、低请求量、参数来源清晰的候选；避免直接启用 `inventory_event_page`、`inventory_age_page` 这类超大分页接口。
+- 对候选接口先做单接口真实运行或小窗口验证，再决定是否进入 enabled。
+- 如涉及参数型详情接口，必须证明参数来源、缺失扫描和 checkpoint 边界；如涉及日期窗口接口，必须证明 `item_count == total_count` 后才推进 checkpoint。
+- 下一次三轮复盘放在 11A 完成后，覆盖 10Y-11A。
 - 任何日期窗口完整验证都必须确认 `item_count == total_count`；如触发 `date window page truncated`，应先修正分页上限后重跑。
 - 完成后同步 `api_config`、刷新覆盖矩阵并运行编译与单测。
 
 验收：
 
 - 新接口、完整窗口或 enabled 评估必须由公开文档、覆盖矩阵、真实请求、数据库只读查询或测试证明，不靠猜测字段。
-- 如启用接口，必须证明 `api_config.enabled=1`、dry-run enabled 数量变化正确，并用真实同步批次证明成功；10X 可进入 enabled 评估，但必须先证明缺失扫描不会重复拉取全部历史。
+- 如启用接口，必须证明 `api_config.enabled=1`、dry-run enabled 数量变化正确，并用真实同步批次证明成功；涉及缺失扫描时必须先证明不会重复拉取全部历史。
 - 如推进参数型单接口窗口，必须证明 checkpoint 的 `param_offset`、`param_limit`、`next_param_offset` 按预期推进；如推进日期窗口，必须证明 `item_count == total_count` 或者明确说明接口返回总量为 0。
-- `api_config` 与覆盖矩阵显示真实配置 API 或 enabled 数量符合本轮目标；当前基线是真实配置 API 50 个、enabled 33 个。
+- `api_config` 与覆盖矩阵显示真实配置 API 或 enabled 数量符合本轮目标；当前基线是真实配置 API 50 个、enabled 34 个。
 - `compileall` 和 `unittest discover` 通过。
 - 继续保持 `.env`、token 缓存、日志和真实凭证不提交。

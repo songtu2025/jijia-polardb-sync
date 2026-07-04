@@ -1733,3 +1733,14 @@
 - 阶段 10W 已同步 API 配置 52 条；dry-run 仍为 33 个 enabled API，`lot_no_detail.enabled=0`、`config_json.enabled=false`。
 - 阶段 10W 覆盖矩阵仍为公开文档 API 185 个、真实配置 API 50 个、enabled 33 个；执行分层为 `configured=50`、`needs_upstream_params=63`、`needs_sensitive_review=22`、`defer_or_review=50`。
 - 阶段 10W 结论：`lot_no_detail` 已追平当前 8261 个 LNInbound 交货单详情；下一阶段 10X 应先补充或确认 `exclude_existing_target=true` 缺失扫描边界，再评估是否启用并跑完整 `--sync-enabled`。
+- 阶段 10X 先补充测试再改配置；RED 阶段预期失败 2 项，证明 `lot_no_detail.enabled=false` 和 enabled 清单仍为 33 个，避免直接改 YAML 后缺少边界证据。
+- 阶段 10X 将 `lot_no_detail.enabled` 从 `false` 改为 `true`，并加入 `param_source.exclude_existing_target=true`；原因是历史已追平 8261/8261，daily enabled 只应拾取目标表缺失交货单号，不应重复请求全部历史。
+- 阶段 10X 已同步 API 配置 52 条；dry-run 显示 loaded 34 enabled API config(s)，DB 核验 `api_config` 总配置 52 条、enabled 34 条，`lot_no_detail.enabled=1`、`config_json.enabled=true`、`param_source.exclude_existing_target=true`。
+- 阶段 10X enabled 前缺失扫描核验显示 `storage_inbound_page` 中 8261 个 LNInbound 交货单号已全部被 `lot_no_detail` 覆盖，剩余缺口 0，缺失候选 0。
+- 阶段 10X 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`，批次 `sync_20260705_053106_519317` 成功，34 个 API、3078 次请求、写入 307950 条。
+- 阶段 10X 同批次 `sync_batch.status=success`、`total_api_count=34`、`success_api_count=34`、`failed_api_count=0`，从 `2026-07-05 05:31:07` 到 `2026-07-05 06:48:40`；`sync_api_log` 共 34 条且全部 success，`failed_request_log=0`。
+- 阶段 10X 同批次 `lot_no_detail` 为 `status=success`、`request_count=0`、`success_count=0`、`failed_count=0`、raw 写入 0 条；该结果证明缺口为 0 时不会重复请求 8261 个历史交货单号。
+- 阶段 10X 覆盖矩阵刷新后为公开文档 API 185 个、真实配置 API 50 个、enabled 34 个；执行分层为 `configured=50`、`configured_enabled=34`、`configured_disabled=16`、`needs_upstream_params=63`、`needs_sensitive_review=22`、`defer_or_review=50`。
+- 阶段 10X 已运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests` 和 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，82 个测试通过。
+- 10V-10X 复盘结论：10V 新增 200 个详情，10W 新增最后 55 个详情，10X 切入 enabled 后完整批次请求 0 次；`lot_no_detail` 已从历史回填尾段转为 daily enabled，enabled API 从 33 增至 34。
+- 阶段 10X 结论：后续不要再围绕 `lot_no_detail` 推进；10Y 应只读盘点剩余 16 个 configured disabled API 和 63 个 needs_param_source API，选择下一个低风险目标。

@@ -29,11 +29,11 @@ class LotNoDetailParamSourceTest(unittest.TestCase):
     def setUp(self):
         self.apis = {api["api_code"]: api for api in load_api_configs("config/api_config.example.yaml")}
 
-    def test_lot_no_detail_uses_lot_no_fcodes_and_stays_disabled(self):
+    def test_lot_no_detail_uses_missing_lot_no_fcodes_and_is_enabled(self):
         self.assertIn("lot_no_detail", self.apis)
         api = self.apis["lot_no_detail"]
 
-        self.assertFalse(api["enabled"])
+        self.assertTrue(api["enabled"])
         self.assertEqual(api["method"], "GET")
         self.assertEqual(api["path"], "/purchase/srm/lotNo/detail")
         self.assertFalse(api["page"]["enabled"])
@@ -43,6 +43,7 @@ class LotNoDetailParamSourceTest(unittest.TestCase):
         self.assertEqual(api["param_source"]["source_api_code"], "storage_inbound_page")
         self.assertEqual(api["param_source"]["limit"], 200)
         self.assertTrue(api["param_source"]["auto_advance"])
+        self.assertTrue(api["param_source"]["exclude_existing_target"])
         self.assertEqual(
             api["param_source"]["fields"],
             [{"source_field": "raw_json.fcode", "target_field": "code"}],
@@ -81,6 +82,58 @@ class LotNoDetailParamSourceTest(unittest.TestCase):
         self.assertIn("JSON_EXTRACT(raw_json, '$.fcode')", sql)
         self.assertIn("JSON_EXTRACT(raw_json, '$.opType')", sql)
         self.assertIn("= :filter_0", sql)
+
+    def test_source_param_sets_can_exclude_existing_lot_no_codes(self):
+        engine = SyncEngine([])
+        connection = FakeConnection([{"source_0": "LN2209200099"}])
+        api = {
+            "api_code": "lot_no_detail",
+            "param_source": {
+                "source_api_code": "storage_inbound_page",
+                "limit": 200,
+                "fields": [{"source_field": "raw_json.fcode", "target_field": "code"}],
+                "filters": [{"source_field": "raw_json.opType", "equals": "LNInbound"}],
+                "exclude_existing_target": True,
+            },
+        }
+
+        params = engine._source_param_sets(connection, api)
+
+        self.assertEqual(params, [{"code": "LN2209200099"}])
+        self.assertEqual(
+            connection.calls[0][1],
+            {
+                "source_api_code": "storage_inbound_page",
+                "limit": 200,
+                "offset": 0,
+                "filter_0": "LNInbound",
+                "target_api_code": "lot_no_detail",
+            },
+        )
+        sql = str(connection.calls[0][0])
+        self.assertIn("LEFT JOIN raw_api_data target_data", sql)
+        self.assertIn("target_data.source_primary_key = JSON_UNQUOTE(JSON_EXTRACT(source_data.raw_json, '$.fcode'))", sql)
+        self.assertIn("target_data.id IS NULL", sql)
+
+    def test_exclude_existing_target_ignores_checkpoint_offset(self):
+        engine = SyncEngine([])
+        connection = FakeConnection([{"checkpoint_value": '{"next_param_offset": 8261}'}])
+        api = {
+            "api_code": "lot_no_detail",
+            "param_source": {
+                "source_api_code": "storage_inbound_page",
+                "limit": 200,
+                "auto_advance": True,
+                "exclude_existing_target": True,
+                "fields": [{"source_field": "raw_json.fcode", "target_field": "code"}],
+                "filters": [{"source_field": "raw_json.opType", "equals": "LNInbound"}],
+            },
+        }
+
+        offset = engine._param_source_offset(connection, api)
+
+        self.assertEqual(offset, 0)
+        self.assertEqual(connection.calls, [])
 
 
 if __name__ == "__main__":
