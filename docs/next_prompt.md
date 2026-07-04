@@ -25,7 +25,7 @@
 
 当前阶段：
 
-阶段 7Z 已完成，并已完成 7X-7Z 三轮复盘。下一阶段 8A 继续推进完整拉取：优先继续 `transfer_detail` 的 200 条窗口，或选择 `lot_no_detail` 做同等中等窗口验证。
+阶段 8A 已完成。下一阶段 8B 继续推进完整拉取：优先继续 `transfer_detail` 的 200 条窗口，或选择 `lot_no_detail` 做同等中等窗口验证。
 
 当前事实：
 
@@ -33,24 +33,25 @@
 - 当前已配置真实 API 有 50 个，其中 32 个已 enabled；剩余 18 个真实配置 API 已验证但保持 disabled。
 - 覆盖矩阵显示公开文档 API 185 个，真实配置 API 50 个，enabled 32 个；执行分层摘要为 `configured=50`、`needs_upstream_params=63`、`needs_sensitive_review=22`、`defer_or_review=50`。
 - 7X 已将 `purchase_plan_page.enabled` 从 `false` 改为 `true`，完整 enabled 批次 `sync_20260704_104132_951900` 为 32 个 API 全成功，请求 3075 次，写入 307946 条，耗时 4244 秒。
-- 7Y 已将 `transfer_detail.param_source.limit` 从 3 改为 200，但 `transfer_detail.enabled` 仍为 `false`。
-- 7Y `transfer_detail` 批次 `sync_20260704_120115_022944` 请求 200 次、写入 200 条、失败 0，checkpoint 推进到 `next_param_offset=206`。
-- 7Z 不改 YAML，继续复用 `transfer_detail.param_source.limit=200`。
-- 7Z 起点 `transfer_detail` 已有 206 条 raw、206 个不同主键；checkpoint 为 `next_param_offset=206`。
-- 7Z dry-run 仍显示 loaded 32 enabled API config(s)，说明 `transfer_detail` 没有误进入 enabled。
-- 7Z 的真实单接口批次为 `sync_20260704_121501_289184`。
-- 7Z `transfer_detail` 批次命令输出：请求 200 次，写入 200 条。
-- 7Z DB 核验：该批次 `sync_batch.status=success`、`total_api_count=1`、`success_api_count=1`、`failed_api_count=0`，从 `2026-07-04 12:15:01` 到 `2026-07-04 12:21:28`，耗时 387 秒。
-- 7Z 同批次 `sync_api_log` 为 `status=success`、`request_count=200`、`success_count=200`、`failed_count=0`、`error_message=NULL`。
-- 7Z 同批次 `raw_api_data` 写入 200 条，200 个不同 `source_primary_key`，200 个不同 `data_hash`，`data_date` 范围为 `2022-11-12` 到 `2022-12-24`。
-- 7Z 同批次 `failed_request_log` 为 0 条；样本确认 `source_primary_key` 与 `raw_json.code` 一致。
-- 7Z 后 `transfer_detail` 当前累计 raw 为 406 条、406 个不同调拨单号；checkpoint 指向批次 `sync_20260704_121501_289184`，记录 `param_offset=206`、`param_limit=200`、`next_param_offset=406`、`item_count=200`、`total_count=200`。
-- `transfer_detail` 上游 `storage_inbound_page` 中 `opType=TFOutbound` 的不同调拨单号为 6499 个，当前只覆盖 406/6499。
-- 7Z 已运行 `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary`，公开文档 API 185 个，真实配置 API 50 个，enabled 32 个。
-- 7Z 已运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests` 并通过。
-- 7Z 已运行 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，78 个测试通过。
 - 7X-7Z 复盘结论：`purchase_plan_page` 已进入 daily enabled；`transfer_detail` 仍是历史回填任务，已从 6 推进到 406 个详情，失败 0。
 - 7X-7Z 复盘结论：依赖型详情接口进入 daily enabled 前需要完成足够历史回填并设计增量边界；当前不应把 `transfer_detail` 直接加入 enabled。
+- 7Y 已将 `transfer_detail.param_source.limit` 从 3 改为 200，但 `transfer_detail.enabled` 仍为 `false`。
+- 7Y `transfer_detail` 批次 `sync_20260704_120115_022944` 请求 200 次、写入 200 条、失败 0，checkpoint 推进到 `next_param_offset=206`。
+- 7Z `transfer_detail` 批次 `sync_20260704_121501_289184` 请求 200 次、写入 200 条、失败 0，checkpoint 推进到 `next_param_offset=406`。
+- 8A 不改 YAML，继续复用 `transfer_detail.param_source.limit=200`。
+- 8A 起点 `transfer_detail` 已有 406 条 raw、406 个不同主键；checkpoint 为 `next_param_offset=406`。
+- 8A dry-run 仍显示 loaded 32 enabled API config(s)，说明 `transfer_detail` 没有误进入 enabled。
+- 8A 的真实单接口批次为 `sync_20260704_122721_709651`。
+- 8A `transfer_detail` 批次命令输出：请求 200 次，写入 200 条。
+- 8A DB 核验：该批次 `sync_batch.status=success`、`total_api_count=1`、`success_api_count=1`、`failed_api_count=0`，从 `2026-07-04 12:27:22` 到 `2026-07-04 12:33:58`，耗时 396 秒。
+- 8A 同批次 `sync_api_log` 为 `status=success`、`request_count=200`、`success_count=200`、`failed_count=0`、`error_message=NULL`。
+- 8A 同批次 `raw_api_data` 写入 200 条，200 个不同 `source_primary_key`，200 个不同 `data_hash`，`data_date` 范围为 `2022-12-26` 到 `2023-02-17`。
+- 8A 同批次 `failed_request_log` 为 0 条；样本确认 `source_primary_key` 与 `raw_json.code` 一致。
+- 8A 后 `transfer_detail` 当前累计 raw 为 606 条、606 个不同调拨单号；checkpoint 指向批次 `sync_20260704_122721_709651`，记录 `param_offset=406`、`param_limit=200`、`next_param_offset=606`、`item_count=200`、`total_count=200`。
+- `transfer_detail` 上游 `storage_inbound_page` 中 `opType=TFOutbound` 的不同调拨单号为 6499 个，当前只覆盖 606/6499。
+- 8A 已运行 `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary`，公开文档 API 185 个，真实配置 API 50 个，enabled 32 个。
+- 8A 已运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests` 并通过。
+- 8A 已运行 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，78 个测试通过。
 - `product_detail` 已在 7W 进入 daily enabled，使用 `exclude_existing_target=true` 按目标表缺失主键做增量拾取；当前缺失详情数为 0。
 - `purchase_plan_page` 当前总量为 0 是业务数据现状，已在 7X 进入 daily enabled。
 - `traffic_analysis_page` 在 `2026-07-02` 单日 CNY 窗口总量 528 条，但限流严格，曾在第 2 页触发 509。
@@ -64,10 +65,10 @@
 
 建议目标：
 
-1. 先只读读取覆盖矩阵、7X enabled 批次证据、7Y/7Z `transfer_detail` 中等窗口批次证据和当前 32 enabled 批次耗时。
-2. 如果继续 `transfer_detail`，不改 YAML，直接复用 checkpoint 的 `next_param_offset=406` 跑下一批 200 条，并核验 checkpoint 推进到 606。
+1. 先只读读取覆盖矩阵、7X enabled 批次证据、7Y-8A `transfer_detail` 中等窗口批次证据和当前 32 enabled 批次耗时。
+2. 如果继续 `transfer_detail`，不改 YAML，直接复用 checkpoint 的 `next_param_offset=606` 跑下一批 200 条，并核验 checkpoint 推进到 806。
 3. 如果切换接口，优先选择 `lot_no_detail` 做同样的 200 条窗口验证；切换前必须说明体量、参数来源和风险。
-4. 不要把 `transfer_detail` 直接加入 enabled；当前只覆盖 406/6499，daily 增量边界仍需后续设计。
+4. 不要把 `transfer_detail` 直接加入 enabled；当前只覆盖 606/6499，daily 增量边界仍需后续设计。
 5. 如果现有机制不够，必须测试先行做最小扩展。
 6. 查询数据库确认批次成功，`sync_api_log`、`raw_api_data` 和 checkpoint 都可追踪。
 7. 需要刷新覆盖矩阵时，运行 `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary`。
