@@ -1124,3 +1124,15 @@
 - 阶段 8B 后 `transfer_detail` 累计覆盖 806/6499 个调拨单详情。
 - 阶段 8B 覆盖矩阵刷新仍为公开文档 API 185 个、真实配置 API 50 个、enabled 32 个。
 - 阶段 8B 已运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests` 和 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，78 个测试通过。
+- 阶段 8C 不改 YAML，继续复用 `transfer_detail.param_source.limit=200`；原因是继续回填仍直接提升完整拉取程度。
+- 阶段 8C 起点 DB 核验显示 `api_config` 总配置 52 条、enabled 32 条，`transfer_detail.enabled=0`、`config_json.enabled=false`、`param_source.limit=200`，checkpoint 为 `next_param_offset=806`。
+- 阶段 8C dry-run 仍显示 loaded 32 enabled API config(s)，说明 `transfer_detail` 没有误进入 enabled。
+- 阶段 8C 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api transfer_detail`，批次号为 `sync_20260704_125350_565432`，请求 200 次，写入 200 条，失败 0。
+- 阶段 8C DB 核验显示该批次 `sync_batch.status=success`、`total_api_count=1`、`success_api_count=1`、`failed_api_count=0`，耗时 424 秒。
+- 阶段 8C 同批次 raw 为 200 条，200 个不同 `source_primary_key`，200 个不同 `data_hash`；样本确认 `source_primary_key` 与 `raw_json.code` 一致。
+- 阶段 8C 后 `transfer_detail` checkpoint 指向批次 `sync_20260704_125350_565432`，记录 `param_offset=806`、`param_limit=200`、`next_param_offset=1006`、`item_count=200`、`total_count=200`。
+- 阶段 8C 后 `transfer_detail` 累计覆盖 1006/6499 个调拨单详情。
+- 阶段 8C 覆盖矩阵刷新仍为公开文档 API 185 个、真实配置 API 50 个、enabled 32 个。
+- 阶段 8C 已运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests` 和 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，78 个测试通过。
+- 8A-8C 复盘结论：三轮连续复用 `transfer_detail.param_source.limit=200`，从 406 推进到 1006，累计新增 600 个调拨单详情，失败 0。
+- 8A-8C 复盘结论：当前 200 请求窗口耗时约 396 到 424 秒，适合继续分批回填；但 `transfer_detail` 仍只覆盖 1006/6499，且 daily 增量边界未重新设计，所以仍不应加入 enabled。
