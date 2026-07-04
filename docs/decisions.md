@@ -1664,3 +1664,9 @@
 - 阶段 10K 后 `lot_no_detail` checkpoint 为 `param_offset=5806`、`param_limit=200`、`next_param_offset=6006`；累计 raw 为 6006 条、6006 个不同交货单号，按 `storage_inbound_page.raw_json.fcode` 且 `opType=LNInbound` 口径剩余缺口 2255 个。
 - 阶段 10K 保持 enabled API 为 33 个，覆盖矩阵仍为公开文档 API 185 个、真实配置 API 50 个、enabled 33 个。
 - 阶段 10K 结论：下一阶段进入 10L，继续 `lot_no_detail` 200 窗口历史回填；10L 完成后复盘 10J-10L 三轮。
+- 阶段 10L 不改 YAML，继续复用 `lot_no_detail.param_source.limit=200`；原因是历史缺口仍有 2255 个，继续回填直接提升完整拉取程度。
+- 阶段 10L 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api lot_no_detail`，批次 `sync_20260705_025627_748467` 成功，请求 200 次、写入 200 条、失败 0。
+- 阶段 10L 后 `lot_no_detail` checkpoint 为 `param_offset=6006`、`param_limit=200`、`next_param_offset=6206`；累计 raw 为 6206 条、6206 个不同交货单号，按 `storage_inbound_page.raw_json.fcode` 且 `opType=LNInbound` 口径剩余缺口 2055 个。
+- 阶段 10L 保持 enabled API 为 33 个，覆盖矩阵仍为公开文档 API 185 个、真实配置 API 50 个、enabled 33 个。
+- 10J-10L 复盘结论：三轮累计新增 600 个 `lot_no_detail` 交货单详情，三轮均为 200 请求、200 raw、失败 0；覆盖从 5606/8261 推进到 6206/8261，仍不应启用。
+- 阶段 10L 结论：下一阶段进入 10M，继续 `lot_no_detail` 200 窗口历史回填；下一次三轮复盘放在 10O 完成后。
