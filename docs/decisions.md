@@ -1590,3 +1590,8 @@
 - 阶段 9W 保持 enabled API 为 33 个，覆盖矩阵仍为公开文档 API 185 个、真实配置 API 50 个、enabled 33 个。
 - 9U-9W 复盘结论：三轮累计新增 600 个 `lot_no_detail` 交货单详情，三轮均为 200 请求、200 raw、失败 0；覆盖从 2606/8261 推进到 3206/8261，仍不应启用。
 - 阶段 9W 结论：下一阶段继续 `lot_no_detail` 200 窗口历史回填；下一次小复盘放在 9Z 完成后。
+- 阶段 9X 不改 YAML，继续复用 `lot_no_detail.param_source.limit=200`；原因是历史缺口仍有 5055 个，继续回填直接提升完整拉取程度。
+- 阶段 9X 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api lot_no_detail`，批次 `sync_20260705_000244_482705` 成功，请求 200 次、写入 200 条、失败 0。
+- 阶段 9X 后 `lot_no_detail` checkpoint 为 `param_offset=3206`、`param_limit=200`、`next_param_offset=3406`；累计 raw 为 3406 条、3406 个不同交货单号，按 `storage_inbound_page.raw_json.fcode` 且 `opType=LNInbound` 口径剩余缺口 4855 个。
+- 阶段 9X 保持 enabled API 为 33 个，覆盖矩阵仍为公开文档 API 185 个、真实配置 API 50 个、enabled 33 个。
+- 阶段 9X 结论：下一阶段继续 `lot_no_detail` 200 窗口历史回填；下一次小复盘放在 9Z 完成后。
