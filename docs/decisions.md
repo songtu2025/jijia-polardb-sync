@@ -1726,3 +1726,10 @@
 - 阶段 10V 覆盖矩阵仍为公开文档 API 185 个、真实配置 API 50 个、enabled 33 个；执行分层为 `configured=50`、`needs_upstream_params=63`、`needs_sensitive_review=22`、`defer_or_review=50`。
 - 阶段 10V 复盘结论：`lot_no_detail` 已推进到 8206/8261，剩余 55 个交货单号；10W 应完成尾段并核验缺失主键扫描边界，缺口归零前不应启用。
 - 阶段 10V 结论：下一阶段进入 10W，继续 `lot_no_detail` 尾段历史回填；如 10W 后缺口归零，10X 优先评估 enabled 边界和完整 enabled 批次新增耗时。
+- 阶段 10W 不改 YAML，继续复用 `lot_no_detail.param_source.limit=200`；原因是尾段仍应先证明历史缺口归零，不能在同一动作里混入 enabled 变更。
+- 阶段 10W 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api lot_no_detail`，批次 `sync_20260705_051850_119507` 成功，请求 55 次、写入 55 条、失败 0。
+- 阶段 10W 同批次 `sync_batch.status=success`、`total_api_count=1`、`success_api_count=1`、`failed_api_count=0`；`sync_api_log.request_count=55`、`success_count=55`、`failed_count=0`、`error_message=NULL`；raw 为 55 条、55 个不同主键、55 个不同 hash，`failed_request_log=0`。
+- 阶段 10W 后 `lot_no_detail` checkpoint 为 `param_offset=8206`、`param_limit=200`、`next_param_offset=8261`；累计 raw 为 8261 条、8261 个不同交货单号，按 `storage_inbound_page.raw_json.fcode` 且 `opType=LNInbound` 口径剩余缺口 0 个，缺失样本为空。
+- 阶段 10W 已同步 API 配置 52 条；dry-run 仍为 33 个 enabled API，`lot_no_detail.enabled=0`、`config_json.enabled=false`。
+- 阶段 10W 覆盖矩阵仍为公开文档 API 185 个、真实配置 API 50 个、enabled 33 个；执行分层为 `configured=50`、`needs_upstream_params=63`、`needs_sensitive_review=22`、`defer_or_review=50`。
+- 阶段 10W 结论：`lot_no_detail` 已追平当前 8261 个 LNInbound 交货单详情；下一阶段 10X 应先补充或确认 `exclude_existing_target=true` 缺失扫描边界，再评估是否启用并跑完整 `--sync-enabled`。
