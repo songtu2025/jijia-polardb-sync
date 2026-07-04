@@ -1079,3 +1079,15 @@
 - 阶段 7X 后 `purchase_plan_page` checkpoint 指向批次 `sync_20260704_104132_951900`，记录 `last_page=1`、`request_count=1`、`item_count=0`、`total_count=0`。
 - 阶段 7X 覆盖矩阵刷新为公开文档 API 185 个、真实配置 API 50 个、enabled 32 个。
 - 阶段 7X 已运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests` 和 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，78 个测试通过。
+- 阶段 7Y 选择推进 `transfer_detail` 中等窗口；原因是该接口的 `raw_json.fcode -> code` 参数来源和 `opType=TFOutbound` 过滤已连续验证，当前上游不同调拨单号为 6499 个，体量小于 `market_inventory_query` 和 `storage_inbound_detail`。
+- 阶段 7Y 用 TDD 将 `transfer_detail.param_source.limit` 从 3 调整为 200；测试先失败于 `3 != 200`，再通过。
+- 阶段 7Y 保持 `transfer_detail.enabled=false`，不进入 daily enabled；原因是历史回填只覆盖 206/6499，且 daily 增量边界仍依赖 checkpoint offset。
+- 阶段 7Y 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，同步 52 条 API 配置到 DB。
+- 阶段 7Y DB 核验显示 `transfer_detail.enabled=0`、`config_json.enabled=false`、`param_source.limit=200`、`auto_advance=true`。
+- 阶段 7Y dry-run 仍显示 loaded 32 enabled API config(s)，说明 `transfer_detail` 没有误进入 enabled。
+- 阶段 7Y 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api transfer_detail`，批次号为 `sync_20260704_120115_022944`，请求 200 次，写入 200 条，失败 0。
+- 阶段 7Y DB 核验显示该批次 `sync_batch.status=success`、`total_api_count=1`、`success_api_count=1`、`failed_api_count=0`，耗时 441 秒。
+- 阶段 7Y 同批次 raw 为 200 条，200 个不同 `source_primary_key`，200 个不同 `data_hash`；样本确认 `source_primary_key` 与 `raw_json.code` 一致。
+- 阶段 7Y 后 `transfer_detail` checkpoint 指向批次 `sync_20260704_120115_022944`，记录 `param_offset=6`、`param_limit=200`、`next_param_offset=206`、`item_count=200`、`total_count=200`。
+- 阶段 7Y 覆盖矩阵刷新仍为公开文档 API 185 个、真实配置 API 50 个、enabled 32 个。
+- 阶段 7Y 已运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests` 和 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，78 个测试通过。

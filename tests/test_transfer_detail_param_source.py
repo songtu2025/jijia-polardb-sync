@@ -41,7 +41,7 @@ class TransferDetailParamSourceTest(unittest.TestCase):
         self.assertEqual(api["primary_key"]["field"], "code")
         self.assertEqual(api["date_field"], "createDate")
         self.assertEqual(api["param_source"]["source_api_code"], "storage_inbound_page")
-        self.assertEqual(api["param_source"]["limit"], 3)
+        self.assertEqual(api["param_source"]["limit"], 200)
         self.assertTrue(api["param_source"]["auto_advance"])
         self.assertEqual(
             api["param_source"]["fields"],
