@@ -1469,3 +1469,19 @@
 - 阶段 9D 全面复盘结论：当前框架主链路稳定，真正缺口是剩余 disabled 大体量接口、需参数源接口、敏感审查接口和风险复核接口的分层推进。
 - 阶段 9D 全面复盘结论：`transfer_detail` 已接近完成历史回填，但即使 9E 补完剩余 93 个调拨单详情，也必须先设计 daily 增量边界，不能直接加入 enabled。
 - 阶段 9D 全面复盘结论：当前 32 个 enabled API 已有完整批次成功证据，但耗时约 4244 秒，继续扩大 enabled 前仍要评估 cron 窗口和运行成本。
+- 阶段 9E 不改 YAML，继续复用 `transfer_detail.param_source.limit=200`；原因是最后一段历史回填仍直接提升完整拉取程度。
+- 阶段 9E 起点 DB 核验显示 `api_config` 总配置 52 条、enabled 32 条，`transfer_detail.enabled=0`、`config_json.enabled=false`、`param_source.limit=200`，checkpoint 为 `next_param_offset=6406`。
+- 阶段 9E 起点剩余缺口必须按 `storage_inbound_page.raw_json.fcode` 口径计算；用 `storage_inbound_page.source_primary_key` 会误判。
+- 阶段 9E 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api transfer_detail`，批次号为 `sync_20260704_191625_238364`，请求 93 次，写入 93 条，失败 0。
+- 阶段 9E DB 核验显示该批次 `sync_batch.status=success`、`total_api_count=1`、`success_api_count=1`、`failed_api_count=0`，耗时 174 秒。
+- 阶段 9E 同批次 `sync_api_log` 为 `status=success`、`request_count=93`、`success_count=93`、`failed_count=0`，耗时 170 秒。
+- 阶段 9E 同批次 raw 为 93 条，93 个不同 `source_primary_key`，93 个不同 `data_hash`；样本确认 `source_primary_key` 与 `raw_json.code` 一致。
+- 阶段 9E 同批次 `failed_request_log` 为 0 条。
+- 阶段 9E 后 `transfer_detail` checkpoint 指向批次 `sync_20260704_191625_238364`，记录 `param_offset=6406`、`param_limit=200`、`next_param_offset=6499`、`item_count=93`、`total_count=93`。
+- 阶段 9E 后 `transfer_detail` 累计覆盖 6499/6499 个调拨单详情，剩余缺口为 0。
+- 阶段 9E 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，同步 52 条 API 配置到 DB。
+- 阶段 9E 覆盖矩阵刷新仍为公开文档 API 185 个、真实配置 API 50 个、enabled 32 个。
+- 阶段 9E dry-run 显示 loaded 32 enabled API config(s)，说明 `transfer_detail` 没有误进入 enabled。
+- 阶段 9E 已运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests` 和 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，78 个测试通过。
+- 9C-9E 复盘结论：三轮从 6006 推进到 6499，累计新增 493 个调拨单详情，失败 0，历史回填已追平当前 `TFOutbound` 上游调拨单号。
+- 9C-9E 复盘结论：`transfer_detail` 当前不能直接加入 enabled；下一步必须先验证 daily 增量边界，优先评估缺失主键扫描方式。
