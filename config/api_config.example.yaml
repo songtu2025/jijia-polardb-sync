@@ -1202,6 +1202,7 @@ apis:
       target_field: id
       limit: 500
       auto_advance: true
+      exclude_existing_target: true
     rate_limit:
       sleep_seconds: 0.2
     retry:

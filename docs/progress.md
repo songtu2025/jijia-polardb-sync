@@ -2999,6 +2999,33 @@
   - 这只证明“没有新上游产品时”的日常运行是可追踪的；仍不能直接进入 enabled，因为还没有验证新产品 ID 出现在上游 `product_page` 后是否能被 `next_param_offset=8258` 正确拾取。
   - 下一阶段应继续评估 `product_detail` 新增产品 ID 的增量拾取方式和完整 enabled 批次新增成本；如不适合启用，则转向下一个低风险参数型接口。
 
+## Stage 7V
+
+- 阶段目标：继续推进完整拉取；验证并修正 `product_detail` 新增产品 ID 的增量拾取方式。
+- 已完成：
+  - 只读 DB 起点确认 `product_page` 有 8258 个不同产品主键，`product_detail` 有 8258 个不同产品主键，缺失详情数为 0。
+  - 只读 DB 同时确认 `product_page.source_primary_key` 是字符串形态：lexicographic 最大值为 `999`，数值最大值为 `8459`。这说明旧的 `ORDER BY source_primary_key LIMIT/OFFSET` 不能证明新增数值 ID 会排在 `OFFSET 8258` 之后。
+  - 用 TDD 增加 `tests/test_product_detail_param_source.py` 覆盖：`product_detail` 配置必须声明 `exclude_existing_target=true`；开启后参数来源 SQL 必须排除目标 API 已存在主键；开启后 `_param_source_offset()` 必须忽略旧 checkpoint offset。
+  - RED 验证通过：新增测试先失败，失败点分别是配置缺少 `exclude_existing_target`、offset 仍返回 8258、SQL 未携带 `target_api_code`。
+  - 最小实现：`config/api_config.example.yaml` 的 `product_detail.param_source` 增加 `exclude_existing_target: true`；`app/sync_engine.py` 在 `source_primary_key` 参数来源下支持反连接目标 API，只取 `product_page` 中存在但 `product_detail` 中不存在的主键。
+  - `.\\.venv\\Scripts\\python.exe -m unittest tests.test_product_detail_param_source`，通过，6 个测试全部通过。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，通过，输出 `api configs synced: count=52`。
+  - DB 核验显示 `api_config.product_detail.enabled=0`，`config_json.param_source.exclude_existing_target=true`，`auto_advance=true`，`limit=500`。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api product_detail`，通过，批次 `sync_20260704_091054_370330`，请求 0 次，写入 0 条，失败 0。
+  - DB 核验显示该批次 `sync_batch.status=success`、`total_api_count=1`、`success_api_count=1`、`failed_api_count=0`。
+  - 同批次 `sync_api_log` 为 `status=success`、`request_count=0`、`success_count=0`、`failed_count=0`。
+  - 同批次 `raw_api_data` 写入 0 条 `product_detail`，`failed_request_log` 为 0 条。
+  - `product_detail` checkpoint 指向新批次，记录 `param_offset=0`、`param_limit=500`、`next_param_offset=0`、`item_count=0`、`total_count=0`；这是缺失主键扫描的新语义，不再依赖历史 offset。
+  - 当前 DB 缺失详情数仍为 0，`product_detail` 与 `product_page` 均为 8258 个不同产品主键。
+  - `.\\.venv\\Scripts\\python.exe -m app.main`，通过，dry-run 显示 loaded 30 enabled API config(s)，说明本轮没有启用 `product_detail`。
+  - `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary`，通过，公开文档 API 185 个，真实配置 API 50 个，enabled 30 个。
+  - `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
+  - `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过，78 个测试全部通过。
+- 当前结论：
+  - 旧的 checkpoint offset 机制不适合作为 `product_detail` daily 增量边界，因为产品 ID 字符串排序会让新增数值 ID 不一定落在旧 offset 后。
+  - `product_detail` 已改为按目标表缺失主键增量拾取：只要 `product_page` 出现新 `source_primary_key` 且 `product_detail` 尚无同主键，下一次单接口或 enabled 同步就会请求它。
+  - 本轮仍保持 `product_detail.enabled=false`；下一阶段可以评估启用，但必须运行完整 `--sync-enabled` 证明 31 个 enabled API 同批次成功，并核验新增耗时。
+
 ## Known Issues
 
 - `amazon_shop_page` 第一版以 `data_hash` 去重，不强行编造业务主键。
@@ -3006,7 +3033,7 @@
 - 新增后续业务接口前，仍需要逐个阅读积加文档确认路径、分页、主键和日期字段。
 - 当前 enabled API 已有 30 个：`amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`、`product_page`、`parent_product_page`、`kb_product_page`、`fba_warehouse_page`、`store_location_page`、`multi_shop_query`、`platform_msku_page`、`crm_tags_page`、`inventory_team_query`、`product_inventory_page`、`storage_inbound_page`、`storage_return_page`、`strategy_template_page`、`traffic_page`、`traffic_sku_page`、`shipment_data_page`、`storage_ledger_page`、`inventory_receipts_page`、`country_province_query`、`base_currency_query`。
 - 当前已配置真实 API 为 50 个，其中 30 个已加入 enabled，`product_detail`、`market_inventory_query`、`storage_inbound_detail`、`transfer_detail`、`lot_no_detail`、`delivery_fee_query`、`amazon_msku_page`、`fba_inventory_page`、`fba_inventory_v2_page`、`inventory_adjustments_page`、`inventory_event_page`、`inventory_age_page`、`traffic_analysis_page`、`storage_ledger_detail_page`、`storage_ledger_month_page`、`purchase_sale_storage_fba_page`、`transfer_page`、`lot_no_page`、`purchase_plan_page` 和 `procure_detail` 已完成验证但保持 disabled。
-- 当前依赖参数来源机制支持从 `raw_api_data.source_primary_key` 取单个参数，也支持从 `raw_json` 点路径提取多个参数、从单层数组路径如 `raw_json.marketListVos[].marketId` 展开一个参数，并可用 `param_source.filters` 做固定等值过滤、用 `param_source.auto_advance` 基于 checkpoint 推进小窗口；响应提取机制已支持列表、单对象和标量包装；`product_detail` 已推进到 `next_param_offset=8258` 并追平当前 `product_page` 上游主键，追平后的空窗口行为已验证，但仍未验证新增产品 ID 的增量拾取方式、完整 enabled 批次新增耗时或 daily enabled 策略，尚未把 111307 个库存参数对、6481 个调拨单号、8243 个交货单号或 142281 个发货单号纳入生产级调度。
+- 当前依赖参数来源机制支持从 `raw_api_data.source_primary_key` 取单个参数，也支持从 `raw_json` 点路径提取多个参数、从单层数组路径如 `raw_json.marketListVos[].marketId` 展开一个参数，并可用 `param_source.filters` 做固定等值过滤、用 `param_source.auto_advance` 基于 checkpoint 推进小窗口；响应提取机制已支持列表、单对象和标量包装；`product_detail` 已追平当前 `product_page` 上游主键，追平后的空窗口行为已验证，且已通过 `exclude_existing_target=true` 改为按目标表缺失主键做 daily 增量拾取，但仍未验证完整 enabled 批次新增耗时，尚未把 111307 个库存参数对、6481 个调拨单号、8243 个交货单号或 142281 个发货单号纳入生产级调度。
 - `primary_key.required=true` 会过滤缺少必填主键的响应对象，避免详情接口返回全空对象时写入 `source_primary_key="None"` 的 raw。
 - 覆盖矩阵是公开文档视角，不等同于当前账号真实授权可调用结果；真实可访问性仍需单接口运行验证。
 - `purchase_plan_page` 当前总量为 0 条；`storage_return_page` 当前总量为 1 条；`strategy_template_page` 当前总量为 19 条；`country_province_query` 已覆盖当前 6 个国家/区域码并进入 enabled，追平批次中请求 0 次；`traffic_analysis_page` 在 `2026-07-02` 单日 CNY 窗口总量为 528 条且限流严格；`traffic_page` 在 `2026-07-02` 单日 CNY/day 窗口总量为 583 条，已进入 enabled，`2026-07-04` 窗口当前返回 0 条并已推进 checkpoint；`traffic_sku_page` 在 `2026-07-02` 单日 CNY/day 窗口总量为 170 条，已进入 enabled，`2026-07-04` 窗口当前返回 0 条并已推进 checkpoint；`shipment_data_page` 在 `2026-07-02` 单日窗口完整验证为 1191 条、12 次请求，已进入 enabled，`2026-07-03` 窗口为 241 条、3 次请求并已推进 checkpoint；`storage_ledger_page` 在 `2026-07-02` 单日窗口当前总量为 1163 条，已进入 enabled，`2026-07-04` 窗口当前返回 0 条并已推进 checkpoint；`storage_ledger_detail_page` 在 `2026-07-02` 单日窗口总量为 27104 条；`storage_ledger_month_page` 在 `2026-06` 月窗口总量为 6044 条；`inventory_receipts_page` 在 `2026-07-02` 单日窗口总量为 735 条，在 `2026-07-03` 单日窗口总量为 157 条，已进入 enabled，`2026-07-04` 窗口当前返回 0 条并已推进 checkpoint；`purchase_sale_storage_fba_page` 当前 MSKU 数量维度总量为 58955 条；`platform_msku_page` 当前总量为 1707 条，已进入 enabled；`transfer_page` 当前总量为 6755 条，请求约 68 页；`product_page` 当前总量为 8258 条，请求 83 页；`lot_no_page` 当前总量为 8602 条，请求约 87 页；`amazon_msku_page` 当前总量为 18430 条，请求约 185 页；`fba_inventory_page` 和 `fba_inventory_v2_page` 当前总量均为 30759 条，请求约 308 页；`inventory_adjustments_page` 当前总量为 58239 条，请求约 583 页；`product_inventory_page` 当前总量为 118653 条，请求 1187 页；`storage_inbound_page` 当前总量为 174286 条，请求约 1744 页；`inventory_event_page` 当前总量为 2669068 条，请求约 26691 页；`inventory_age_page` 当前总量为 6597161 条，当前小窗口配置为每页 10 条且单页响应很慢。当前 30 个 enabled API 的真实批量同步为 3074 次请求，7A 实测耗时约 80 分钟，必须按长耗时任务安排 cron 窗口。
@@ -3018,12 +3045,13 @@
 
 ## Next Stage
 
-阶段 7V：继续推进完整拉取。优先验证 `product_detail` 新增产品 ID 的增量拾取方式和完整 enabled 批次新增成本；如果当前机制不适合 enabled，再转向下一个低风险参数型接口。
+阶段 7W：继续推进完整拉取。优先评估是否将 `product_detail` 启用到 daily enabled；如果启用，必须跑完整 `--sync-enabled` 并用 DB 证明 31 个 enabled API 同批次成功。
 
 建议目标：
 
-- 只读读取覆盖矩阵、7U `product_detail` 空窗口批次证据和当前 30 enabled 批次耗时。
-- 如果评估 `product_detail` 进入 daily enabled，先验证 `next_param_offset=8258` 下新增产品 ID 的增量拾取方式和完整 enabled 批次新增耗时，不要只凭空窗口成功直接启用。
+- 只读读取覆盖矩阵、7V `product_detail` 缺失主键扫描证据和当前 30 enabled 批次耗时。
+- 如启用 `product_detail`，将 `enabled` 改为 `true` 后先运行 `--sync-api-configs`，再确认 dry-run enabled 变为 31。
+- 运行完整 `--sync-enabled`，并查询 `sync_batch`、`sync_api_log`、`sync_checkpoint`，证明 31 个 enabled API 同批次成功；特别确认 `product_detail` 在缺失数为 0 时请求 0 次且状态成功。
 - 如果切换接口，优先选择 `storage_inbound_detail`、`transfer_detail`、`lot_no_detail`、`market_inventory_query` 等参数型接口，但应避免回到 3 条样本的低效节奏。
 - 如选择 `purchase_plan_page` 进入 enabled，必须说明它当前总量为 0 的业务意义，并用完整 enabled 批次证明不会影响日常同步。
 - 任何日期窗口完整验证都必须确认 `item_count == total_count`；如触发 `date window page truncated`，应先修正分页上限后重跑。

@@ -1039,3 +1039,18 @@
 - 阶段 7U 已运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests` 和 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，76 个测试通过。
 - 阶段 7U 结论：`product_detail` 空窗口行为已验证，追平后不会请求外部 API、不会写入空数据，并会留下成功批次、接口日志和 checkpoint。
 - 阶段 7U 结论：`product_detail` 仍不应直接进入 daily enabled；下一步必须验证新增产品 ID 能否被 `next_param_offset=8258` 正确拾取，并评估完整 enabled 批次新增耗时。
+- 阶段 7V 先只读验证 `product_detail` 新增产品 ID 增量拾取边界；DB 显示 `product_page.source_primary_key` 的 lexicographic 最大值为 `999`，数值最大值为 `8459`，旧的字符串排序加 OFFSET 不能保证新增数值 ID 落在旧 offset 之后。
+- 阶段 7V 采用 TDD 修正：先新增测试证明 `product_detail` 需要 `exclude_existing_target=true`、参数 SQL 需要排除目标 API 已有主键、该模式需要忽略 checkpoint offset；RED 阶段测试按预期失败。
+- 阶段 7V 在 `config/api_config.example.yaml` 给 `product_detail.param_source` 增加 `exclude_existing_target: true`。
+- 阶段 7V 在 `app/sync_engine.py` 给 `source_primary_key` 参数来源增加目标表反连接：只取上游 API 存在但当前 API 尚未入库的 `source_primary_key`。
+- 阶段 7V 对 `exclude_existing_target=true` 的参数来源不再读取 checkpoint offset；目标表缺失扫描自身就是进度边界。
+- 阶段 7V 已运行 `.\\.venv\\Scripts\\python.exe -m unittest tests.test_product_detail_param_source`，6 个测试通过。
+- 阶段 7V 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，同步 52 条 API 配置到 DB。
+- 阶段 7V DB 核验显示 `product_detail.enabled=0`、`param_source.exclude_existing_target=true`、`auto_advance=true`、`limit=500`。
+- 阶段 7V 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api product_detail`，批次号为 `sync_20260704_091054_370330`，请求 0 次，写入 0 条，失败 0。
+- 阶段 7V DB 核验显示该批次 `sync_batch.status=success`、`sync_api_log.status=success`、`request_count=0`、`success_count=0`、`failed_count=0`，同批次 raw 为 0 条，`failed_request_log` 为 0 条。
+- 阶段 7V 后 `product_detail` checkpoint 指向批次 `sync_20260704_091054_370330`，记录 `param_offset=0`、`param_limit=500`、`next_param_offset=0`、`item_count=0`、`total_count=0`；这是缺失主键扫描的新语义。
+- 阶段 7V 后 DB 缺失详情数为 0，`product_detail` 与 `product_page` 均为 8258 个不同产品主键。
+- 阶段 7V 的 dry-run 仍显示 30 个 enabled API，覆盖矩阵刷新仍为公开文档 API 185 个、真实配置 API 50 个、enabled 30 个；本轮没有启用 `product_detail`。
+- 阶段 7V 已运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests` 和 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，78 个测试通过。
+- 阶段 7V 结论：`product_detail` 的 daily 增量边界应使用目标表缺失主键，而不是历史 offset；下一阶段可以启用评估，但必须用完整 `--sync-enabled` 证明 31 个 enabled API 同批次成功。

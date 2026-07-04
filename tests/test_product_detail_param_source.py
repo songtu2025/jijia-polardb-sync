@@ -14,6 +14,9 @@ class FakeResult:
     def all(self):
         return self.rows
 
+    def first(self):
+        return self.rows[0] if self.rows else None
+
 
 class FakeConnection:
     def __init__(self, rows):
@@ -45,6 +48,7 @@ class ProductDetailParamSourceTest(unittest.TestCase):
         self.assertEqual(api["param_source"]["limit"], 500)
         self.assertIn("auto_advance", api["param_source"])
         self.assertTrue(api["param_source"]["auto_advance"])
+        self.assertTrue(api["param_source"]["exclude_existing_target"])
 
     def test_response_items_accepts_single_dict_item_field(self):
         engine = SyncEngine([])
@@ -71,6 +75,52 @@ class ProductDetailParamSourceTest(unittest.TestCase):
 
         self.assertEqual(params, [{"id": "101"}, {"id": "202"}])
         self.assertEqual(connection.calls[0][1], {"source_api_code": "product_page", "limit": 3, "offset": 0})
+
+    def test_source_param_sets_can_exclude_existing_target_primary_keys(self):
+        engine = SyncEngine([])
+        connection = FakeConnection([{"source_value": "8460"}])
+        api = {
+            "api_code": "product_detail",
+            "param_source": {
+                "source_api_code": "product_page",
+                "source_field": "source_primary_key",
+                "target_field": "id",
+                "limit": 3,
+                "exclude_existing_target": True,
+            },
+        }
+
+        params = engine._source_param_sets(connection, api)
+
+        self.assertEqual(params, [{"id": "8460"}])
+        self.assertEqual(
+            connection.calls[0][1],
+            {"source_api_code": "product_page", "target_api_code": "product_detail", "limit": 3, "offset": 0},
+        )
+        query = str(connection.calls[0][0])
+        self.assertIn("target_data.api_code = :target_api_code", query)
+        self.assertIn("target_data.source_primary_key = source_data.source_primary_key", query)
+        self.assertIn("target_data.id IS NULL", query)
+
+    def test_exclude_existing_target_ignores_checkpoint_offset(self):
+        engine = SyncEngine([])
+        connection = FakeConnection([{"checkpoint_value": '{"next_param_offset": 8258}'}])
+        api = {
+            "api_code": "product_detail",
+            "param_source": {
+                "source_api_code": "product_page",
+                "source_field": "source_primary_key",
+                "target_field": "id",
+                "limit": 3,
+                "auto_advance": True,
+                "exclude_existing_target": True,
+            },
+        }
+
+        offset = engine._param_source_offset(connection, api)
+
+        self.assertEqual(offset, 0)
+        self.assertEqual(connection.calls, [])
 
     def test_param_source_config_error_is_recorded_as_api_failure(self):
         engine = SyncEngine([])

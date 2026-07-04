@@ -999,6 +999,33 @@ class SyncEngine:
         if not source_api_code or not target_field:
             raise ValueError(f"invalid param_source config: {api.get('api_code')}")
 
+        if param_source.get("exclude_existing_target"):
+            result = connection.execute(
+                text(
+                    """
+                    SELECT source_data.source_primary_key AS source_value
+                    FROM raw_api_data source_data
+                    LEFT JOIN raw_api_data target_data
+                      ON target_data.api_code = :target_api_code
+                     AND target_data.source_primary_key = source_data.source_primary_key
+                    WHERE source_data.api_code = :source_api_code
+                      AND source_data.source_primary_key IS NOT NULL
+                      AND source_data.source_primary_key <> ''
+                      AND target_data.id IS NULL
+                    ORDER BY source_data.source_primary_key
+                    LIMIT :limit
+                    OFFSET :offset
+                    """
+                ),
+                {
+                    "source_api_code": source_api_code,
+                    "target_api_code": api["api_code"],
+                    "limit": limit,
+                    "offset": offset,
+                },
+            )
+            return [{target_field: str(row["source_value"])} for row in result.mappings().all()]
+
         result = connection.execute(
             text(
                 """
@@ -1024,6 +1051,9 @@ class SyncEngine:
         """
         param_source = api.get("param_source") or {}
         base_offset = int(param_source.get("offset") or 0)
+        if param_source.get("exclude_existing_target"):
+            # 目标表缺失扫描自身就是进度边界，不能再叠加历史 OFFSET。
+            return base_offset
         if not param_source.get("auto_advance"):
             return base_offset
 
