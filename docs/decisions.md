@@ -1054,3 +1054,16 @@
 - 阶段 7V 的 dry-run 仍显示 30 个 enabled API，覆盖矩阵刷新仍为公开文档 API 185 个、真实配置 API 50 个、enabled 30 个；本轮没有启用 `product_detail`。
 - 阶段 7V 已运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests` 和 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，78 个测试通过。
 - 阶段 7V 结论：`product_detail` 的 daily 增量边界应使用目标表缺失主键，而不是历史 offset；下一阶段可以启用评估，但必须用完整 `--sync-enabled` 证明 31 个 enabled API 同批次成功。
+- 阶段 7W 将 `product_detail.enabled` 从 `false` 改为 `true`；原因是 7U 已验证追平空窗口，7V 已修正新增产品 ID 的增量拾取边界。
+- 阶段 7W 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，同步 52 条 API 配置到 DB。
+- 阶段 7W DB 核验显示 `api_config` 总配置 52 条、enabled 31 条，`product_detail.enabled=1`，`param_source.exclude_existing_target=true`。
+- 阶段 7W dry-run 显示 loaded 31 enabled API config(s)，且包含 `product_detail`。
+- 阶段 7W 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`，批次号为 `sync_20260704_091906_407404`，31 个 API，请求 3075 次，写入 307946 条。
+- 阶段 7W DB 核验显示该批次 `sync_batch.status=success`、`total_api_count=31`、`success_api_count=31`、`failed_api_count=0`，耗时 4250 秒。
+- 阶段 7W 同批次 `sync_api_log` 共 31 条，31 条成功、0 条失败，合计 `request_count=3075`、`success_count=307946`、`failed_count=0`。
+- 阶段 7W 同批次 `product_detail` 为 `status=success`、`request_count=0`、`success_count=0`、`failed_count=0`，raw 写入 0 条，`failed_request_log` 为 0 条。
+- 阶段 7W 后 `product_detail` checkpoint 指向批次 `sync_20260704_091906_407404`，记录 `param_offset=0`、`param_limit=500`、`next_param_offset=0`、`item_count=0`、`total_count=0`。
+- 阶段 7W 覆盖矩阵刷新为公开文档 API 185 个、真实配置 API 50 个、enabled 31 个。
+- 阶段 7W 已运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests` 和 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，78 个测试通过；期间同步更新了阶段性测试断言，从 30 enabled 改为 31 enabled，并确认 `product_detail` 已 enabled。
+- 7U-7W 复盘结论：7U 验证空窗口，7V 修正缺失主键增量机制，7W 完成 enabled 批次验证；`product_detail` 已从历史回填任务正式进入 daily enabled。
+- 7U-7W 复盘结论：本轮 enabled 请求数为 3075，比 7A 的 3074 多 1 次；`product_detail` 当前缺失数为 0 不增加请求，多出的请求来自上游数据增长导致的分页变化。

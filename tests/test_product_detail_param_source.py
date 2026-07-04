@@ -32,10 +32,10 @@ class ProductDetailParamSourceTest(unittest.TestCase):
     def setUp(self):
         self.apis = {api["api_code"]: api for api in load_api_configs("config/api_config.example.yaml")}
 
-    def test_product_detail_config_uses_product_page_ids_and_stays_disabled(self):
+    def test_product_detail_config_uses_product_page_ids_and_is_enabled(self):
         api = self.apis["product_detail"]
 
-        self.assertFalse(api["enabled"])
+        self.assertTrue(api["enabled"])
         self.assertEqual(api["method"], "GET")
         self.assertEqual(api["path"], "/purchase/goods/product/detail")
         self.assertFalse(api["page"]["enabled"])

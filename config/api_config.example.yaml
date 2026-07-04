@@ -1185,7 +1185,7 @@ apis:
   # 第二十一个真实文档接口：产品详情，文档 id=211，依赖 product_page 的产品 id，小样本验证阶段保持 disabled。
   - api_code: product_detail
     name: 查询产品详情
-    enabled: false
+    enabled: true
     method: GET
     path: /purchase/goods/product/detail
     page:
