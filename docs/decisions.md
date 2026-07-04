@@ -1545,3 +1545,10 @@
 - 阶段 9O 后 `lot_no_detail` checkpoint 为 `param_offset=1406`、`param_limit=200`、`next_param_offset=1606`；累计 raw 为 1606 条、1606 个不同交货单号，按 `storage_inbound_page.raw_json.fcode` 且 `opType=LNInbound` 口径剩余缺口 6655 个。
 - 阶段 9O 保持 enabled API 为 33 个，覆盖矩阵仍为公开文档 API 185 个、真实配置 API 50 个、enabled 33 个。
 - 阶段 9O 结论：下一阶段继续 `lot_no_detail` 200 窗口历史回填；下一次小复盘仍放在 9Q 完成后。
+- 阶段 9P 不改 YAML，继续复用 `lot_no_detail.param_source.limit=200`；原因是历史缺口仍有 6655 个，继续回填直接提升完整拉取程度。
+- 阶段 9P 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api lot_no_detail`，批次 `sync_20260704_222516_017767` 成功，请求 200 次、写入 200 条、失败 0。
+- 阶段 9P 后 `lot_no_detail` checkpoint 为 `param_offset=1606`、`param_limit=200`、`next_param_offset=1806`；累计 raw 为 1806 条、1806 个不同交货单号，按 `storage_inbound_page.raw_json.fcode` 且 `opType=LNInbound` 口径剩余缺口 6455 个。
+- 阶段 9P 保持 enabled API 为 33 个，覆盖矩阵仍为公开文档 API 185 个、真实配置 API 50 个、enabled 33 个。
+- 阶段 9P 结论：下一阶段继续 `lot_no_detail` 200 窗口历史回填；9Q 完成后复盘 9O-9Q 三轮。
+- 阶段 9P 全面复盘结论：当前框架链路稳定，真正约束是剩余 disabled 大体量接口、参数型历史缺口、敏感接口和风险接口；`lot_no_detail` 仍只有 1806/8261，不满足 enabled 前提。
+- 阶段 9P 全面复盘结论：继续扩大 enabled 前必须关注 33 个 enabled API 的 9G 完整批次耗时约 3852 秒；下一阶段仍应保持 200 窗口、DB 证据和测试闭环。
