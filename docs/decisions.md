@@ -1387,3 +1387,19 @@
 - 阶段 8X 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，同步 52 条 API 配置到 DB。
 - 阶段 8X 覆盖矩阵刷新仍为公开文档 API 185 个、真实配置 API 50 个、enabled 32 个。
 - 阶段 8X 已运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests` 和 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，78 个测试通过。
+- 阶段 8Y 不改 YAML，继续复用 `transfer_detail.param_source.limit=200`；原因是继续回填仍直接提升完整拉取程度。
+- 阶段 8Y 起点 DB 核验显示 `api_config` 总配置 52 条、enabled 32 条，`transfer_detail.enabled=0`、`config_json.enabled=false`、`param_source.limit=200`，checkpoint 为 `next_param_offset=5206`。
+- 阶段 8Y dry-run 仍显示 loaded 32 enabled API config(s)，说明 `transfer_detail` 没有误进入 enabled。
+- 阶段 8Y 首次运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api transfer_detail`，批次 `sync_20260704_175431_649119` 因 `401 Unauthorized` 失败；该批次 `request_count=64`、`success_count=61`、`failed_count=1`，checkpoint 未推进，raw 事务未留下本批次数据。
+- 阶段 8Y 删除本地 `logs/token_cache.json` 后重跑同一接口，成功批次号为 `sync_20260704_175750_445975`，请求 200 次，写入 200 条，失败 0。
+- 阶段 8Y DB 核验显示成功批次 `sync_batch.status=success`、`total_api_count=1`、`success_api_count=1`、`failed_api_count=0`，耗时 393 秒。
+- 阶段 8Y 成功批次 `sync_api_log` 为 `status=success`、`request_count=200`、`success_count=200`、`failed_count=0`，耗时 389 秒。
+- 阶段 8Y 成功批次 raw 为 200 条，200 个不同 `source_primary_key`，200 个不同 `data_hash`；样本确认 `source_primary_key` 与 `raw_json.code` 一致。
+- 阶段 8Y 后 `transfer_detail` checkpoint 指向批次 `sync_20260704_175750_445975`，记录 `param_offset=5206`、`param_limit=200`、`next_param_offset=5406`、`item_count=200`、`total_count=200`。
+- 阶段 8Y 后 `transfer_detail` 累计覆盖 5406/6499 个调拨单详情，约 83.2%。
+- 阶段 8Y 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，同步 52 条 API 配置到 DB。
+- 阶段 8Y 覆盖矩阵刷新仍为公开文档 API 185 个、真实配置 API 50 个、enabled 32 个。
+- 阶段 8Y 已运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests` 和 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，78 个测试通过。
+- 8W-8Y 复盘结论：三轮连续复用 `transfer_detail.param_source.limit=200`，从 4806 推进到 5406，最终成功窗口累计新增 600 个调拨单详情。
+- 8W-8Y 复盘结论：8Y 遇到一次业务接口 401，当前客户端不会自动刷新业务 token；清除 token 缓存后重跑成功，失败批次未推进 checkpoint 且未留下 raw 脏数据。
+- 8W-8Y 复盘结论：当前窗口耗时约 371 到 396 秒，仍适合继续分批回填；但 `transfer_detail` 只覆盖 5406/6499，仍不应加入 enabled。
