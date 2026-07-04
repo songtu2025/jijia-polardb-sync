@@ -25,29 +25,30 @@
 
 当前阶段：
 
-阶段 7S 已完成。下一阶段 7T 继续推进完整拉取：可继续用 `product_detail.limit=500` 从 `next_param_offset=8119` 推进下一段并对 7R-7T 做三轮复盘，或选择另一个低风险参数型接口做更大窗口验证。
+阶段 7T 已完成。下一阶段 7U 继续推进完整拉取：优先只读评估并验证 `product_detail` 追平后的增量策略，或转向另一个低风险参数型接口做更大窗口验证。
 
 当前事实：
 
 - 当前 enabled API 有 30 个：`amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`、`product_page`、`parent_product_page`、`kb_product_page`、`fba_warehouse_page`、`store_location_page`、`multi_shop_query`、`platform_msku_page`、`crm_tags_page`、`inventory_team_query`、`product_inventory_page`、`storage_inbound_page`、`storage_return_page`、`strategy_template_page`、`traffic_page`、`traffic_sku_page`、`shipment_data_page`、`storage_ledger_page`、`inventory_receipts_page`、`country_province_query`、`base_currency_query`。
 - 当前已配置真实 API 有 50 个，其中 30 个已 enabled；剩余 20 个真实配置 API 已验证但保持 disabled。
 - 覆盖矩阵显示公开文档 API 185 个，真实配置 API 50 个，enabled 30 个；执行分层摘要仍为 `configured=50`、`needs_upstream_params=63`、`needs_sensitive_review=22`、`defer_or_review=50`。
-- 7S 继续选择 `product_detail`，复用 `product_detail.param_source.limit=500`，仍保持 `enabled=false`。
-- 7S 的真实单接口批次为 `sync_20260704_083800_953357`，`product_detail` 请求 500 次、写入 500 条、失败 0。
-- 7S 数据库核验：该批次 `sync_batch.status=success`、`total_api_count=1`、`success_api_count=1`、`failed_api_count=0`，耗时 441 秒；同批次 `sync_api_log.status=success`、`request_count=500`、`success_count=500`、`failed_count=0`。
-- 7S 同批次 `raw_api_data` 写入 500 条 `product_detail`，500 个不同 `source_primary_key`，500 个不同 `data_hash`，无缺失主键；同批次 `failed_request_log` 为 0 条。
-- 7S 后 `product_detail` checkpoint 记录 `param_offset=7619`、`param_limit=500`、`next_param_offset=8119`、`item_count=500`、`total_count=500`。
-- `product_detail` 当前累计 raw 覆盖 8119 条，8119 个不同产品主键；上游 `product_page` 当前有 8258 个不同产品主键。
-- 7S 后 dry-run 仍显示 30 个 enabled API，说明 `product_detail` 没有误进入 enabled。
-- 7S 已运行 `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary` 并通过。
-- 7S 已运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests` 并通过。
-- 7S 已运行 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，76 个测试通过。
+- 7T 继续选择 `product_detail`，复用 `product_detail.param_source.limit=500`，仍保持 `enabled=false`。
+- 7T 的真实单接口批次为 `sync_20260704_085210_504745`，`product_detail` 请求 139 次、写入 139 条、失败 0。
+- 7T 数据库核验：该批次 `sync_batch.status=success`、`total_api_count=1`、`success_api_count=1`、`failed_api_count=0`，耗时 112 秒；同批次 `sync_api_log.status=success`、`request_count=139`、`success_count=139`、`failed_count=0`。
+- 7T 同批次 `raw_api_data` 写入 139 条 `product_detail`，139 个不同 `source_primary_key`，139 个不同 `data_hash`，无缺失主键；同批次 `failed_request_log` 为 0 条。
+- 7T 后 `product_detail` checkpoint 记录 `param_offset=8119`、`param_limit=500`、`next_param_offset=8258`、`item_count=139`、`total_count=139`。
+- `product_detail` 当前累计 raw 覆盖 8258 条，8258 个不同产品主键；上游 `product_page` 当前有 8258 个不同产品主键，历史回填已追平。
+- 7T 后 dry-run 仍显示 30 个 enabled API，说明 `product_detail` 没有误进入 enabled。
+- 7T 已运行 `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary` 并通过。
+- 7T 已运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests` 并通过。
+- 7T 已运行 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，76 个测试通过。
 - 7C-7E、7F-7H、7I-7K、7L-7N 三轮复盘均已完成；`product_detail` 的 500 请求窗口多轮稳定，仍适合作为历史回填单位。
 - 7L-7N 三轮复盘结论：`product_detail` 从 4119 推进到 5619，三轮累计推进 1500 个产品详情，失败 0。
 - 7O-7Q 三轮复盘已完成：`product_detail` 从 5619 推进到 7119，三轮累计推进 1500 个产品详情，失败 0。
 - 7O-7Q 三轮复盘结论：`product_detail` 已接近完成历史回填，但当前仍不应进入 daily enabled；进入 daily enabled 前需要另行设计每日增量策略和调度窗口。
-- 7R 是 7R-7T 三轮中的第 1 轮，7S 是第 2 轮；如果继续推进 `product_detail`，7T 完成后应做 7R-7T 三轮复盘。
-- `product_detail` 的当前瓶颈不是机制可用性，而是剩余覆盖量和调度策略；它仍属于历史回填型参数接口并保持 disabled，进入 daily enabled 前必须另行设计每日增量策略和调度窗口。
+- 7R-7T 三轮复盘已完成：`product_detail` 从 7119 推进到 8258，三轮累计推进 1139 个产品详情，失败 0。
+- 7R-7T 三轮复盘结论：`product_detail` 历史回填已追平当前 `product_page`，但当前仍不应进入 daily enabled；进入 daily enabled 前需要验证追平后的空窗口行为、新增产品 ID 的增量拾取方式和完整 enabled 批次新增耗时。
+- `product_detail` 的当前瓶颈不再是历史覆盖量，而是 daily 增量策略和调度边界；它仍属于参数型接口并保持 disabled。
 - `traffic_analysis_page` 在 `2026-07-02` 单日 CNY 窗口总量 528 条，但限流严格，曾在第 2 页触发 509。
 - `storage_ledger_detail_page` 在 `2026-07-02` 单日窗口总量 27104 条，不适合直接完整窗口。
 - `storage_ledger_month_page` 在 `2026-06` 月窗口总量 6044 条，不适合直接进入 daily enabled。
@@ -59,8 +60,8 @@
 
 建议目标：
 
-1. 先只读读取覆盖矩阵、7S `product_detail` 批次证据和当前 30 enabled 批次耗时。
-2. 如果继续推进产品详情，复用 `product_detail.limit=500` 从 `next_param_offset=8119` 开始，不要直接跳到全量，并在完成后对 7R-7T 做三轮复盘。
+1. 先只读读取覆盖矩阵、7T `product_detail` 批次证据和当前 30 enabled 批次耗时。
+2. 如果评估 `product_detail` 进入 daily enabled，先验证 `next_param_offset=8258` 追平后的空窗口行为、新增产品 ID 的增量拾取方式和完整 enabled 批次新增耗时，不要直接启用。
 3. 如果切换接口，优先选择 `storage_inbound_detail`、`transfer_detail`、`lot_no_detail`、`market_inventory_query` 等参数型接口，但应避免回到 3 条样本的低效节奏。
 4. 如选择 `purchase_plan_page` 进入 enabled，必须说明它当前总量为 0 的业务意义，并用完整 enabled 批次证明不会影响日常同步。
 5. 如果评估 enabled，必须先测算完整 enabled 批次新增请求数和耗时；当前 30 enabled 批次实测约 4825 秒。
