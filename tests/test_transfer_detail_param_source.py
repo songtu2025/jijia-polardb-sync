@@ -29,11 +29,11 @@ class TransferDetailParamSourceTest(unittest.TestCase):
     def setUp(self):
         self.apis = {api["api_code"]: api for api in load_api_configs("config/api_config.example.yaml")}
 
-    def test_transfer_detail_uses_transfer_fcodes_and_stays_disabled(self):
+    def test_transfer_detail_uses_transfer_fcodes_and_is_enabled(self):
         self.assertIn("transfer_detail", self.apis)
         api = self.apis["transfer_detail"]
 
-        self.assertFalse(api["enabled"])
+        self.assertTrue(api["enabled"])
         self.assertEqual(api["method"], "POST")
         self.assertEqual(api["path"], "/fulfillment/inventory/transfer/detail")
         self.assertFalse(api["page"]["enabled"])

@@ -1493,3 +1493,13 @@
 - 阶段 9F DB 配置确认 `transfer_detail.enabled=0`、`config_json.enabled=false`、`param_source.exclude_existing_target=true`；dry-run 仍显示 32 个 enabled API。
 - 阶段 9F 已运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests` 和 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，80 个测试通过。
 - 阶段 9F 全面复盘结论：`transfer_detail` 已具备进入 daily enabled 的技术前提，但是否启用第 33 个 API 需要结合 32 个 enabled 批次约 4244 秒的运行成本评估，并用完整 `--sync-enabled` 批次证明。
+- 阶段 9G 将 `transfer_detail.enabled` 从 `false` 改为 `true`，原因是 9F 已证明历史缺口为 0、空缺口单接口成功、checkpoint 已切到缺失扫描语义。
+- 阶段 9G 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，同步 52 条 API 配置到 DB；DB 核验显示 `api_config` enabled 33 条，`transfer_detail.enabled=1`，`config_json.enabled=true`，`param_source.exclude_existing_target=true`。
+- 阶段 9G dry-run 显示 loaded 33 enabled API config(s)，且包含 `transfer_detail`。
+- 阶段 9G 完整 enabled 批次为 `sync_20260704_193955_361555`，状态 success，`total_api_count=33`、`success_api_count=33`、`failed_api_count=0`，耗时 3852 秒。
+- 阶段 9G 同批次 `sync_api_log` 为 33 条，33 条 success、0 条 failed；汇总 `request_count=3076`、`success_count=307946`、`failed_count=0`。
+- 阶段 9G 同批次 `transfer_detail` 为 `status=success`、`request_count=0`、`success_count=0`、`failed_count=0`，说明空缺口 daily enabled 不发起详情请求。
+- 阶段 9G 同批次 `failed_request_log=0`；`transfer_detail` checkpoint 指向批次 `sync_20260704_193955_361555`，仍记录 `param_offset=0`、`param_limit=200`、`next_param_offset=0`、`item_count=0`、`total_count=0`。
+- 阶段 9G 覆盖矩阵刷新为公开文档 API 185 个、真实配置 API 50 个、enabled 33 个；configured disabled 从 18 个降为 17 个。
+- 阶段 9G 已运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests` 和 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，80 个测试通过。
+- 阶段 9G 结论：`transfer_detail` 已进入 daily enabled；下一阶段优先评估下一个 configured disabled 真实接口的 daily 边界，建议从 `lot_no_detail` 或更低成本 disabled 接口开始。

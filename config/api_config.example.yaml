@@ -1265,10 +1265,10 @@ apis:
       delay_seconds: 1
     params: {}
 
-  # 第二十五个真实文档接口：查询调拨单详情，文档 id=1021，依赖 storage_inbound_page 的调拨单号，中等窗口回填阶段保持 disabled。
+  # 第二十五个真实文档接口：查询调拨单详情，文档 id=1021，依赖 storage_inbound_page 的调拨单号，已按目标缺失扫描进入 enabled。
   - api_code: transfer_detail
     name: 查询调拨单详情
-    enabled: false
+    enabled: true
     method: POST
     path: /fulfillment/inventory/transfer/detail
     page:
