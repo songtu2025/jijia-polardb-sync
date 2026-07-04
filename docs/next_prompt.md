@@ -25,7 +25,7 @@
 
 当前阶段：
 
-阶段 10U 已完成。下一阶段 10V 继续推进完整拉取：继续 `lot_no_detail` 历史回填，不启用；目标是把 checkpoint 从 `next_param_offset=8006` 再推进一个 200 窗口到约 8206。下一次三轮复盘放在 10X 完成后；如果 10W 已完成历史缺口归零，则优先评估 enabled 边界。
+阶段 10V 已完成。下一阶段 10W 继续推进完整拉取：继续 `lot_no_detail` 历史尾段回填，不启用；目标是从 `next_param_offset=8206` 扫完剩余约 55 个交货单号，并确认缺口是否归零。下一次三轮复盘放在 10X 完成后；如果 10W 已完成历史缺口归零，10X 优先评估 enabled 边界。
 
 当前事实：
 
@@ -389,6 +389,20 @@
 - 10U 已运行 `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary`，公开文档 API 185 个、真实配置 API 50 个、enabled 33 个。
 - 10U 已运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests` 并通过。
 - 10U 已运行 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，80 个测试通过。
+- 10V 起点只读确认 `lot_no_detail` 已覆盖 8006/8261 个交货单详情，剩余缺口 255。
+- 10V 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api lot_no_detail`，批次 `sync_20260705_050255_559206` 成功，请求 200 次、写入 200 条、失败 0。
+- 10V 同批次 `sync_batch.status=success`、`total_api_count=1`、`success_api_count=1`、`failed_api_count=0`，从 `2026-07-05 05:02:56` 到 `2026-07-05 05:09:26`。
+- 10V 同批次 `sync_api_log` 为 `status=success`、`request_count=200`、`success_count=200`、`failed_count=0`、`error_message=NULL`。
+- 10V 同批次 raw 为 200 条、200 个不同 `source_primary_key`、200 个不同 `data_hash`；`failed_request_log=0`。
+- 10V 后 `lot_no_detail` checkpoint 指向批次 `sync_20260705_050255_559206`，记录 `param_offset=8006`、`param_limit=200`、`next_param_offset=8206`、`item_count=200`、`total_count=200`。
+- 10V 后 `lot_no_detail` 累计 raw 为 8206 条、8206 个不同交货单号；按 `storage_inbound_page.raw_json.fcode` 且 `opType=LNInbound` 口径剩余缺口为 55 个。
+- 10V 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，同步 52 条 API 配置到 DB。
+- 10V DB 核验显示 `api_config` 总配置 52 条、enabled 33 条，`lot_no_detail.enabled=0`、`config_json.enabled=false`。
+- 10V dry-run 显示 loaded 33 enabled API config(s)，说明 `lot_no_detail` 没有误进入 enabled。
+- 10V 已运行 `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary`，公开文档 API 185 个、真实配置 API 50 个、enabled 33 个。
+- 10V 已运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests` 并通过。
+- 10V 已运行 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，80 个测试通过。
+- 10V 复盘结论：本轮只推进历史回填，不改 YAML、不启用；`lot_no_detail` 覆盖从 8006/8261 推进到 8206/8261，剩余 55 个尾段缺口，缺口归零前不满足 enabled 前提。
 - `app.main` 当前没有 `--dry-run` 参数；如需确认 enabled 数量，用 `.\\.venv\\Scripts\\python.exe -m app.main` 或 `app.doc_catalog` 摘要。
 - `app.doc_catalog` 近期可能超过 120 秒，请预留 300 秒。
 - 本地 Git 应与远端同步；开始前仍请先看 `git status --short --branch` 和 `git log -1 --oneline`。
@@ -397,21 +411,21 @@
 
 1. 先只读确认 `lot_no_detail` 当前 checkpoint、累计 raw、剩余缺口和 `api_config.enabled=0`。
 2. 继续复用 `lot_no_detail.param_source.limit=200`，运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api lot_no_detail`。
-3. 查询数据库确认新批次成功、`sync_api_log.request_count=200`、`success_count=200`、`failed_count=0`、raw 新增 200 条、`failed_request_log=0`。
-4. 确认 checkpoint 从 `param_offset=8006` 推进到 `next_param_offset=8206`，或如实际上游有变化，按 DB 事实记录。
-5. 10V 不启用 `lot_no_detail`，除非已先证明历史缺口为 0 并验证缺失主键扫描边界。
+3. 查询数据库确认新批次成功、`sync_api_log` 的请求和成功数量与实际尾段一致、`failed_count=0`、raw 新增数量与缺失主键减少量一致、`failed_request_log=0`。
+4. 确认 checkpoint 从 `param_offset=8206` 推进到下一 offset，或如实际上游有变化，按 DB 事实记录。
+5. 10W 不直接启用 `lot_no_detail`；如果历史缺口归零，先验证缺失主键扫描边界和完整 enabled 批次新增耗时。
 6. 如果再次遇到业务接口 401，先核验失败批次是否推进 checkpoint 或留下 raw；必要时清理 token 缓存后重跑同一窗口。
 7. 需要刷新覆盖矩阵时，运行 `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary`。
 8. 运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests`。
 9. 运行 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`。
 10. 更新三份 docs；如 README 的运行说明或 API 状态变动需要同步，也一起更新。
-11. 下一次三轮复盘放在 10X 完成后；如果 10W 已完成历史缺口归零，则优先评估 enabled 边界。
+11. 下一次三轮复盘放在 10X 完成后；如果 10W 已完成历史缺口归零，10X 优先评估 enabled 边界。
 12. 提交推送时不要提交 `.env`、token 缓存、日志或任何敏感信息。
 
 验收：
 
 1. 新接口、完整窗口、参数窗口或 enabled 评估必须由公开文档、覆盖矩阵、真实请求、数据库只读查询或测试证明，不靠猜测字段。
-2. 10V 默认不启用 `lot_no_detail`；如启用新接口，必须先证明历史缺口为 0、`api_config.enabled=1`、dry-run enabled 数量变化正确，并用真实 `--sync-enabled` 批次证明全部 enabled API 同批次成功。
+2. 10W 默认不启用 `lot_no_detail`；如启用新接口，必须先证明历史缺口为 0、`api_config.enabled=1`、dry-run enabled 数量变化正确，并用真实 `--sync-enabled` 批次证明全部 enabled API 同批次成功。
 3. 如推进参数型单接口窗口，必须证明 checkpoint 的 `param_offset`、`param_limit`、`next_param_offset` 按预期推进。
 4. 如推进日期窗口，必须证明 `item_count == total_count` 或者明确说明接口返回总量为 0。
 5. `api_config` 与覆盖矩阵显示真实配置 API 或 enabled 数量变化符合本轮目标；当前基线是真实配置 API 50 个、enabled 33 个。
