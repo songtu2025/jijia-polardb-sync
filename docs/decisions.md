@@ -1453,3 +1453,19 @@
 - 阶段 9C 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，同步 52 条 API 配置到 DB。
 - 阶段 9C 覆盖矩阵刷新仍为公开文档 API 185 个、真实配置 API 50 个、enabled 32 个。
 - 阶段 9C 已运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests` 和 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，78 个测试通过。
+- 阶段 9D 不改 YAML，继续复用 `transfer_detail.param_source.limit=200`；原因是继续回填仍直接提升完整拉取程度。
+- 阶段 9D 起点 DB 核验显示 `api_config` 总配置 52 条、enabled 32 条，`transfer_detail.enabled=0`、`config_json.enabled=false`、`param_source.limit=200`，checkpoint 为 `next_param_offset=6206`。
+- 阶段 9D 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api transfer_detail`，批次号为 `sync_20260704_190149_896474`，请求 200 次，写入 200 条，失败 0。
+- 阶段 9D DB 核验显示该批次 `sync_batch.status=success`、`total_api_count=1`、`success_api_count=1`、`failed_api_count=0`，耗时 433 秒。
+- 阶段 9D 同批次 `sync_api_log` 为 `status=success`、`request_count=200`、`success_count=200`、`failed_count=0`，耗时 429 秒。
+- 阶段 9D 同批次 raw 为 200 条，200 个不同 `source_primary_key`，200 个不同 `data_hash`；样本确认 `source_primary_key` 与 `raw_json.code` 一致。
+- 阶段 9D 同批次 `failed_request_log` 为 0 条。
+- 阶段 9D 后 `transfer_detail` checkpoint 指向批次 `sync_20260704_190149_896474`，记录 `param_offset=6206`、`param_limit=200`、`next_param_offset=6406`、`item_count=200`、`total_count=200`。
+- 阶段 9D 后 `transfer_detail` 累计覆盖 6406/6499 个调拨单详情，约 98.6%。
+- 阶段 9D 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，同步 52 条 API 配置到 DB。
+- 阶段 9D 覆盖矩阵刷新仍为公开文档 API 185 个、真实配置 API 50 个、enabled 32 个。
+- 阶段 9D dry-run 显示 loaded 32 enabled API config(s)，说明 `transfer_detail` 没有误进入 enabled。
+- 阶段 9D 已运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests` 和 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，78 个测试通过。
+- 阶段 9D 全面复盘结论：当前框架主链路稳定，真正缺口是剩余 disabled 大体量接口、需参数源接口、敏感审查接口和风险复核接口的分层推进。
+- 阶段 9D 全面复盘结论：`transfer_detail` 已接近完成历史回填，但即使 9E 补完剩余 93 个调拨单详情，也必须先设计 daily 增量边界，不能直接加入 enabled。
+- 阶段 9D 全面复盘结论：当前 32 个 enabled API 已有完整批次成功证据，但耗时约 4244 秒，继续扩大 enabled 前仍要评估 cron 窗口和运行成本。
