@@ -1297,7 +1297,7 @@ apis:
       delay_seconds: 1
     params: {}
 
-  # 第二十六个真实文档接口：查询交货单明细，文档 id=1026，依赖 storage_inbound_page 的交货单号，小样本验证阶段保持 disabled。
+  # 第二十六个真实文档接口：查询交货单明细，文档 id=1026，依赖 storage_inbound_page 的交货单号，中等窗口回填验证阶段保持 disabled。
   - api_code: lot_no_detail
     name: 查询交货单明细
     enabled: false
@@ -1313,7 +1313,7 @@ apis:
     date_field: createdAt
     param_source:
       source_api_code: storage_inbound_page
-      limit: 3
+      limit: 200
       auto_advance: true
       fields:
         - source_field: raw_json.fcode

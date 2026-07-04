@@ -1503,3 +1503,9 @@
 - 阶段 9G 覆盖矩阵刷新为公开文档 API 185 个、真实配置 API 50 个、enabled 33 个；configured disabled 从 18 个降为 17 个。
 - 阶段 9G 已运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests` 和 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，80 个测试通过。
 - 阶段 9G 结论：`transfer_detail` 已进入 daily enabled；下一阶段优先评估下一个 configured disabled 真实接口的 daily 边界，建议从 `lot_no_detail` 或更低成本 disabled 接口开始。
+- 阶段 9H 决定不启用 `lot_no_detail`，只把 `param_source.limit` 从 3 调整为 200；原因是该接口起点只覆盖 6/8261 个交货单详情，历史缺口过大，不满足 daily enabled 前提。
+- 阶段 9H 参数来源继续使用 `storage_inbound_page.raw_json.fcode` 并固定过滤 `raw_json.opType=LNInbound`；`lot_no_page.raw_json.code` 当前只验证 300 个不同交货单号，与上游重叠 294 个，不足以替代完整参数来源。
+- 阶段 9H 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api lot_no_detail`，批次 `sync_20260704_205504_873657` 成功，请求 200 次、写入 200 条、失败 0。
+- 阶段 9H 后 `lot_no_detail` checkpoint 为 `param_offset=6`、`param_limit=200`、`next_param_offset=206`；累计 raw 为 206 条、206 个不同交货单号，按 `storage_inbound_page.raw_json.fcode` 且 `opType=LNInbound` 口径剩余缺口 8055 个。
+- 阶段 9H 保持 enabled API 为 33 个，覆盖矩阵仍为公开文档 API 185 个、真实配置 API 50 个、enabled 33 个。
+- 阶段 9H 结论：下一阶段继续 `lot_no_detail` 200 窗口历史回填；在历史缺口归零并验证 `exclude_existing_target=true` 缺失扫描前，不应将 `lot_no_detail` 加入 enabled。

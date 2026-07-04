@@ -41,7 +41,7 @@ class LotNoDetailParamSourceTest(unittest.TestCase):
         self.assertEqual(api["primary_key"]["field"], "code")
         self.assertEqual(api["date_field"], "createdAt")
         self.assertEqual(api["param_source"]["source_api_code"], "storage_inbound_page")
-        self.assertEqual(api["param_source"]["limit"], 3)
+        self.assertEqual(api["param_source"]["limit"], 200)
         self.assertTrue(api["param_source"]["auto_advance"])
         self.assertEqual(
             api["param_source"]["fields"],
@@ -59,7 +59,7 @@ class LotNoDetailParamSourceTest(unittest.TestCase):
             "api_code": "lot_no_detail",
             "param_source": {
                 "source_api_code": "storage_inbound_page",
-                "limit": 3,
+                "limit": 200,
                 "fields": [{"source_field": "raw_json.fcode", "target_field": "code"}],
                 "filters": [{"source_field": "raw_json.opType", "equals": "LNInbound"}],
             },
@@ -72,7 +72,7 @@ class LotNoDetailParamSourceTest(unittest.TestCase):
             connection.calls[0][1],
             {
                 "source_api_code": "storage_inbound_page",
-                "limit": 3,
+                "limit": 200,
                 "offset": 0,
                 "filter_0": "LNInbound",
             },
