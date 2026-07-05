@@ -532,10 +532,10 @@ apis:
       delay_seconds: 1
     params: {}
 
-  # 第三十八个真实文档接口：FBA库存列表旧版，文档 id=172，先用 3 页窗口验证，默认保持 disabled。
+  # 第三十八个真实文档接口：FBA库存列表旧版，文档 id=172，已完成全量分页验证并进入 enabled。
   - api_code: fba_inventory_page
     name: 查询FBA库存列表（旧）
-    enabled: false
+    enabled: true
     method: POST
     path: /purchase/store/fbaInventory/page
     page:
@@ -543,7 +543,7 @@ apis:
       page_no_field: page
       page_size_field: pagesize
       page_size: 100
-      max_pages: 3
+      max_pages: 320
       list_field: data.rows
       total_field: data.total
     primary_key:

@@ -1953,3 +1953,11 @@
 - 阶段 11T 证据：覆盖矩阵刷新后为公开文档 API 185 个、真实配置 API 50 个、enabled 40 个、configured disabled 10 个。
 - 阶段 11T 复盘：本轮把 enabled API 从 39 个推进到 40 个，同时补齐长批次 token 刷新能力；随着批次超过 1 小时，后续接入大接口前必须继续评估 token、限流、请求量和 cron 窗口。
 - 阶段 11T 结论：`fba_inventory_v2_page` 已完成当前账号可访问数据全量拉取并进入 daily enabled；下一阶段 11U 应从剩余 10 个 disabled API 中选择低风险目标，避免直接启用 `inventory_event_page` 和 `inventory_age_page`。
+- 阶段 11U 决策：从剩余 configured disabled API 中选择 `fba_inventory_page` 推进；理由是该接口是旧版 FBA 库存列表，主键字段 `id` 明确，当前总量 30759 条、约 308 页，风险低于超大库存事件、库龄、费用和参数型详情接口。
+- 阶段 11U 决策：将 `fba_inventory_page.enabled=true`，并把 `page.max_pages` 从 3 调整为 320，以覆盖当前 308 页全量窗口。
+- 阶段 11U 证据：单接口批次 `sync_20260705_194120_529908` 成功，308 次请求、30759 条成功计数、失败 0；checkpoint 为 `last_page=308`、`item_count=30759`、`total_count=30759`。
+- 阶段 11U 证据：DB 显示 `fba_inventory_page` 累计 raw 为 30759 条、30759 个 `source_primary_key`、30759 个 `data_hash`，`data_date=2026-07-05`。
+- 阶段 11U 证据：完整 enabled 批次 `sync_20260705_194739_055958` 成功，41 个 API 全成功，4030 次请求，403288 条成功计数，失败 0，耗时 5171 秒。
+- 阶段 11U 证据：同批次 `fba_inventory_page` 请求 308 次、成功计数 30759、失败 0。
+- 阶段 11U 证据：覆盖矩阵刷新后为公开文档 API 185 个、真实配置 API 50 个、enabled 41 个、configured disabled 9 个。
+- 阶段 11U 结论：`fba_inventory_page` 已完成当前账号可访问数据全量拉取并进入 daily enabled；下一阶段 11V 应从剩余 9 个 disabled API 中选择低风险目标，并在完成后复盘 11T-11V。
