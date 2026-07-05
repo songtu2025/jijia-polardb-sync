@@ -1924,3 +1924,7 @@
 - 阶段 11P 证据：批次 `sync_20260705_140151_126629` 成功补齐 `2026-07-03` CNY 单日窗口，8 次请求、3548 条 raw、`item_count=3548`、`total_count=3548`，checkpoint 推进到 `next_window_start=2026-07-04`。
 - 阶段 11P 复盘：11N 将 `procure_detail` 纳入 enabled，11O 补齐 `traffic_analysis_page` 的 `2026-07-02` 完整窗口，11P 补齐其 `2026-07-03` 完整窗口；enabled 仍为 37，`traffic_analysis_page` 仍需低频单接口节奏观察。
 - 阶段 11P 结论：`traffic_analysis_page` 已证明可按冷却节奏逐日完整拉取，但 11O 的 509 说明不能连续快速推进，也不应直接放进完整 `--sync-enabled` 长批次。
+- 阶段 11Q 决策：继续保持 `traffic_analysis_page.enabled=false`，先补齐 `2026-07-04` 单日窗口并观察限流，不直接加入 enabled。
+- 阶段 11Q 证据：批次 `sync_20260705_141745_382624` 成功补齐 `2026-07-04` CNY 单日窗口，1 次请求、114 条 raw、`item_count=114`、`total_count=114`，checkpoint 推进到 `next_window_start=2026-07-05`。
+- 阶段 11Q 决策：README 中 enabled 数量和清单以当前 YAML、dry-run 和覆盖矩阵为准，从 36 个修正为 37 个，并把 `procure_detail` 从 disabled 示例中移除。
+- 阶段 11Q 结论：`traffic_analysis_page` 已连续补齐 3 个完整单日窗口，但当前 date_window 在 `next_window_start == today` 时会拉取当天窗口；进入生产调度前应先明确是否只同步昨天及更早完整日，或采用独立低频调度。
