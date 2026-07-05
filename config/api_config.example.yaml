@@ -1230,7 +1230,7 @@ apis:
     date_field: createdAt
     param_source:
       source_api_code: storage_inbound_page
-      limit: 1000
+      limit: 2000
       auto_advance: true
       exclude_existing_target: true
       fields:
