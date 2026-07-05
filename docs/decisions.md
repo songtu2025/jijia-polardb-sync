@@ -1758,3 +1758,19 @@
 - 阶段 10Y DB 核验显示 `api_config` 总配置 52 条、enabled 35 条，`transfer_page.enabled=1`、`config_json.enabled=true`、`page.max_pages=100`。
 - 阶段 10Y 覆盖矩阵刷新后为公开文档 API 185 个、真实配置 API 50 个、enabled 35 个；执行分层为 `configured=50`、`configured_enabled=35`、`configured_disabled=15`、`needs_upstream_params=63`、`needs_sensitive_review=22`、`defer_or_review=50`。
 - 阶段 10Y 结论：`transfer_page` 已从 3 页小样本推进到完整 68 页并进入 daily enabled；10Z 可优先评估 `lot_no_page` 完整窗口，但必须先单接口证明 `item_count == total_count`。
+- 阶段 10Z 选择推进 `lot_no_page`；原因是该接口为直读分页、已完成 3 页小样本验证、体量约 8602-8631，且完整 raw 可为后续 `procure_detail` 提供更完整的 `poCode` 参数来源。
+- 阶段 10Z 起点 DB 确认 `lot_no_page.enabled=0`、`page.max_pages=3`，历史 raw 为 300 条、300 个不同主键，checkpoint 记录 `last_page=3`、`request_count=3`、`item_count=300`、`total_count=8602`。
+- 阶段 10Z 先用 TDD 将 `lot_no_page.page.max_pages` 期望从 3 改为 120，并保持 disabled；RED 阶段失败于 `3 != 120`。
+- 阶段 10Z 将 `lot_no_page.page.max_pages` 从 3 改为 120，保持 `enabled=false`；单项测试通过后同步 API 配置 52 条，dry-run 仍显示 35 个 enabled API，确认未误启用。
+- 阶段 10Z 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api lot_no_page`，批次 `sync_20260705_083557_251344` 成功，87 次请求，写入 8631 条。
+- 阶段 10Z 单接口批次 `sync_batch.status=success`、`total_api_count=1`、`success_api_count=1`、`failed_api_count=0`；`sync_api_log.request_count=87`、`success_count=8631`、`failed_count=0`、`error_message=NULL`。
+- 阶段 10Z 单接口 raw 为 8631 条、8631 个不同主键、8631 个不同 hash；checkpoint 记录 `last_page=87`、`request_count=87`、`item_count=8631`、`total_count=8631`；`failed_request_log=0`。
+- 阶段 10Z 再用 TDD 将 `lot_no_page` 期望改为 enabled，并将 enabled 清单测试从 35 改为 36；RED 阶段失败于 `lot_no_page.enabled=false` 和 `35 != 36`。
+- 阶段 10Z 将 `lot_no_page.enabled` 从 `false` 改为 `true`，保持 `page.max_pages=120`；目标测试通过后同步 API 配置 52 条，dry-run 显示 loaded 36 enabled API config(s) 且包含 `lot_no_page`。
+- 阶段 10Z 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`，批次 `sync_20260705_083949_209208` 成功，36 个 API、3228 次请求、写入 323340 条。
+- 阶段 10Z enabled 批次 `sync_batch.status=success`、`total_api_count=36`、`success_api_count=36`、`failed_api_count=0`，从 `2026-07-05 08:39:49` 到 `2026-07-05 09:57:29`；`sync_api_log` 共 36 条且全部 success，`failed_request_log=0`。
+- 阶段 10Z enabled 批次中 `lot_no_page` 为 `status=success`、`request_count=87`、`success_count=8631`、`failed_count=0`；同批次 raw 为 8631 条、8631 个不同主键、8631 个不同 hash；checkpoint 指向 enabled 批次并记录 `item_count=8631`、`total_count=8631`。
+- 阶段 10Z DB 核验显示 `api_config` 总配置 52 条、enabled 36 条，`lot_no_page.enabled=1`、`config_json.enabled=true`、`page.max_pages=120`。
+- 阶段 10Z 覆盖矩阵刷新后为公开文档 API 185 个、真实配置 API 50 个、enabled 36 个；执行分层为 `configured=50`、`configured_enabled=36`、`configured_disabled=14`、`needs_upstream_params=63`、`needs_sensitive_review=22`、`defer_or_review=50`。
+- 阶段 10Z 额外只读确认完整 `lot_no_page` 后共有 8631 条带 `poCode` 的 raw，去重 1153 个采购单号；`procure_detail` 当前仅 3 条小样本。
+- 阶段 10Z 结论：`lot_no_page` 已从 3 页小样本推进到完整 87 页并进入 daily enabled；11A 可评估 `procure_detail` 参数窗口，且 11A 完成后需要复盘 10Y-11A。

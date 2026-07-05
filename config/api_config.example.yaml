@@ -749,10 +749,10 @@ apis:
       page: 1
       pagesize: 100
 
-  # 第三十四个真实文档接口：交货单列表，文档 id=1025，先用 3 页窗口验证，默认保持 disabled。
+  # 第三十四个真实文档接口：交货单列表，文档 id=1025，已完成完整窗口验证并进入 enabled。
   - api_code: lot_no_page
     name: 查询交货单列表
-    enabled: false
+    enabled: true
     method: POST
     path: /purchase/srm/lotno/page
     page:
@@ -760,7 +760,7 @@ apis:
       page_no_field: page
       page_size_field: pagesize
       page_size: 100
-      max_pages: 3
+      max_pages: 120
       list_field: data.rows
       total_field: data.total
     primary_key:
