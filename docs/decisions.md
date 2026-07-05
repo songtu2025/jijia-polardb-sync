@@ -2009,3 +2009,11 @@
 - 阶段 11Z 证据：`storage_inbound_detail` 累计覆盖增至 506/174334；DB 配置为 `enabled=0`、`param_source.limit=500`、`exclude_existing_target=true`、`auto_advance=true`。
 - 阶段 11Z 证据：覆盖矩阵刷新后仍为公开文档 API 185 个、真实配置 API 50 个、enabled 45 个、configured disabled 5 个。
 - 阶段 11Z 结论：`storage_inbound_detail` 已从小样本验证进入可重复缺失扫描回填；下一阶段 12A 可继续回填该接口，不应直接 enabled。
+- 阶段 12A 决策：将 `storage_inbound_detail.param_source.limit` 从 500 提高到 1000；理由是 11Z 的 500 请求窗口成功、失败为 0，且该接口缺口仍有 17 万级，需要提高单轮推进效率。
+- 阶段 12A 约束：`storage_inbound_detail` 继续保持 `enabled=false` 和 `exclude_existing_target=true`，不进入 enabled 主链路。
+- 阶段 12A 证据：目标测试先失败于旧配置 `limit=500`，修改 YAML 后与 `tests.test_product_detail_param_source` 一起通过，确认未误改相邻 `product_detail` 配置。
+- 阶段 12A 证据：配置同步后 dry-run 仍显示 loaded 45 enabled API config(s)，DB 显示 `storage_inbound_detail.enabled=0`、`param_source.limit=1000`、`exclude_existing_target=true`。
+- 阶段 12A 证据：单接口批次 `sync_20260706_062155_460920` 成功，1000 次请求、1000 条成功计数、失败 0，耗时 767 秒。
+- 阶段 12A 证据：本批次 raw 为 1000 条、1000 个 `source_primary_key`、1000 个不同主键、1000 个 `data_hash`，`data_date` 覆盖 `2023-04-04` 到 `2023-07-27`。
+- 阶段 12A 证据：`storage_inbound_detail` 累计覆盖增至 1506/174334；同批次 `failed_request_log` 为 0。
+- 阶段 12A 结论：1000 窗口缺失扫描可用，下一阶段 12B 可继续该窗口或评估提高到 2000；12B 完成后需要复盘 11Z-12B。
