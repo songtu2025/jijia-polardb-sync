@@ -1067,10 +1067,10 @@ apis:
       pagesize: 100
       model: {}
 
-  # 第四十八个真实文档接口：FBA库存分类账月维度一览，文档 id=2658，静态月份小窗口验证，默认保持 disabled。
+  # 第四十八个真实文档接口：FBA库存分类账月维度一览，文档 id=2658，已完成小窗口验证，本轮扩大到完整月窗口。
   - api_code: storage_ledger_month_page
     name: FBA库存分类账-一览视图-按月维度列表查询
-    enabled: false
+    enabled: true
     method: POST
     path: /fulfillment/inventory/storageLedgerMonth/page
     page:
@@ -1078,7 +1078,7 @@ apis:
       page_no_field: page
       page_size_field: pagesize
       page_size: 100
-      max_pages: 1
+      max_pages: 70
       list_field: data.rows
       total_field: data.total
     primary_key:

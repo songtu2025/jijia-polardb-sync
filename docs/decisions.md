@@ -1961,3 +1961,12 @@
 - 阶段 11U 证据：同批次 `fba_inventory_page` 请求 308 次、成功计数 30759、失败 0。
 - 阶段 11U 证据：覆盖矩阵刷新后为公开文档 API 185 个、真实配置 API 50 个、enabled 41 个、configured disabled 9 个。
 - 阶段 11U 结论：`fba_inventory_page` 已完成当前账号可访问数据全量拉取并进入 daily enabled；下一阶段 11V 应从剩余 9 个 disabled API 中选择低风险目标，并在完成后复盘 11T-11V。
+- 阶段 11V 决策：从剩余 configured disabled API 中选择 `storage_ledger_month_page` 推进；理由是该接口已有稳定主键 `id`，当前 `2026-06` 月窗口总量 6044 条、约 61 页，风险低于 5.8 万级直读报表、参数型详情、费用类和百万级库存事件/库龄接口。
+- 阶段 11V 决策：将 `storage_ledger_month_page.enabled=true`，并把 `page.max_pages` 从 1 调整为 70，以覆盖当前 61 页完整月窗口。
+- 阶段 11V 证据：单接口批次 `sync_20260705_213137_534593` 成功，61 次请求、6044 条成功计数、失败 0；checkpoint 为 `last_page=61`、`item_count=6044`、`total_count=6044`。
+- 阶段 11V 证据：DB 显示 `storage_ledger_month_page` 单接口批次 raw 为 6044 条、6044 个 `source_primary_key`、6044 个不同主键、6044 个 `data_hash`。
+- 阶段 11V 证据：完整 enabled 批次 `sync_20260705_213320_408202` 成功，42 个 API 全成功，4093 次请求，409332 条成功计数，失败 0，耗时 5045 秒。
+- 阶段 11V 证据：同批次 `storage_ledger_month_page` 请求 61 次、成功计数 6044、失败 0；同批次 `failed_request_log` 为 0。
+- 阶段 11V 证据：覆盖矩阵刷新后为公开文档 API 185 个、真实配置 API 50 个、enabled 42 个、configured disabled 8 个。
+- 阶段 11T-11V 复盘：三轮累计把 enabled API 从 39 个推进到 42 个，configured disabled 从 11 个降至 8 个；11T 同时修复长批次 token 过期 401，11U 保留 FBA 库存新旧接口对照，11V 补齐 FBA 库存分类账月维度完整窗口。
+- 阶段 11V 结论：`storage_ledger_month_page` 已完成当前配置 `2026-06` 月窗口完整拉取并进入 daily enabled；下一阶段 11W 应从剩余 8 个 disabled API 中继续选择低风险目标。
