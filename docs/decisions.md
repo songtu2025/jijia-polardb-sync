@@ -1933,3 +1933,12 @@
 - 阶段 11R 证据：单接口批次 `sync_20260705_142751_374712` 成功，`traffic_analysis_page` 请求 0 次、写入 0 条、失败 0；DB 显示 `api_config.enabled=1`、`config_json.enabled=true`、`lag_days=1`。
 - 阶段 11R 证据：完整 enabled 批次 `sync_20260705_142844_991672` 成功，38 个 API 全成功，3230 次请求，323340 条成功计数，失败 0；其中 `traffic_analysis_page` 在主链路中请求 0 次、写入 0 条、失败 0。
 - 阶段 11R 结论：`traffic_analysis_page` 已具备 daily enabled 边界；enabled API 从 37 增至 38，configured disabled 从 13 降至 12。下一阶段 11S 应完成 11Q-11S 三轮复盘并选择下一个低风险 configured disabled API。
+- 阶段 11S 决策：从剩余 configured disabled API 中选择 `amazon_msku_page` 推进；理由是该接口属于产品域普通分页直读接口，无业务必填参数，当前总量 18430 条、约 185 页，风险低于大库存表、费用类和参数型详情接口。
+- 阶段 11S 决策：`amazon_msku_page` 保持空 `primary_key.field`，继续使用 `data_hash` 幂等，不编造公开文档未提供的单字段主键。
+- 阶段 11S 决策：将 `amazon_msku_page.enabled=true`，并把 `page.max_pages` 从 3 调整为 200，以覆盖当前 185 页全量窗口。
+- 阶段 11S 证据：单接口批次 `sync_20260705_160248_556873` 成功，185 次请求、18430 条成功计数、失败 0；checkpoint 为 `last_page=185`、`item_count=18430`、`total_count=18430`。
+- 阶段 11S 证据：DB 显示 `amazon_msku_page` 累计 raw 为 18430 条、18430 个 `data_hash`、0 个 `source_primary_key`，`data_date` 覆盖 `2022-08-31` 到 `2026-07-02`。
+- 阶段 11S 证据：完整 enabled 批次 `sync_20260705_160652_068698` 成功，39 个 API 全成功，3414 次请求，341770 条成功计数，失败 0，耗时 4779 秒；其中 `amazon_msku_page` 请求 185 次、成功计数 18430、失败 0。
+- 阶段 11S 证据：覆盖矩阵刷新后为公开文档 API 185 个、真实配置 API 50 个、enabled 39 个、configured disabled 11 个。
+- 阶段 11S 复盘：11Q 补齐 `traffic_analysis_page` 的 `2026-07-04`，11R 用 `lag_days=1` 解决当天窗口边界并启用 `traffic_analysis_page`，11S 全量补齐并启用 `amazon_msku_page`；三轮把 enabled API 从 37 个推进到 39 个，configured disabled 从 13 个降至 11 个。
+- 阶段 11S 结论：`amazon_msku_page` 已完成当前账号可访问数据全量拉取并进入 daily enabled；下一阶段应继续从剩余 11 个 disabled API 中选择主键明确、分页可控的候选，避免直接启用超大库存事件、库龄和费用/详情类接口。

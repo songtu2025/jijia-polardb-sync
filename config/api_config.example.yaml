@@ -310,10 +310,10 @@ apis:
       page: 1
       pagesize: 100
 
-  # 第二十九个真实文档接口：SKU关联亚马逊MSKU，文档 id=1921，先用 3 页窗口验证，默认保持 disabled。
+  # 第二十九个真实文档接口：SKU关联亚马逊MSKU，文档 id=1921，已完成全量分页验证并进入 enabled。
   - api_code: amazon_msku_page
     name: 查询SKU关联亚马逊MSKU
-    enabled: false
+    enabled: true
     method: POST
     path: /purchase/goods/amazonMsku/page
     page:
@@ -321,7 +321,7 @@ apis:
       page_no_field: page
       page_size_field: pagesize
       page_size: 100
-      max_pages: 3
+      max_pages: 200
       list_field: data.rows
       total_field: data.total
     primary_key:
