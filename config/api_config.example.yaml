@@ -861,10 +861,10 @@ apis:
       pagesize: 100
       model: {}
 
-  # 第四十一个真实文档接口：流量数据-ASIN，文档 id=1018，接口限流较严，使用 date_window 做完整单日窗口验证，默认保持 disabled。
+  # 第四十一个真实文档接口：流量数据-ASIN，文档 id=1018，接口限流较严，使用 lag_days 只同步已结束完整日。
   - api_code: traffic_analysis_page
     name: 流量数据-ASIN
-    enabled: false
+    enabled: true
     method: POST
     path: /operation/sts/trafficAnalysis/page
     page:
@@ -885,6 +885,7 @@ apis:
       end_field: endDate
       default_start: "2026-07-02"
       days: 1
+      lag_days: 1
     rate_limit:
       sleep_seconds: 65
     retry:

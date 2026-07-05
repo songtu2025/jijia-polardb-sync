@@ -10,11 +10,11 @@ class TrafficAnalysisPageConfigTest(unittest.TestCase):
             for api in load_api_configs("config/api_config.example.yaml")
         }
 
-    def test_traffic_analysis_page_uses_full_date_window_and_stays_disabled(self):
+    def test_traffic_analysis_page_uses_full_date_window_with_lag_and_is_enabled(self):
         self.assertIn("traffic_analysis_page", self.apis)
         api = self.apis["traffic_analysis_page"]
 
-        self.assertFalse(api["enabled"])
+        self.assertTrue(api["enabled"])
         self.assertEqual(api["method"], "POST")
         self.assertEqual(api["path"], "/operation/sts/trafficAnalysis/page")
         self.assertTrue(api["page"]["enabled"])
@@ -31,6 +31,7 @@ class TrafficAnalysisPageConfigTest(unittest.TestCase):
         self.assertEqual(api["date_window"]["end_field"], "endDate")
         self.assertEqual(api["date_window"]["default_start"], "2026-07-02")
         self.assertEqual(api["date_window"]["days"], 1)
+        self.assertEqual(api["date_window"]["lag_days"], 1)
         self.assertEqual(api["rate_limit"]["sleep_seconds"], 65)
         self.assertEqual(api["retry"]["retries"], 1)
         self.assertEqual(api["params"]["currency"], "CNY")

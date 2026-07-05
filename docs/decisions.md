@@ -1928,3 +1928,8 @@
 - 阶段 11Q 证据：批次 `sync_20260705_141745_382624` 成功补齐 `2026-07-04` CNY 单日窗口，1 次请求、114 条 raw、`item_count=114`、`total_count=114`，checkpoint 推进到 `next_window_start=2026-07-05`。
 - 阶段 11Q 决策：README 中 enabled 数量和清单以当前 YAML、dry-run 和覆盖矩阵为准，从 36 个修正为 37 个，并把 `procure_detail` 从 disabled 示例中移除。
 - 阶段 11Q 结论：`traffic_analysis_page` 已连续补齐 3 个完整单日窗口，但当前 date_window 在 `next_window_start == today` 时会拉取当天窗口；进入生产调度前应先明确是否只同步昨天及更早完整日，或采用独立低频调度。
+- 阶段 11R 决策：`date_window` 增加可选 `lag_days`，默认 0 保持现有接口行为；严格报表接口可用 `lag_days=1` 只同步昨天及更早完整日。
+- 阶段 11R 决策：`traffic_analysis_page` 配置 `enabled=true`、`date_window.lag_days=1`，以完整日边界进入 enabled 主链路。
+- 阶段 11R 证据：单接口批次 `sync_20260705_142751_374712` 成功，`traffic_analysis_page` 请求 0 次、写入 0 条、失败 0；DB 显示 `api_config.enabled=1`、`config_json.enabled=true`、`lag_days=1`。
+- 阶段 11R 证据：完整 enabled 批次 `sync_20260705_142844_991672` 成功，38 个 API 全成功，3230 次请求，323340 条成功计数，失败 0；其中 `traffic_analysis_page` 在主链路中请求 0 次、写入 0 条、失败 0。
+- 阶段 11R 结论：`traffic_analysis_page` 已具备 daily enabled 边界；enabled API 从 37 增至 38，configured disabled 从 13 降至 12。下一阶段 11S 应完成 11Q-11S 三轮复盘并选择下一个低风险 configured disabled API。

@@ -191,6 +191,29 @@ class SyncEngineParamTemplatesTest(unittest.TestCase):
         self.assertEqual(payloads, [])
         self.assertEqual(api_client.calls, [])
 
+    def test_date_window_lag_days_treats_today_as_not_ready(self):
+        engine = SyncEngine([])
+        api = {
+            "api_code": "complete_day_report",
+            "params": {"page": 1, "pagesize": 100},
+            "date_window": {
+                "enabled": True,
+                "start_field": "beginDate",
+                "end_field": "endDate",
+                "default_start": "2026-07-01",
+                "days": 1,
+                "lag_days": 1,
+            },
+        }
+        connection = FakeCheckpointConnection(
+            json.dumps({"next_window_start": "2026-07-05"}, ensure_ascii=False)
+        )
+
+        params = engine._date_window_params(api, connection=connection, today=date(2026, 7, 5))
+
+        self.assertIsNone(params)
+        self.assertTrue(engine._date_window_caught_up(api, connection, today=date(2026, 7, 5)))
+
     def test_date_window_truncated_page_marks_api_failed_without_checkpoint(self):
         engine = SyncEngine([])
         api_client = TruncatedApiClient()

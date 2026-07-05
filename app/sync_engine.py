@@ -861,7 +861,7 @@ class SyncEngine:
 
         start_date = self._date_window_start(api, connection) or date.fromisoformat(default_start)
         end_date = start_date + timedelta(days=max(window_days, 1) - 1)
-        current_date = today or date.today()
+        current_date = self._date_window_sync_until(window_config, today)
         if start_date > current_date:
             return None
         if end_date > current_date:
@@ -917,8 +917,17 @@ class SyncEngine:
             return False
 
         start_date = self._date_window_start(api, connection) or date.fromisoformat(default_start)
-        current_date = today or date.today()
+        current_date = self._date_window_sync_until(window_config, today)
         return start_date > current_date
+
+    def _date_window_sync_until(self, window_config: dict[str, Any], today: date | None = None) -> date:
+        """计算日期窗口本次允许同步到哪一天。
+
+        默认允许同步到今天；严格报表接口可配置 `lag_days`，只同步已完整
+        结束的历史日，避免当天数据尚未稳定时提前推进 checkpoint。
+        """
+        lag_days = max(int(window_config.get("lag_days") or 0), 0)
+        return (today or date.today()) - timedelta(days=lag_days)
 
     def _date_window_caught_up_checkpoint_extra(
         self,

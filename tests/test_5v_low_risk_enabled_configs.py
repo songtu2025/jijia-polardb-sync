@@ -10,13 +10,14 @@ class LowRiskEnabledConfigs5VTest(unittest.TestCase):
     def test_small_verified_configs_are_enabled_for_daily_sync(self):
         enabled_codes = {code for code, api in self.apis.items() if api["enabled"]}
 
-        self.assertEqual(len(enabled_codes), 37)
+        self.assertEqual(len(enabled_codes), 38)
         self.assertIn("base_currency_query", enabled_codes)
         self.assertIn("storage_return_page", enabled_codes)
         self.assertIn("strategy_template_page", enabled_codes)
         self.assertIn("platform_msku_page", enabled_codes)
         self.assertIn("traffic_sku_page", enabled_codes)
         self.assertIn("traffic_page", enabled_codes)
+        self.assertIn("traffic_analysis_page", enabled_codes)
         self.assertIn("storage_ledger_page", enabled_codes)
         self.assertIn("inventory_receipts_page", enabled_codes)
         self.assertIn("shipment_data_page", enabled_codes)
