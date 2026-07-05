@@ -776,7 +776,7 @@ apis:
       page: 1
       pagesize: 100
 
-  # 第四十六个真实文档接口：采购订单详情，文档 id=1024，依赖交货单列表中的 poCode，小样本验证阶段保持 disabled。
+  # 第四十六个真实文档接口：采购订单详情，文档 id=1024，依赖交货单列表中的 poCode，中等窗口验证阶段保持 disabled。
   - api_code: procure_detail
     name: 查询采购订单详情
     enabled: false
@@ -792,7 +792,7 @@ apis:
     date_field: ""
     param_source:
       source_api_code: lot_no_page
-      limit: 3
+      limit: 100
       auto_advance: true
       fields:
         - source_field: raw_json.poCode

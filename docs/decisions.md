@@ -1774,3 +1774,14 @@
 - 阶段 10Z 覆盖矩阵刷新后为公开文档 API 185 个、真实配置 API 50 个、enabled 36 个；执行分层为 `configured=50`、`configured_enabled=36`、`configured_disabled=14`、`needs_upstream_params=63`、`needs_sensitive_review=22`、`defer_or_review=50`。
 - 阶段 10Z 额外只读确认完整 `lot_no_page` 后共有 8631 条带 `poCode` 的 raw，去重 1153 个采购单号；`procure_detail` 当前仅 3 条小样本。
 - 阶段 10Z 结论：`lot_no_page` 已从 3 页小样本推进到完整 87 页并进入 daily enabled；11A 可评估 `procure_detail` 参数窗口，且 11A 完成后需要复盘 10Y-11A。
+- 阶段 11A 选择推进 `procure_detail` 中等窗口；原因是完整 `lot_no_page` 已提供 1153 个采购单号，而 `procure_detail` 当前只覆盖 3 条小样本，继续扩大参数窗口能直接提升完整拉取程度。
+- 阶段 11A 起点 DB 确认 `procure_detail.enabled=0`、`config_json.enabled=false`、`param_source.limit=3`，历史 raw 为 3 条、3 个不同 hash，checkpoint 记录 `param_offset=0`、`param_limit=3`、`next_param_offset=3`。
+- 阶段 11A 先用 TDD 将 `procure_detail.param_source.limit` 期望从 3 改为 100，并保持 disabled；RED 阶段失败于 `3 != 100`。
+- 阶段 11A 将 `procure_detail.param_source.limit` 从 3 改为 100，保持 `enabled=false`；单项测试通过后同步 API 配置 52 条，dry-run 仍显示 36 个 enabled API，确认未误启用。
+- 阶段 11A 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api procure_detail`，批次 `sync_20260705_100801_877109` 成功，100 次请求，写入 100 条。
+- 阶段 11A 单接口批次 `sync_batch.status=success`、`total_api_count=1`、`success_api_count=1`、`failed_api_count=0`；`sync_api_log.request_count=100`、`success_count=100`、`failed_count=0`、`error_message=NULL`。
+- 阶段 11A 单接口 raw 为 100 条、0 个主键、100 个不同 hash、空对象 0；`procure_detail` 累计 raw 为 103 条、103 个不同 hash，`failed_request_log=0`。
+- 阶段 11A 后 `procure_detail` checkpoint 为 `param_offset=3`、`param_limit=100`、`next_param_offset=103`，DB 配置为 `enabled=0`、`config_json.enabled=false`、`param_source.limit=100`。
+- 阶段 11A 覆盖矩阵刷新后为公开文档 API 185 个、真实配置 API 50 个、enabled 36 个；执行分层为 `configured=50`、`configured_enabled=36`、`configured_disabled=14`、`needs_upstream_params=63`、`needs_sensitive_review=22`、`defer_or_review=50`。
+- 10Y-11A 复盘结论：10Y 将 `transfer_page` 完整拉取并 enabled，10Z 将 `lot_no_page` 完整拉取并 enabled，11A 将 `procure_detail` 推进到 103/1153；enabled API 从 34 增至 36 后保持不变，`procure_detail` 因历史缺口仍约 1050 个且无稳定业务主键，暂不应 enabled。
+- 阶段 11A 结论：下一阶段 11B 继续复用 `procure_detail.param_source.limit=100` 推进下一窗口，保持 disabled，并重点核验 checkpoint 从 `next_param_offset=103` 推进到约 203。

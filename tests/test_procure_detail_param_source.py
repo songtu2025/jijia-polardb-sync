@@ -29,7 +29,7 @@ class ProcureDetailParamSourceTest(unittest.TestCase):
     def setUp(self):
         self.apis = {api["api_code"]: api for api in load_api_configs("config/api_config.example.yaml")}
 
-    def test_procure_detail_uses_lot_no_po_codes_and_stays_disabled(self):
+    def test_procure_detail_uses_lot_no_po_codes_with_medium_window_and_stays_disabled(self):
         self.assertIn("procure_detail", self.apis)
         api = self.apis["procure_detail"]
 
@@ -42,7 +42,7 @@ class ProcureDetailParamSourceTest(unittest.TestCase):
         self.assertFalse(api["primary_key"]["required"])
         self.assertEqual(api["date_field"], "")
         self.assertEqual(api["param_source"]["source_api_code"], "lot_no_page")
-        self.assertEqual(api["param_source"]["limit"], 3)
+        self.assertEqual(api["param_source"]["limit"], 100)
         self.assertTrue(api["param_source"]["auto_advance"])
         self.assertEqual(
             api["param_source"]["fields"],
