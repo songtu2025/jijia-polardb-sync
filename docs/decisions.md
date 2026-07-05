@@ -1999,3 +1999,13 @@
 - 阶段 11Y 证据：覆盖矩阵刷新后为公开文档 API 185 个、真实配置 API 50 个、enabled 45 个、configured disabled 5 个。
 - 阶段 11W-11Y 复盘：11W 启用 `inventory_adjustments_page`，11X 启用 `purchase_sale_storage_fba_page`，11Y 启用 `storage_ledger_detail_page`；三轮把 enabled API 从 42 个推进到 45 个，configured disabled 从 8 个降至 5 个。
 - 阶段 11Y 结论：`storage_ledger_detail_page` 已完成当前可同步日期窗口的完整拉取并进入 daily enabled；下一阶段 11Z 应从剩余 5 个 disabled API 中继续选择低风险目标。
+- 阶段 11Z 决策：从剩余 5 个 disabled API 中选择 `storage_inbound_detail` 继续推进；理由是该接口有稳定主键 `code`，缺失扫描边界比 `market_inventory_query`、`delivery_fee_query` 和两个百万级接口更清楚。
+- 阶段 11Z 起点证据：`storage_inbound_page` 上游去重 code 为 174334 个，`storage_inbound_detail` 已覆盖 6 个主键；该接口仍不适合直接 enabled。
+- 阶段 11Z 决策：将 `storage_inbound_detail.param_source.limit` 从 3 调整为 500，并增加 `exclude_existing_target=true`，使参数来源按目标表缺失主键扫描，不再依赖历史 offset 作为唯一边界。
+- 阶段 11Z 证据：目标测试 `tests.test_storage_inbound_detail_param_source` 先失败于旧配置 `limit=3`，修改 YAML 后通过。
+- 阶段 11Z 证据：配置同步后 dry-run 仍显示 loaded 45 enabled API config(s)，确认 `storage_inbound_detail` 仍保持 disabled。
+- 阶段 11Z 证据：单接口批次 `sync_20260706_060706_960476` 成功，500 次请求、500 条成功计数、失败 0，耗时 458 秒。
+- 阶段 11Z 证据：本批次 raw 为 500 条、500 个 `source_primary_key`、500 个不同主键、500 个 `data_hash`，`data_date` 覆盖 `2022-09-30` 到 `2023-04-04`。
+- 阶段 11Z 证据：`storage_inbound_detail` 累计覆盖增至 506/174334；DB 配置为 `enabled=0`、`param_source.limit=500`、`exclude_existing_target=true`、`auto_advance=true`。
+- 阶段 11Z 证据：覆盖矩阵刷新后仍为公开文档 API 185 个、真实配置 API 50 个、enabled 45 个、configured disabled 5 个。
+- 阶段 11Z 结论：`storage_inbound_detail` 已从小样本验证进入可重复缺失扫描回填；下一阶段 12A 可继续回填该接口，不应直接 enabled。

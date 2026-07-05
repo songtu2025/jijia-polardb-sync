@@ -34,7 +34,7 @@ class StorageInboundDetailParamSourceTest(unittest.TestCase):
     def setUp(self):
         self.apis = {api["api_code"]: api for api in load_api_configs("config/api_config.example.yaml")}
 
-    def test_storage_inbound_detail_uses_storage_inbound_codes_and_stays_disabled(self):
+    def test_storage_inbound_detail_uses_missing_storage_inbound_codes_and_stays_disabled(self):
         self.assertIn("storage_inbound_detail", self.apis)
         api = self.apis["storage_inbound_detail"]
 
@@ -46,9 +46,10 @@ class StorageInboundDetailParamSourceTest(unittest.TestCase):
         self.assertEqual(api["primary_key"]["field"], "code")
         self.assertEqual(api["date_field"], "createdAt")
         self.assertEqual(api["param_source"]["source_api_code"], "storage_inbound_page")
-        self.assertEqual(api["param_source"]["limit"], 3)
+        self.assertEqual(api["param_source"]["limit"], 500)
         self.assertIn("auto_advance", api["param_source"])
         self.assertTrue(api["param_source"]["auto_advance"])
+        self.assertTrue(api["param_source"]["exclude_existing_target"])
         self.assertEqual(
             api["param_source"]["fields"],
             [{"source_field": "raw_json.code", "target_field": "code"}],

@@ -1214,7 +1214,7 @@ apis:
       delay_seconds: 1
     params: {}
 
-  # 第二十三个真实文档接口：出入库明细V2，文档 id=235，依赖 storage_inbound_page 的单据 code，小样本验证阶段保持 disabled。
+  # 第二十三个真实文档接口：出入库明细V2，文档 id=235，依赖 storage_inbound_page 的单据 code，按目标缺失扫描分批回填。
   - api_code: storage_inbound_detail
     name: 出入库明细V2
     enabled: false
@@ -1230,8 +1230,9 @@ apis:
     date_field: createdAt
     param_source:
       source_api_code: storage_inbound_page
-      limit: 3
+      limit: 500
       auto_advance: true
+      exclude_existing_target: true
       fields:
         - source_field: raw_json.code
           target_field: code
