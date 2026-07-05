@@ -1744,3 +1744,17 @@
 - 阶段 10X 已运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests` 和 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，82 个测试通过。
 - 10V-10X 复盘结论：10V 新增 200 个详情，10W 新增最后 55 个详情，10X 切入 enabled 后完整批次请求 0 次；`lot_no_detail` 已从历史回填尾段转为 daily enabled，enabled API 从 33 增至 34。
 - 阶段 10X 结论：后续不要再围绕 `lot_no_detail` 推进；10Y 应只读盘点剩余 16 个 configured disabled API 和 63 个 needs_param_source API，选择下一个低风险目标。
+- 阶段 10Y 从剩余 configured disabled 中选择 `transfer_page`；原因是该接口为直读分页、已完成 3 页小样本验证、当前总量约 6755-6759，体量低于 `lot_no_page` 和库存大表，适合先完整验证再 enabled。
+- 阶段 10Y 先用 TDD 将 `transfer_page.page.max_pages` 期望从 3 改为 100，并保持 disabled；RED 阶段失败于 `3 != 100`。
+- 阶段 10Y 将 `transfer_page.page.max_pages` 从 3 改为 100，保持 `enabled=false`；单项测试通过后同步 API 配置 52 条，dry-run 仍显示 34 个 enabled API，确认未误启用。
+- 阶段 10Y 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api transfer_page`，批次 `sync_20260705_070031_049820` 成功，68 次请求，写入 6759 条。
+- 阶段 10Y 单接口批次 `sync_batch.status=success`、`total_api_count=1`、`success_api_count=1`、`failed_api_count=0`；`sync_api_log.request_count=68`、`success_count=6759`、`failed_count=0`、`error_message=NULL`。
+- 阶段 10Y 单接口 raw 为 6759 条、6759 个不同主键、6759 个不同 hash；checkpoint 记录 `last_page=68`、`request_count=68`、`item_count=6759`、`total_count=6759`；`failed_request_log=0`。
+- 阶段 10Y 再用 TDD 将 `transfer_page` 期望改为 enabled，并将 enabled 清单测试从 34 改为 35；RED 阶段失败于 `transfer_page.enabled=false` 和 `34 != 35`。
+- 阶段 10Y 将 `transfer_page.enabled` 从 `false` 改为 `true`，保持 `page.max_pages=100`；目标测试通过后同步 API 配置 52 条，dry-run 显示 loaded 35 enabled API config(s) 且包含 `transfer_page`。
+- 阶段 10Y 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-enabled`，批次 `sync_20260705_070823_117795` 成功，35 个 API、3141 次请求、写入 314709 条。
+- 阶段 10Y enabled 批次 `sync_batch.status=success`、`total_api_count=35`、`success_api_count=35`、`failed_api_count=0`，从 `2026-07-05 07:08:23` 到 `2026-07-05 08:28:05`；`sync_api_log` 共 35 条且全部 success，`failed_request_log=0`。
+- 阶段 10Y enabled 批次中 `transfer_page` 为 `status=success`、`request_count=68`、`success_count=6759`、`failed_count=0`；同批次 raw 为 6759 条、6759 个不同主键、6759 个不同 hash；checkpoint 指向 enabled 批次并记录 `item_count=6759`、`total_count=6759`。
+- 阶段 10Y DB 核验显示 `api_config` 总配置 52 条、enabled 35 条，`transfer_page.enabled=1`、`config_json.enabled=true`、`page.max_pages=100`。
+- 阶段 10Y 覆盖矩阵刷新后为公开文档 API 185 个、真实配置 API 50 个、enabled 35 个；执行分层为 `configured=50`、`configured_enabled=35`、`configured_disabled=15`、`needs_upstream_params=63`、`needs_sensitive_review=22`、`defer_or_review=50`。
+- 阶段 10Y 结论：`transfer_page` 已从 3 页小样本推进到完整 68 页并进入 daily enabled；10Z 可优先评估 `lot_no_page` 完整窗口，但必须先单接口证明 `item_count == total_count`。

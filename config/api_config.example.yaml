@@ -722,10 +722,10 @@ apis:
       page: 1
       pagesize: 100
 
-  # 第三十三个真实文档接口：调拨单列表，文档 id=1020，先用 3 页窗口验证，默认保持 disabled。
+  # 第三十三个真实文档接口：调拨单列表，文档 id=1020，已完成完整窗口验证并进入 enabled。
   - api_code: transfer_page
     name: 查询调拨单列表
-    enabled: false
+    enabled: true
     method: POST
     path: /fulfillment/inventory/transfer/page
     page:
@@ -733,7 +733,7 @@ apis:
       page_no_field: page
       page_size_field: pagesize
       page_size: 100
-      max_pages: 3
+      max_pages: 100
       list_field: data.rows
       total_field: data.total
     primary_key:
