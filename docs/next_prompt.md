@@ -25,30 +25,33 @@
 
 当前阶段：
 
-阶段 11A 已完成。下一阶段 11B 继续推进完整拉取：`procure_detail` 已从 3 条小样本扩大到 100 条中等窗口，当前累计覆盖 103/1153 个采购单号，仍保持 disabled。10Y-11A 三轮复盘已完成。
+阶段 11B 已完成。下一阶段 11C 继续推进完整拉取：`procure_detail` 已完成第二个 100 条窗口，当前累计覆盖 203/1153 个采购单号，仍保持 disabled。
 
 当前事实：
 
 - 当前 enabled API 有 36 个：`amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`、`product_page`、`parent_product_page`、`kb_product_page`、`fba_warehouse_page`、`store_location_page`、`multi_shop_query`、`platform_msku_page`、`crm_tags_page`、`inventory_team_query`、`product_inventory_page`、`storage_inbound_page`、`transfer_page`、`lot_no_page`、`storage_return_page`、`strategy_template_page`、`traffic_page`、`traffic_sku_page`、`shipment_data_page`、`storage_ledger_page`、`inventory_receipts_page`、`purchase_plan_page`、`product_detail`、`country_province_query`、`transfer_detail`、`lot_no_detail`、`base_currency_query`。
 - 当前已配置真实 API 有 50 个，其中 36 个已 enabled；剩余 14 个真实配置 API 已验证但保持 disabled。
 - 覆盖矩阵显示公开文档 API 185 个，真实配置 API 50 个，enabled 36 个；执行分层摘要为 `configured=50`、`configured_enabled=36`、`configured_disabled=14`、`needs_upstream_params=63`、`needs_sensitive_review=22`、`defer_or_review=50`。
-- 阶段 11A 已将 `procure_detail.param_source.limit` 从 3 改为 100，仍保持 `enabled=false`。
-- 阶段 11A dry-run 显示 loaded 36 enabled API config(s)，确认 `procure_detail` 没有进入每日 enabled 批量同步。
-- 阶段 11A 单接口批次为 `sync_20260705_100801_877109`：`sync_batch.status=success`、`total_api_count=1`、`success_api_count=1`、`failed_api_count=0`。
-- 阶段 11A 单接口 `procure_detail` 为 100 次请求、100 条 raw、100 个不同 hash、空对象 0，失败 0。
-- 阶段 11A 后 `procure_detail` 累计 raw 为 103 条、103 个不同 hash。
-- 阶段 11A checkpoint 为 `param_offset=3`、`param_limit=100`、`next_param_offset=103`。
+- `procure_detail.param_source.limit=100`，仍保持 `enabled=false`。
+- 阶段 11B 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api procure_detail`，批次 `sync_20260705_101701_069678` 成功。
+- 阶段 11B 单接口 `procure_detail` 为 100 次请求、100 条 raw、100 个不同 hash、空对象 0，失败 0。
+- 阶段 11B 后 `procure_detail` 累计 raw 为 203 条、203 个不同 hash。
+- 阶段 11B checkpoint 为 `param_offset=103`、`param_limit=100`、`next_param_offset=203`。
 - DB 核验显示 `api_config.procure_detail.enabled=0`、`config_json.enabled=false`、`param_source.limit=100`。
-- 完整 `lot_no_page` 后有 8631 条带 `poCode` 的 raw，去重为 1153 个采购单号；`procure_detail` 当前覆盖 103/1153，仍有约 1050 个历史缺口。
-- 10Y-11A 复盘结论：`transfer_page` 和 `lot_no_page` 已完成完整窗口并进入 enabled；`procure_detail` 只完成中等窗口验证，不应 enabled。
+- 完整 `lot_no_page` 后有 8631 条带 `poCode` 的 raw，去重为 1153 个采购单号；`procure_detail` 当前覆盖 203/1153，仍有约 950 个历史缺口。
+- 阶段 11B 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，同步 52 条配置。
+- 阶段 11B dry-run 显示 loaded 36 enabled API config(s)，确认 `procure_detail` 没有进入每日 enabled 批量同步。
+- 阶段 11B 已运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests` 并通过。
+- 阶段 11B 已运行 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，82 个测试通过。
 
 建议目标：
 
-- 继续保持 `procure_detail.enabled=false` 和 `param_source.limit=100`，从 checkpoint 的 `next_param_offset=103` 继续推进下一批采购单号。
-- 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api procure_detail`，预期新增约 100 条，checkpoint 推进到 `next_param_offset=203`。
+- 继续保持 `procure_detail.enabled=false` 和 `param_source.limit=100`，从 checkpoint 的 `next_param_offset=203` 继续推进下一批采购单号。
+- 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api procure_detail`，预期新增约 100 条，checkpoint 推进到 `next_param_offset=303`。
 - 核验同批次 `sync_batch`、`sync_api_log`、`raw_api_data`、`sync_checkpoint` 和 `failed_request_log`，确认 100 请求成功、失败为 0、空对象为 0。
 - 不要运行完整 `--sync-enabled`，因为本轮没有 enabled 变更；除非下一轮明确决定启用某个接口。
 - 完成后同步 `api_config`、刷新覆盖矩阵并运行编译与单测。
+- 11C 完成后不需要三轮复盘；下一次三轮复盘应在 11D 完成后进行。
 
 验收：
 

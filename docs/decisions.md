@@ -1785,3 +1785,13 @@
 - 阶段 11A 覆盖矩阵刷新后为公开文档 API 185 个、真实配置 API 50 个、enabled 36 个；执行分层为 `configured=50`、`configured_enabled=36`、`configured_disabled=14`、`needs_upstream_params=63`、`needs_sensitive_review=22`、`defer_or_review=50`。
 - 10Y-11A 复盘结论：10Y 将 `transfer_page` 完整拉取并 enabled，10Z 将 `lot_no_page` 完整拉取并 enabled，11A 将 `procure_detail` 推进到 103/1153；enabled API 从 34 增至 36 后保持不变，`procure_detail` 因历史缺口仍约 1050 个且无稳定业务主键，暂不应 enabled。
 - 阶段 11A 结论：下一阶段 11B 继续复用 `procure_detail.param_source.limit=100` 推进下一窗口，保持 disabled，并重点核验 checkpoint 从 `next_param_offset=103` 推进到约 203。
+- 阶段 11B 不改 YAML，继续复用 `procure_detail.param_source.limit=100`；原因是历史缺口仍有约 1050 个，继续回填比启用 daily 更符合完整拉取目标。
+- 阶段 11B 起点 DB 确认 `procure_detail.enabled=0`、`config_json.enabled=false`、`param_source.limit=100`，历史 raw 为 103 条、103 个不同 hash，checkpoint 为 `next_param_offset=103`。
+- 阶段 11B 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api procure_detail`，批次 `sync_20260705_101701_069678` 成功，100 次请求，写入 100 条。
+- 阶段 11B 单接口批次 `sync_batch.status=success`、`total_api_count=1`、`success_api_count=1`、`failed_api_count=0`；`sync_api_log.request_count=100`、`success_count=100`、`failed_count=0`、`error_message=NULL`。
+- 阶段 11B 单接口 raw 为 100 条、0 个主键、100 个不同 hash、空对象 0；`procure_detail` 累计 raw 为 203 条、203 个不同 hash，`failed_request_log=0`。
+- 阶段 11B 后 `procure_detail` checkpoint 为 `param_offset=103`、`param_limit=100`、`next_param_offset=203`，DB 配置仍为 `enabled=0`、`config_json.enabled=false`、`param_source.limit=100`。
+- 阶段 11B 已同步 API 配置 52 条；dry-run 仍显示 36 个 enabled API，确认未误启用 `procure_detail`。
+- 阶段 11B 覆盖矩阵刷新后为公开文档 API 185 个、真实配置 API 50 个、enabled 36 个；执行分层为 `configured=50`、`configured_enabled=36`、`configured_disabled=14`、`needs_upstream_params=63`、`needs_sensitive_review=22`、`defer_or_review=50`。
+- 阶段 11B 已运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests` 和 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，82 个测试通过。
+- 阶段 11B 结论：`procure_detail` 已推进到 203/1153，仍不应 enabled；11C 继续复用 100 窗口，重点核验 checkpoint 从 `next_param_offset=203` 推进到约 303。
