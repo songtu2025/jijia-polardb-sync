@@ -1901,3 +1901,9 @@
 - 阶段 11L 覆盖矩阵刷新后为公开文档 API 185 个、真实配置 API 50 个、enabled 36 个；执行分层为 `configured=50`、`configured_enabled=36`、`configured_disabled=14`、`needs_upstream_params=63`、`needs_sensitive_review=22`、`defer_or_review=50`。
 - 阶段 11L 已运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests` 和 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，82 个测试通过。
 - 阶段 11L 结论：`procure_detail` 已追平到 1153/1153，但仍不直接 enabled；11M 应先从 `next_param_offset=1153` 再跑单接口空缺口/no-op 验证，证明不会重复请求历史数据，再决定是否改为 enabled 并运行完整 `--sync-enabled`。
+- 阶段 11M 决策：`procure_detail` 历史覆盖追平后，先做单接口 no-op 验证，不直接改 enabled。
+- 阶段 11M 证据：批次 `sync_20260705_115907_773766` 成功，请求 0 次、写入 0 条；checkpoint 保持 `param_offset=1153`、`param_limit=100`、`next_param_offset=1153`；累计 raw 仍为 1153 条、1153 个 hash，失败日志 0。
+- 阶段 11M 决策：继续保持 `procure_detail.enabled=false`，不运行完整 `--sync-enabled`。
+- 阶段 11M 理由：当前 `procure_detail` raw 的 `source_primary_key` 全空，顶层 `poCode`、`procureId`、`id` 均无覆盖；现有 offset 参数源能证明历史回填窗口完成，但不能证明未来新增 `lot_no_page.poCode` 在排序变化后一定不会被 offset 跳过。
+- 阶段 11M 决策：下一阶段优先解决稳定键或缺失扫描语义，而不是为追求 enabled 数量直接启用。
+- 阶段 11M 复盘：11K、11L、11M 三轮把 `procure_detail` 从 1003/1153 推进到 1153/1153，并完成 no-op 验证；完整历史拉取目标已在该接口上达成，但 daily 增量边界仍需单独验证。
