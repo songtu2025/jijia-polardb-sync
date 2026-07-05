@@ -153,7 +153,7 @@ python -m app.main --sync-api amazon_shop_page
 python -m app.main --sync-enabled
 ```
 
-`--sync-enabled` 会读取 `config/api_config.example.yaml` 中 `enabled: true` 的接口，并在同一个 `sync_batch` 下逐个写入 `sync_api_log`。批次头会先提交，每个 API 使用独立事务提交 raw、log 和 checkpoint，最后再提交批次汇总状态，便于长任务运行时查看已完成接口。当前启用了 `amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`、`product_page`、`amazon_msku_page`、`parent_product_page`、`kb_product_page`、`fba_warehouse_page`、`store_location_page`、`multi_shop_query`、`platform_msku_page`、`crm_tags_page`、`inventory_team_query`、`fba_inventory_page`、`fba_inventory_v2_page`、`product_inventory_page`、`storage_inbound_page`、`transfer_page`、`lot_no_page`、`procure_detail`、`storage_return_page`、`strategy_template_page`、`traffic_analysis_page`、`traffic_page`、`traffic_sku_page`、`shipment_data_page`、`storage_ledger_page`、`storage_ledger_month_page`、`inventory_receipts_page`、`purchase_plan_page`、`product_detail`、`country_province_query`、`transfer_detail`、`lot_no_detail` 和 `base_currency_query`。
+`--sync-enabled` 会读取 `config/api_config.example.yaml` 中 `enabled: true` 的接口，并在同一个 `sync_batch` 下逐个写入 `sync_api_log`。批次头会先提交，每个 API 使用独立事务提交 raw、log 和 checkpoint，最后再提交批次汇总状态，便于长任务运行时查看已完成接口。当前启用了 `amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`、`product_page`、`amazon_msku_page`、`parent_product_page`、`kb_product_page`、`fba_warehouse_page`、`store_location_page`、`multi_shop_query`、`platform_msku_page`、`crm_tags_page`、`inventory_team_query`、`fba_inventory_page`、`fba_inventory_v2_page`、`inventory_adjustments_page`、`product_inventory_page`、`storage_inbound_page`、`transfer_page`、`lot_no_page`、`procure_detail`、`storage_return_page`、`strategy_template_page`、`traffic_analysis_page`、`traffic_page`、`traffic_sku_page`、`shipment_data_page`、`storage_ledger_page`、`storage_ledger_month_page`、`inventory_receipts_page`、`purchase_plan_page`、`product_detail`、`country_province_query`、`transfer_detail`、`lot_no_detail` 和 `base_currency_query`。
 
 生成积加公开文档 API 覆盖矩阵：
 
@@ -183,7 +183,7 @@ python -m app.doc_catalog --output config/jijia_api_catalog.generated.json --sum
 0 2 * * * cd /path/to/jijia-polardb-sync && /path/to/.venv/bin/python -m app.main --sync-enabled >> logs/cron.log 2>&1
 ```
 
-当前 enabled 批量属于长任务，最近一次 42 个接口完整同步耗时 5045 秒。ECS 上的 cron 窗口应避免和其他重写入任务重叠。
+当前 enabled 批量属于长任务，最近一次 43 个接口完整同步耗时 5997 秒。ECS 上的 cron 窗口应避免和其他重写入任务重叠。
 
 ## 查看日志
 
@@ -203,9 +203,9 @@ logs/sync.log
 
 ### 当前支持哪些真实积加 API？
 
-当前已验证并启用 `amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`、`product_page`、`amazon_msku_page`、`parent_product_page`、`kb_product_page`、`fba_warehouse_page`、`store_location_page`、`multi_shop_query`、`platform_msku_page`、`crm_tags_page`、`inventory_team_query`、`fba_inventory_page`、`fba_inventory_v2_page`、`product_inventory_page`、`storage_inbound_page`、`transfer_page`、`lot_no_page`、`procure_detail`、`storage_return_page`、`strategy_template_page`、`traffic_analysis_page`、`traffic_page`、`traffic_sku_page`、`shipment_data_page`、`storage_ledger_page`、`storage_ledger_month_page`、`inventory_receipts_page`、`purchase_plan_page`、`product_detail`、`country_province_query`、`transfer_detail`、`lot_no_detail` 和 `base_currency_query`。
+当前已验证并启用 `amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`、`product_page`、`amazon_msku_page`、`parent_product_page`、`kb_product_page`、`fba_warehouse_page`、`store_location_page`、`multi_shop_query`、`platform_msku_page`、`crm_tags_page`、`inventory_team_query`、`fba_inventory_page`、`fba_inventory_v2_page`、`inventory_adjustments_page`、`product_inventory_page`、`storage_inbound_page`、`transfer_page`、`lot_no_page`、`procure_detail`、`storage_return_page`、`strategy_template_page`、`traffic_analysis_page`、`traffic_page`、`traffic_sku_page`、`shipment_data_page`、`storage_ledger_page`、`storage_ledger_month_page`、`inventory_receipts_page`、`purchase_plan_page`、`product_detail`、`country_province_query`、`transfer_detail`、`lot_no_detail` 和 `base_currency_query`。
 
-另有一批已完成小窗口、完整窗口或风险验证但默认未启用的接口，例如 `inventory_adjustments_page`、`inventory_event_page`、`inventory_age_page`、`storage_ledger_detail_page`、`purchase_sale_storage_fba_page` 和若干库存、SKU 映射、详情类接口。这些接口需先评估数据量、限流和业务风险，再决定是否进入每天的 enabled 批量同步。
+另有一批已完成小窗口、完整窗口或风险验证但默认未启用的接口，例如 `inventory_event_page`、`inventory_age_page`、`storage_ledger_detail_page`、`purchase_sale_storage_fba_page` 和若干库存、SKU 映射、详情类接口。这些接口需先评估数据量、限流和业务风险，再决定是否进入每天的 enabled 批量同步。
 
 ### accessToken 如何获取？
 
@@ -215,7 +215,7 @@ logs/sync.log
 
 ### 当前接入了哪个业务 API？
 
-当前 enabled 清单与“当前支持哪些真实积加 API？”一致，共 42 个。各接口的文档 id、路径、分页和执行分层以 `config/api_config.example.yaml` 与 `config/jijia_api_catalog.generated.json` 为准。
+当前 enabled 清单与“当前支持哪些真实积加 API？”一致，共 43 个。各接口的文档 id、路径、分页和执行分层以 `config/api_config.example.yaml` 与 `config/jijia_api_catalog.generated.json` 为准。
 
 ### 如何运行测试？
 

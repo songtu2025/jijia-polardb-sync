@@ -7,18 +7,18 @@ class InventoryAdjustmentsPageConfigTest(unittest.TestCase):
     def setUp(self):
         self.apis = {api["api_code"]: api for api in load_api_configs("config/api_config.example.yaml")}
 
-    def test_inventory_adjustments_page_is_limited_and_stays_disabled(self):
+    def test_inventory_adjustments_page_uses_full_window_and_is_enabled(self):
         self.assertIn("inventory_adjustments_page", self.apis)
         api = self.apis["inventory_adjustments_page"]
 
-        self.assertFalse(api["enabled"])
+        self.assertTrue(api["enabled"])
         self.assertEqual(api["method"], "POST")
         self.assertEqual(api["path"], "/purchase/store/inventoryAdjustments/page")
         self.assertTrue(api["page"]["enabled"])
         self.assertEqual(api["page"]["page_no_field"], "page")
         self.assertEqual(api["page"]["page_size_field"], "pagesize")
         self.assertEqual(api["page"]["page_size"], 100)
-        self.assertEqual(api["page"]["max_pages"], 3)
+        self.assertEqual(api["page"]["max_pages"], 600)
         self.assertEqual(api["page"]["list_field"], "data.rows")
         self.assertEqual(api["page"]["total_field"], "data.total")
         self.assertEqual(api["primary_key"]["field"], "id")

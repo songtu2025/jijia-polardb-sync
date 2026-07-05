@@ -1970,3 +1970,11 @@
 - 阶段 11V 证据：覆盖矩阵刷新后为公开文档 API 185 个、真实配置 API 50 个、enabled 42 个、configured disabled 8 个。
 - 阶段 11T-11V 复盘：三轮累计把 enabled API 从 39 个推进到 42 个，configured disabled 从 11 个降至 8 个；11T 同时修复长批次 token 过期 401，11U 保留 FBA 库存新旧接口对照，11V 补齐 FBA 库存分类账月维度完整窗口。
 - 阶段 11V 结论：`storage_ledger_month_page` 已完成当前配置 `2026-06` 月窗口完整拉取并进入 daily enabled；下一阶段 11W 应从剩余 8 个 disabled API 中继续选择低风险目标。
+- 阶段 11W 决策：从剩余 configured disabled API 中选择 `inventory_adjustments_page` 推进；理由是该接口是普通分页直读，有稳定主键 `id`，当前总量 58239 条、约 583 页，风险低于参数型详情、费用类和百万级库存事件/库龄接口。
+- 阶段 11W 决策：将 `inventory_adjustments_page.enabled=true`，并把 `page.max_pages` 从 3 调整为 600，以覆盖当前 583 页全量窗口。
+- 阶段 11W 证据：单接口批次 `sync_20260705_231507_824474` 成功，583 次请求、58239 条成功计数、失败 0；checkpoint 为 `last_page=583`、`item_count=58239`、`total_count=58239`。
+- 阶段 11W 证据：DB 显示 `inventory_adjustments_page` 累计 raw 为 58239 条、58239 个 `source_primary_key`、58239 个不同主键、58239 个 `data_hash`，`data_date` 覆盖 `2021-02-01` 到 `2023-02-16`。
+- 阶段 11W 证据：完整 enabled 批次 `sync_20260705_232349_206209` 成功，43 个 API 全成功，4681 次请求，467571 条成功计数，失败 0，耗时 5997 秒。
+- 阶段 11W 证据：同批次 `inventory_adjustments_page` 请求 583 次、成功计数 58239、失败 0；同批次 `failed_request_log` 为 0。
+- 阶段 11W 证据：覆盖矩阵刷新后为公开文档 API 185 个、真实配置 API 50 个、enabled 43 个、configured disabled 7 个。
+- 阶段 11W 结论：`inventory_adjustments_page` 已完成当前账号可访问数据全量拉取并进入 daily enabled；下一阶段 11X 应从剩余 7 个 disabled API 中继续选择低风险目标。
