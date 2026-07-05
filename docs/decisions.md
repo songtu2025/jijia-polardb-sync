@@ -1869,3 +1869,14 @@
 - 阶段 11I 覆盖矩阵刷新后为公开文档 API 185 个、真实配置 API 50 个、enabled 36 个；执行分层为 `configured=50`、`configured_enabled=36`、`configured_disabled=14`、`needs_upstream_params=63`、`needs_sensitive_review=22`、`defer_or_review=50`。
 - 阶段 11I 已运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests` 和 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，82 个测试通过。
 - 阶段 11I 结论：`procure_detail` 已推进到 903/1153，仍不应 enabled；11J 继续复用 100 窗口，重点核验 checkpoint 从 `next_param_offset=903` 推进到约 1003，并在 11J 完成后复盘 11H-11J。
+- 阶段 11J 不改 YAML，继续复用 `procure_detail.param_source.limit=100`；原因是历史缺口仍有约 250 个，继续回填比启用 daily 更符合完整拉取目标。
+- 阶段 11J 起点 DB 确认 `procure_detail.enabled=0`、`config_json.enabled=false`、`param_source.limit=100`，历史 raw 为 903 条、903 个 hash，checkpoint 为 `next_param_offset=903`。
+- 阶段 11J 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api procure_detail`，批次 `sync_20260705_113031_687363` 成功，100 次请求，写入 100 条。
+- 阶段 11J 单接口批次 `sync_batch.status=success`、`total_api_count=1`、`success_api_count=1`、`failed_api_count=0`；`sync_api_log.request_count=100`、`success_count=100`、`failed_count=0`、`error_message=NULL`。
+- 阶段 11J 单接口 raw 为 100 条、0 个主键、100 个 hash、空对象 0；`procure_detail` 累计 raw 为 1003 条、1003 个 hash，`failed_request_log=0`。
+- 阶段 11J 后 `procure_detail` checkpoint 为 `param_offset=903`、`param_limit=100`、`next_param_offset=1003`，DB 配置仍为 `enabled=0`、`config_json.enabled=false`、`param_source.limit=100`。
+- 阶段 11J 已同步 API 配置 52 条；dry-run 仍显示 36 个 enabled API，确认未误启用 `procure_detail`。
+- 阶段 11J 覆盖矩阵刷新后为公开文档 API 185 个、真实配置 API 50 个、enabled 36 个；执行分层为 `configured=50`、`configured_enabled=36`、`configured_disabled=14`、`needs_upstream_params=63`、`needs_sensitive_review=22`、`defer_or_review=50`。
+- 阶段 11J 已运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests` 和 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，82 个测试通过。
+- 11H-11J 复盘结论：三轮累计新增 300 个 `procure_detail` 采购订单详情，三轮均为 100 请求、100 raw、失败 0、空对象 0；覆盖从 703/1153 推进到 1003/1153，仍不应 enabled。
+- 阶段 11J 结论：11K 继续复用 100 窗口，重点核验 checkpoint 从 `next_param_offset=1003` 推进到约 1103；11K 完成后不需要三轮复盘，下一次三轮复盘放在 11M 完成后。
