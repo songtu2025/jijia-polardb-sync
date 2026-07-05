@@ -559,10 +559,10 @@ apis:
       page: 1
       pagesize: 100
 
-  # 第三十一个真实文档接口：FBA库存列表V2，文档 id=5136，先用 3 页窗口验证，默认保持 disabled。
+  # 第三十一个真实文档接口：FBA库存列表V2，文档 id=5136，已完成全量分页验证并进入 enabled。
   - api_code: fba_inventory_v2_page
     name: 查询FBA库存列表V2
-    enabled: false
+    enabled: true
     method: POST
     path: /purchase/store/fbaInventory/page/V2
     page:
@@ -570,7 +570,7 @@ apis:
       page_no_field: page
       page_size_field: pagesize
       page_size: 100
-      max_pages: 3
+      max_pages: 320
       list_field: data.rows
       total_field: data.total
     primary_key:

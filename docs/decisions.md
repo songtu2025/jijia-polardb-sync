@@ -1942,3 +1942,14 @@
 - 阶段 11S 证据：覆盖矩阵刷新后为公开文档 API 185 个、真实配置 API 50 个、enabled 39 个、configured disabled 11 个。
 - 阶段 11S 复盘：11Q 补齐 `traffic_analysis_page` 的 `2026-07-04`，11R 用 `lag_days=1` 解决当天窗口边界并启用 `traffic_analysis_page`，11S 全量补齐并启用 `amazon_msku_page`；三轮把 enabled API 从 37 个推进到 39 个，configured disabled 从 13 个降至 11 个。
 - 阶段 11S 结论：`amazon_msku_page` 已完成当前账号可访问数据全量拉取并进入 daily enabled；下一阶段应继续从剩余 11 个 disabled API 中选择主键明确、分页可控的候选，避免直接启用超大库存事件、库龄和费用/详情类接口。
+- 阶段 11T 决策：从剩余 configured disabled API 中选择 `fba_inventory_v2_page` 推进；理由是该接口主键字段 `id` 明确，当前总量 30759 条、约 308 页，风险低于超大库存事件、库龄、费用和参数型详情接口。
+- 阶段 11T 决策：将 `fba_inventory_v2_page.enabled=true`，并把 `page.max_pages` 从 3 调整为 320，以覆盖当前 308 页全量窗口。
+- 阶段 11T 证据：单接口批次 `sync_20260705_173836_749182` 成功，308 次请求、30759 条成功计数、失败 0；checkpoint 为 `last_page=308`、`item_count=30759`、`total_count=30759`。
+- 阶段 11T 证据：DB 显示 `fba_inventory_v2_page` 累计 raw 为 30759 条、30759 个 `source_primary_key`、30759 个 `data_hash`，`data_date` 覆盖 `2026-03-02` 到 `2026-07-05`。
+- 阶段 11T 发现：第一次完整 enabled 批次 `sync_20260705_174452_257185` 在 token 过期后出现连续 401，批次为 `partial_failed`，40 个 API 中 32 成功、8 失败。
+- 阶段 11T 决策：业务 API client 遇到 HTTP 401 时通过认证客户端强制刷新 token 并重试一次；这是长批次跨 token 生命周期的最小修复，不改变同步引擎批次结构。
+- 阶段 11T 证据：重跑完整 enabled 批次 `sync_20260705_180439_061974` 成功，40 个 API 全成功，3722 次请求，372529 条成功计数，失败 0，耗时 4601 秒。
+- 阶段 11T 证据：同批次 `fba_inventory_v2_page` 请求 308 次、成功计数 30759、失败 0；`product_inventory_page` 在跨过 token 过期点后仍成功完成，请求 1187 次、成功计数 118653、失败 0。
+- 阶段 11T 证据：覆盖矩阵刷新后为公开文档 API 185 个、真实配置 API 50 个、enabled 40 个、configured disabled 10 个。
+- 阶段 11T 复盘：本轮把 enabled API 从 39 个推进到 40 个，同时补齐长批次 token 刷新能力；随着批次超过 1 小时，后续接入大接口前必须继续评估 token、限流、请求量和 cron 窗口。
+- 阶段 11T 结论：`fba_inventory_v2_page` 已完成当前账号可访问数据全量拉取并进入 daily enabled；下一阶段 11U 应从剩余 10 个 disabled API 中选择低风险目标，避免直接启用 `inventory_event_page` 和 `inventory_age_page`。

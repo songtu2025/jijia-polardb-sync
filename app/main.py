@@ -143,8 +143,9 @@ def _sync_enabled(settings, api_configs) -> None:
     logger = logging.getLogger(__name__)
     engine = create_db_engine(settings)
     try:
-        token = JijiaAuthClient(settings).get_access_token()
-        result = SyncEngine(api_configs, engine).sync_enabled_apis(JijiaApiClient(settings), token)
+        auth_client = JijiaAuthClient(settings)
+        token = auth_client.get_access_token()
+        result = SyncEngine(api_configs, engine).sync_enabled_apis(JijiaApiClient(settings, auth_client=auth_client), token)
     except HTTPError as error:
         status_code = error.response.status_code if error.response is not None else "unknown"
         logger.error("sync enabled failed: http_status=%s", status_code)
@@ -174,8 +175,9 @@ def _run_single_api(settings, api_configs, api_code: str, action_label: str) -> 
     logger = logging.getLogger(__name__)
     engine = create_db_engine(settings)
     try:
-        token = JijiaAuthClient(settings).get_access_token()
-        result = SyncEngine(api_configs, engine).test_api_once(api_code, JijiaApiClient(settings), token)
+        auth_client = JijiaAuthClient(settings)
+        token = auth_client.get_access_token()
+        result = SyncEngine(api_configs, engine).test_api_once(api_code, JijiaApiClient(settings, auth_client=auth_client), token)
     except HTTPError as error:
         status_code = error.response.status_code if error.response is not None else "unknown"
         logger.error("%s failed: http_status=%s", action_label, status_code)

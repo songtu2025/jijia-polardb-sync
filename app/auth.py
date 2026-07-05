@@ -29,7 +29,7 @@ class JijiaAuthClient:
         self.settings = settings
         self.timeout_seconds = timeout_seconds
 
-    def get_access_token(self) -> AccessToken:
+    def get_access_token(self, force_refresh: bool = False) -> AccessToken:
         """获取积加开放平台 accessToken。
 
         先读取本地缓存，缓存不存在或快过期时再请求 token 接口。
@@ -37,7 +37,7 @@ class JijiaAuthClient:
         还要检查响应体里的 code，并从 data.accessToken 提取真正的令牌。
         """
         self._validate_settings()
-        cached_token = self._read_cached_token()
+        cached_token = None if force_refresh else self._read_cached_token()
         if cached_token is not None:
             return cached_token
 

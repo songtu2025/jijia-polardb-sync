@@ -1,20 +1,31 @@
 import unittest
 from types import SimpleNamespace
 
+from requests import HTTPError
+
 from app.api_client import JijiaApiClient
 from app.auth import AccessToken
 
 
 class FakeResponse:
+    def __init__(self, status_code=200, payload=None):
+        self.status_code = status_code
+        self._payload = payload or {"code": 200, "data": {"rows": []}}
+
     def raise_for_status(self):
+        if self.status_code >= 400:
+            error = HTTPError(f"{self.status_code} Client Error")
+            error.response = self
+            raise error
         return None
 
     def json(self):
-        return {"code": 200, "data": {"rows": []}}
+        return self._payload
 
 
 class FakeSession:
-    def __init__(self):
+    def __init__(self, responses=None):
+        self.responses = list(responses or [FakeResponse()])
         self.calls = []
 
     def post(self, url, json, headers, timeout):
@@ -26,7 +37,17 @@ class FakeSession:
                 "timeout": timeout,
             }
         )
-        return FakeResponse()
+        return self.responses.pop(0)
+
+
+class FakeRefreshAuthClient:
+    def __init__(self):
+        self.calls = 0
+
+    def get_access_token(self, force_refresh=False):
+        self.calls += 1
+        self.force_refresh = force_refresh
+        return AccessToken("fresh-token")
 
 
 class JijiaApiClientTimeoutTest(unittest.TestCase):
@@ -50,6 +71,30 @@ class JijiaApiClientTimeoutTest(unittest.TestCase):
         )
 
         self.assertEqual(client.session.calls[0]["timeout"], 90)
+
+    def test_unauthorized_response_refreshes_token_once(self):
+        settings = SimpleNamespace(
+            jijia_base_url="https://example.test",
+            jijia_open_gateway_prefix="/api/open",
+        )
+        auth_client = FakeRefreshAuthClient()
+        client = JijiaApiClient(settings, timeout_seconds=30, auth_client=auth_client)
+        client.session = FakeSession([FakeResponse(status_code=401), FakeResponse()])
+
+        client.request(
+            {
+                "api_code": "long_api",
+                "method": "POST",
+                "path": "/long/page",
+                "params": {"page": 1},
+            },
+            AccessToken("stale-token"),
+        )
+
+        self.assertEqual(auth_client.calls, 1)
+        self.assertTrue(auth_client.force_refresh)
+        self.assertEqual(client.session.calls[0]["headers"]["accessToken"], "stale-token")
+        self.assertEqual(client.session.calls[1]["headers"]["accessToken"], "fresh-token")
 
 
 if __name__ == "__main__":

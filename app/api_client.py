@@ -2,6 +2,7 @@ from typing import Any
 from urllib.parse import urljoin
 
 import requests
+from requests import HTTPError
 
 from app.auth import AccessToken
 from app.config import AppSettings
@@ -14,11 +15,13 @@ class JijiaApiClient:
     重试和日志由 `SyncEngine` 统一控制，避免 HTTP 层掺入同步状态。
     """
 
-    def __init__(self, settings: AppSettings, timeout_seconds: int = 30):
+    def __init__(self, settings: AppSettings, timeout_seconds: int = 30, auth_client: Any | None = None):
         """创建可复用的 requests Session。"""
         self.settings = settings
         self.timeout_seconds = timeout_seconds
         self.session = requests.Session()
+        self.auth_client = auth_client
+        self._current_token: AccessToken | None = None
 
     def request(
         self,
@@ -35,23 +38,44 @@ class JijiaApiClient:
         url = self.request_url(api_config)
         # 分页时由调用方传入单页参数；未传入时使用 YAML 中的默认 params。
         params = params_override if params_override is not None else api_config.get("params") or {}
-        headers = {"accessToken": token.value}
-
         timeout_seconds = int(api_config.get("timeout_seconds") or self.timeout_seconds)
-        if method == "POST":
-            response = self.session.post(url, json=params, headers=headers, timeout=timeout_seconds)
-        elif method == "GET":
-            response = self.session.get(url, params=params, headers=headers, timeout=timeout_seconds)
-        else:
-            raise ValueError(f"unsupported API method: {method}")
+        effective_token = self._current_token or token
 
-        response.raise_for_status()
+        try:
+            response = self._send(method, url, params, effective_token, timeout_seconds)
+            response.raise_for_status()
+        except HTTPError as error:
+            response = error.response
+            if response is None or response.status_code != 401 or self.auth_client is None:
+                raise
+            # 长批次可能跨过 accessToken 生命周期；401 时强制刷新一次，避免整批后半段失败。
+            effective_token = self.auth_client.get_access_token(force_refresh=True)
+            self._current_token = effective_token
+            response = self._send(method, url, params, effective_token, timeout_seconds)
+            response.raise_for_status()
+
         payload = response.json()
         code = payload.get("code")
         if code not in (0, 200):
             messages = payload.get("messages") or [f"API request failed: {api_config.get('api_code')}"]
             raise ValueError(str(messages[0]))
         return payload
+
+    def _send(
+        self,
+        method: str,
+        url: str,
+        params: dict[str, Any],
+        token: AccessToken,
+        timeout_seconds: int,
+    ) -> requests.Response:
+        """发送一次业务请求；调用方负责状态码、业务 code 和重试控制。"""
+        headers = {"accessToken": token.value}
+        if method == "POST":
+            return self.session.post(url, json=params, headers=headers, timeout=timeout_seconds)
+        if method == "GET":
+            return self.session.get(url, params=params, headers=headers, timeout=timeout_seconds)
+        raise ValueError(f"unsupported API method: {method}")
 
     def request_url(self, api_config: dict[str, Any]) -> str:
         """根据单个 API 配置生成完整请求 URL。"""
