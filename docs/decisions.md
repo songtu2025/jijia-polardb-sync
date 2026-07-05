@@ -1890,3 +1890,14 @@
 - 阶段 11K 覆盖矩阵刷新后为公开文档 API 185 个、真实配置 API 50 个、enabled 36 个；执行分层为 `configured=50`、`configured_enabled=36`、`configured_disabled=14`、`needs_upstream_params=63`、`needs_sensitive_review=22`、`defer_or_review=50`。
 - 阶段 11K 已运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests` 和 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，82 个测试通过。
 - 阶段 11K 结论：`procure_detail` 已推进到 1103/1153，仍不应 enabled；11L 继续复用 100 窗口推进剩余约 50 个采购单号，重点核验 checkpoint 从 `next_param_offset=1103` 推进到约 1153；11L 完成后不需要三轮复盘，下一次三轮复盘放在 11M 完成后。
+- 阶段 11L 不改 YAML，继续复用 `procure_detail.param_source.limit=100`；原因是剩余历史缺口只有约 50 个，先补齐历史覆盖比直接启用 daily 更符合完整拉取目标。
+- 阶段 11L 起点 DB 确认 `procure_detail.enabled=0`、`config_json.enabled=false`、`param_source.limit=100`，历史 raw 为 1103 条、1103 个 hash，checkpoint 为 `next_param_offset=1103`。
+- 阶段 11L 已运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api procure_detail`，批次 `sync_20260705_114922_155625` 成功，50 次请求，写入 50 条。
+- 阶段 11L 单接口批次 `sync_batch.status=success`、`total_api_count=1`、`success_api_count=1`、`failed_api_count=0`；`sync_api_log.request_count=50`、`success_count=50`、`failed_count=0`、`error_message=NULL`。
+- 阶段 11L 单接口 raw 为 50 条、0 个主键、50 个 hash、空对象 0；`procure_detail` 累计 raw 为 1153 条、1153 个 hash，`failed_request_log=0`。
+- 阶段 11L 后 `procure_detail` checkpoint 为 `param_offset=1103`、`param_limit=100`、`next_param_offset=1153`，DB 配置仍为 `enabled=0`、`config_json.enabled=false`、`param_source.limit=100`。
+- 阶段 11L DB 覆盖核验显示完整 `lot_no_page` 去重采购单号为 1153 个，`procure_detail` 已覆盖 1153 条，当前历史覆盖追平。
+- 阶段 11L 已同步 API 配置 52 条；dry-run 仍显示 36 个 enabled API，确认未误启用 `procure_detail`。
+- 阶段 11L 覆盖矩阵刷新后为公开文档 API 185 个、真实配置 API 50 个、enabled 36 个；执行分层为 `configured=50`、`configured_enabled=36`、`configured_disabled=14`、`needs_upstream_params=63`、`needs_sensitive_review=22`、`defer_or_review=50`。
+- 阶段 11L 已运行 `.\\.venv\\Scripts\\python.exe -m compileall app tests` 和 `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，82 个测试通过。
+- 阶段 11L 结论：`procure_detail` 已追平到 1153/1153，但仍不直接 enabled；11M 应先从 `next_param_offset=1153` 再跑单接口空缺口/no-op 验证，证明不会重复请求历史数据，再决定是否改为 enabled 并运行完整 `--sync-enabled`。
