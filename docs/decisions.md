@@ -1978,3 +1978,11 @@
 - 阶段 11W 证据：同批次 `inventory_adjustments_page` 请求 583 次、成功计数 58239、失败 0；同批次 `failed_request_log` 为 0。
 - 阶段 11W 证据：覆盖矩阵刷新后为公开文档 API 185 个、真实配置 API 50 个、enabled 43 个、configured disabled 7 个。
 - 阶段 11W 结论：`inventory_adjustments_page` 已完成当前账号可访问数据全量拉取并进入 daily enabled；下一阶段 11X 应从剩余 7 个 disabled API 中继续选择低风险目标。
+- 阶段 11X 决策：从剩余 configured disabled API 中选择 `purchase_sale_storage_fba_page` 推进；理由是该接口是直读分页报表，有稳定主键 `id`，当前总量 58955 条、约 590 页，风险低于参数型详情、费用类、无主键日期明细和百万级库存事件/库龄接口。
+- 阶段 11X 决策：将 `purchase_sale_storage_fba_page.enabled=true`，并把 `page.max_pages` 从 1 调整为 600，以覆盖当前 590 页全量窗口。
+- 阶段 11X 证据：单接口批次 `sync_20260706_012628_594045` 成功，590 次请求、58955 条成功计数、失败 0；checkpoint 为 `last_page=590`、`request_count=590`、`item_count=58955`、`total_count=58955`。
+- 阶段 11X 证据：DB 显示 `purchase_sale_storage_fba_page` 累计 raw 为 58955 条、58955 个 `source_primary_key`、58955 个不同主键、58955 个 `data_hash`，`data_date` 覆盖 `2022-09-15` 到 `2023-04-06`。
+- 阶段 11X 证据：完整 enabled 批次 `sync_20260706_013950_766695` 成功，44 个 API 全成功，5264 次请求，526526 条成功计数，失败 0，耗时 6523 秒。
+- 阶段 11X 证据：同批次 `purchase_sale_storage_fba_page` 请求 590 次、成功计数 58955、失败 0；同批次 `failed_request_log` 为 0。
+- 阶段 11X 证据：覆盖矩阵刷新后为公开文档 API 185 个、真实配置 API 50 个、enabled 44 个、configured disabled 6 个。
+- 阶段 11X 结论：`purchase_sale_storage_fba_page` 已完成当前账号可访问数据全量拉取并进入 daily enabled；下一阶段 11Y 应从剩余 6 个 disabled API 中继续选择低风险目标，并在完成后复盘 11W-11Y。

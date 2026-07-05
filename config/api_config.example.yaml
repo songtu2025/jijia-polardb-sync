@@ -1129,10 +1129,10 @@ apis:
       page: 1
       pagesize: 100
 
-  # 第四十五个真实文档接口：FBA进销存列表，文档 id=232，MSKU 数量维度体量较大，默认保持 disabled。
+  # 第四十五个真实文档接口：FBA进销存列表，文档 id=232，MSKU 数量维度已完成小窗口验证，本轮扩大到完整分页窗口。
   - api_code: purchase_sale_storage_fba_page
     name: 查询FBA进销存列表
-    enabled: false
+    enabled: true
     method: POST
     path: /purchase/inventory/purchaseSaleStorageFba/page
     page:
@@ -1140,7 +1140,7 @@ apis:
       page_no_field: page
       page_size_field: pagesize
       page_size: 100
-      max_pages: 1
+      max_pages: 600
       list_field: data.rows
       total_field: data.total
     primary_key:

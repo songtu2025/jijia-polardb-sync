@@ -25,29 +25,30 @@
 
 当前阶段：
 
-阶段 11W 已完成。下一阶段 11X 继续推进完整拉取。`inventory_adjustments_page` 已完成 583 页全量同步并进入 enabled 主链路；当前真实配置 API 为 50 个，enabled API 为 43 个，configured disabled 为 7 个。
+阶段 11X 已完成。下一阶段 11Y 继续推进完整拉取，并在完成后复盘 11W-11Y 三轮。`purchase_sale_storage_fba_page` 已完成 590 页全量同步并进入 enabled 主链路；当前真实配置 API 为 50 个，enabled API 为 44 个，configured disabled 为 6 个。
 
 当前事实：
 
-- 当前 enabled API 有 43 个：`amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`、`product_page`、`amazon_msku_page`、`parent_product_page`、`kb_product_page`、`fba_warehouse_page`、`store_location_page`、`multi_shop_query`、`platform_msku_page`、`crm_tags_page`、`inventory_team_query`、`fba_inventory_page`、`fba_inventory_v2_page`、`inventory_adjustments_page`、`product_inventory_page`、`storage_inbound_page`、`transfer_page`、`lot_no_page`、`procure_detail`、`storage_return_page`、`strategy_template_page`、`traffic_analysis_page`、`traffic_page`、`traffic_sku_page`、`shipment_data_page`、`storage_ledger_page`、`storage_ledger_month_page`、`inventory_receipts_page`、`purchase_plan_page`、`product_detail`、`country_province_query`、`transfer_detail`、`lot_no_detail`、`base_currency_query`。
-- 当前已配置真实 API 有 50 个，其中 43 个已 enabled；剩余 7 个真实配置 API 已验证但保持 disabled。
-- `inventory_adjustments_page` 当前配置为 `enabled=true`、`page_size=100`、`max_pages=600`、`primary_key.field=id`、`date_field=marketTimeZone`。
-- 阶段 11W 单接口批次 `sync_20260705_231507_824474` 成功，`inventory_adjustments_page` 583 次请求、58239 条成功计数、失败 0。
-- `inventory_adjustments_page` checkpoint 当前为 `last_page=583`、`request_count=583`、`item_count=58239`、`total_count=58239`。
-- `inventory_adjustments_page` 当前 raw 为 58239 条、58239 个 `source_primary_key`、58239 个不同主键、58239 个 `data_hash`，`data_date` 覆盖 `2021-02-01` 到 `2023-02-16`。
-- 阶段 11W 完整 enabled 批次 `sync_20260705_232349_206209` 成功，43 个 API 全成功，4681 次请求，467571 条成功计数，失败 0，耗时 5997 秒。
-- 同批次 `inventory_adjustments_page` 为 `status=success`、`request_count=583`、`success_count=58239`、`failed_count=0`、`error_message=NULL`。
+- 当前 enabled API 有 44 个：`amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`、`product_page`、`amazon_msku_page`、`parent_product_page`、`kb_product_page`、`fba_warehouse_page`、`store_location_page`、`multi_shop_query`、`platform_msku_page`、`crm_tags_page`、`inventory_team_query`、`fba_inventory_page`、`fba_inventory_v2_page`、`inventory_adjustments_page`、`product_inventory_page`、`storage_inbound_page`、`transfer_page`、`lot_no_page`、`procure_detail`、`storage_return_page`、`strategy_template_page`、`traffic_analysis_page`、`traffic_page`、`traffic_sku_page`、`shipment_data_page`、`storage_ledger_page`、`storage_ledger_month_page`、`inventory_receipts_page`、`purchase_sale_storage_fba_page`、`purchase_plan_page`、`product_detail`、`country_province_query`、`transfer_detail`、`lot_no_detail`、`base_currency_query`。
+- 当前已配置真实 API 有 50 个，其中 44 个已 enabled；剩余 6 个真实配置 API 已验证但保持 disabled。
+- `purchase_sale_storage_fba_page` 当前配置为 `enabled=true`、`page_size=100`、`max_pages=600`、`primary_key.field=id`、`date_field=updateTime`、`type=MSKU`、`valueType=QUANTITY`。
+- 阶段 11X 单接口批次 `sync_20260706_012628_594045` 成功，`purchase_sale_storage_fba_page` 590 次请求、58955 条成功计数、失败 0。
+- `purchase_sale_storage_fba_page` checkpoint 当前为 `last_page=590`、`request_count=590`、`item_count=58955`、`total_count=58955`。
+- `purchase_sale_storage_fba_page` 当前 raw 为 58955 条、58955 个 `source_primary_key`、58955 个不同主键、58955 个 `data_hash`，`data_date` 覆盖 `2022-09-15` 到 `2023-04-06`。
+- 阶段 11X 完整 enabled 批次 `sync_20260706_013950_766695` 成功，44 个 API 全成功，5264 次请求，526526 条成功计数，失败 0，耗时 6523 秒。
+- 同批次 `purchase_sale_storage_fba_page` 为 `status=success`、`request_count=590`、`success_count=58955`、`failed_count=0`、`error_message=NULL`。
 - 同批次 `failed_request_log` 失败请求数为 0。
-- 覆盖矩阵显示公开文档 API 185 个，真实配置 API 50 个，enabled 43 个；执行分层摘要为 `configured=50`、`configured_enabled=43`、`configured_disabled=7`、`needs_upstream_params=63`、`needs_sensitive_review=22`、`defer_or_review=50`。
-- 阶段 11W dry-run 显示 loaded 43 enabled API config(s)。
-- 下一次三轮复盘放在 11Y 完成后；当前三轮窗口是 11W、11X、11Y。
+- 覆盖矩阵显示公开文档 API 185 个，真实配置 API 50 个，enabled 44 个；执行分层摘要为 `configured=50`、`configured_enabled=44`、`configured_disabled=6`、`needs_upstream_params=63`、`needs_sensitive_review=22`、`defer_or_review=50`。
+- 阶段 11X dry-run 显示 loaded 44 enabled API config(s)。
+- 11Y 完成后需要做 11W-11Y 三轮复盘。
 
 建议目标：
 
-- 只读盘点剩余 configured disabled API：`market_inventory_query`、`storage_inbound_detail`、`delivery_fee_query`、`inventory_event_page`、`inventory_age_page`、`storage_ledger_detail_page`、`purchase_sale_storage_fba_page`。
-- 优先从主键明确、分页可控或已具备日期窗口的接口中选择下一阶段目标。
+- 只读盘点剩余 configured disabled API：`market_inventory_query`、`storage_inbound_detail`、`delivery_fee_query`、`inventory_event_page`、`inventory_age_page`、`storage_ledger_detail_page`。
+- 优先从主键明确、分页可控、已有日期窗口或缺失扫描边界可证明的接口中选择下一阶段目标。
 - 不要直接启用超大接口：`inventory_event_page` 当前约 2669068 条，`inventory_age_page` 当前约 6597161 条且响应慢。
 - 参数型详情接口和费用类接口必须先证明缺失扫描或字段过滤不会重复拉取全部历史，也不会漏扫新增来源参数。
+- 如选择 `storage_ledger_detail_page`，必须先确认单日窗口 `item_count == total_count`，并谨慎处理无稳定主键、仅靠 `data_hash` 幂等的事实边界。
 - 如选择新接口，继续按“default-disabled candidate -> 单接口验证 -> enabled 评估 -> `--sync-api-configs` -> dry-run -> 必要时 `--sync-enabled` -> docs”闭环推进。
 
 验收：
@@ -55,6 +56,6 @@
 - 新接口、完整窗口或 enabled 评估必须由公开文档、覆盖矩阵、真实请求、数据库只读查询或测试证明，不靠猜测字段。
 - 如启用接口，必须证明 `api_config.enabled=1`、dry-run enabled 数量变化正确，并用真实同步批次证明成功；涉及缺失扫描时必须先证明不会重复拉取全部历史，也不会漏扫新增来源参数。
 - 如调整参数型详情接口的幂等或缺失扫描逻辑，必须先证明旧数据不丢、新数据可发现，并用测试覆盖关键逻辑；如推进日期窗口，必须证明 `item_count == total_count` 或者明确说明接口返回总量为 0。
-- `api_config` 与覆盖矩阵显示真实配置 API 或 enabled 数量符合本轮目标；当前基线是真实配置 API 50 个、enabled 43 个、configured disabled 7 个。
+- `api_config` 与覆盖矩阵显示真实配置 API 或 enabled 数量符合本轮目标；当前基线是真实配置 API 50 个、enabled 44 个、configured disabled 6 个。
 - `compileall` 和 `unittest discover` 通过。
 - 继续保持 `.env`、token 缓存、日志和真实凭证不提交。
