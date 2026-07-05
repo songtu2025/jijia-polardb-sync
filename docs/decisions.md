@@ -1986,3 +1986,16 @@
 - 阶段 11X 证据：同批次 `purchase_sale_storage_fba_page` 请求 590 次、成功计数 58955、失败 0；同批次 `failed_request_log` 为 0。
 - 阶段 11X 证据：覆盖矩阵刷新后为公开文档 API 185 个、真实配置 API 50 个、enabled 44 个、configured disabled 6 个。
 - 阶段 11X 结论：`purchase_sale_storage_fba_page` 已完成当前账号可访问数据全量拉取并进入 daily enabled；下一阶段 11Y 应从剩余 6 个 disabled API 中继续选择低风险目标，并在完成后复盘 11W-11Y。
+- 阶段 11Y 决策：从剩余 configured disabled API 中选择 `storage_ledger_detail_page` 推进；理由是该接口已有 `date_window`，可按完整日窗口推进，风险低于百万级库存事件、库龄和参数/费用类接口。
+- 阶段 11Y 发现：历史单页样本曾把 checkpoint 从 `2026-07-02` 推到 `2026-07-03`，但只写入 100/27104 条；当前代码已有日期窗口截断保护，因此本轮先修正 checkpoint 再补全窗口。
+- 阶段 11Y 决策：将 `storage_ledger_detail_page.page.max_pages` 从 1 调整为 320，并增加 `date_window.lag_days=1`，先保持 `enabled=false` 完成窗口追平。
+- 阶段 11Y 证据：单接口批次 `sync_20260706_034129_905604`、`sync_20260706_034805_243943`、`sync_20260706_035340_964565`、`sync_20260706_035641_195931` 分别补齐 `2026-07-02` 至 `2026-07-05`，成功计数为 27104、24261、12437、1350，失败均为 0。
+- 阶段 11Y 证据：追平 no-op 批次 `sync_20260706_035711_433622` 成功，请求 0 次、写入 0 条，checkpoint 为 `next_window_start=2026-07-06`、`skipped_reason=date_window_caught_up`。
+- 阶段 11Y 决策：`storage_ledger_detail_page` 无稳定业务主键，进入 enabled 后仍使用 `data_hash` 做原始明细幂等，不编造主键。
+- 阶段 11Y 决策：将 `storage_ledger_detail_page.enabled=true`，并把 enabled 基线从 44 个增至 45 个。
+- 阶段 11Y 证据：DB 配置显示 `storage_ledger_detail_page.enabled=1`、`config_json.enabled=true`、`max_pages=320`、`lag_days=1`；dry-run 显示 loaded 45 enabled API config(s)。
+- 阶段 11Y 证据：完整 enabled 批次 `sync_20260706_040245_562729` 成功，45 个 API 全成功，5264 次请求，526526 条成功计数，失败 0，耗时 6924 秒。
+- 阶段 11Y 证据：同批次 `storage_ledger_detail_page` 请求 0 次、成功计数 0、失败 0；同批次 `failed_request_log` 为 0。
+- 阶段 11Y 证据：覆盖矩阵刷新后为公开文档 API 185 个、真实配置 API 50 个、enabled 45 个、configured disabled 5 个。
+- 阶段 11W-11Y 复盘：11W 启用 `inventory_adjustments_page`，11X 启用 `purchase_sale_storage_fba_page`，11Y 启用 `storage_ledger_detail_page`；三轮把 enabled API 从 42 个推进到 45 个，configured disabled 从 8 个降至 5 个。
+- 阶段 11Y 结论：`storage_ledger_detail_page` 已完成当前可同步日期窗口的完整拉取并进入 daily enabled；下一阶段 11Z 应从剩余 5 个 disabled API 中继续选择低风险目标。

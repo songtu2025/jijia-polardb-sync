@@ -1033,10 +1033,10 @@ apis:
       pagesize: 500
       model: {}
 
-  # 第四十七个真实文档接口：FBA库存分类账详细视图，文档 id=773，日期字段在 model 内，默认保持 disabled。
+  # 第四十七个真实文档接口：FBA库存分类账详细视图，文档 id=773，已完成完整日窗口验证并加入 enabled。
   - api_code: storage_ledger_detail_page
     name: FBA库存分类账-详细视图列表查询
-    enabled: false
+    enabled: true
     method: POST
     path: /purchase/inventory/storageLedgerDetail/page
     page:
@@ -1044,7 +1044,7 @@ apis:
       page_no_field: page
       page_size_field: pagesize
       page_size: 100
-      max_pages: 1
+      max_pages: 320
       list_field: data.rows
       total_field: data.total
     primary_key:
@@ -1057,6 +1057,7 @@ apis:
       end_field: model.endReportDate
       default_start: "2026-07-02"
       days: 1
+      lag_days: 1
     rate_limit:
       sleep_seconds: 0.5
     retry:

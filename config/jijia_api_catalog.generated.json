@@ -8,7 +8,7 @@
     "detail_success_count": 185,
     "detail_error_count": 0,
     "configured_real_api_count": 50,
-    "configured_enabled_real_api_count": 44,
+    "configured_enabled_real_api_count": 45,
     "classification_counts": {
       "direct_read_candidate": 57,
       "requires_upstream_params": 77,
@@ -22,8 +22,8 @@
       "needs_upstream_params": 63
     },
     "execution_stage_counts": {
-      "configured_disabled": 6,
-      "configured_enabled": 44,
+      "configured_disabled": 5,
+      "configured_enabled": 45,
       "defer_write_or_mutation": 28,
       "known_risk_review": 2,
       "needs_param_source": 63,
@@ -2167,10 +2167,10 @@
       "has_list_response": false,
       "has_sensitive_response_fields": false,
       "configured_api_code": "storage_ledger_detail_page",
-      "configured_enabled": false,
+      "configured_enabled": true,
       "execution_bucket": "configured",
-      "execution_stage": "configured_disabled",
-      "execution_reason": "已配置但默认关闭，需按数据量、窗口和批量耗时评估后再启用。"
+      "execution_stage": "configured_enabled",
+      "execution_reason": "已进入 enabled 批量同步。"
     },
     {
       "doc_id": 1036,
