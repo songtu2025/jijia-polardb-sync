@@ -10,7 +10,7 @@ class TrafficAnalysisPageConfigTest(unittest.TestCase):
             for api in load_api_configs("config/api_config.example.yaml")
         }
 
-    def test_traffic_analysis_page_uses_date_window_and_stays_disabled(self):
+    def test_traffic_analysis_page_uses_full_date_window_and_stays_disabled(self):
         self.assertIn("traffic_analysis_page", self.apis)
         api = self.apis["traffic_analysis_page"]
 
@@ -20,8 +20,8 @@ class TrafficAnalysisPageConfigTest(unittest.TestCase):
         self.assertTrue(api["page"]["enabled"])
         self.assertEqual(api["page"]["page_no_field"], "page")
         self.assertEqual(api["page"]["page_size_field"], "pagesize")
-        self.assertEqual(api["page"]["page_size"], 100)
-        self.assertEqual(api["page"]["max_pages"], 1)
+        self.assertEqual(api["page"]["page_size"], 500)
+        self.assertEqual(api["page"]["max_pages"], 8)
         self.assertEqual(api["page"]["list_field"], "data.rows")
         self.assertEqual(api["page"]["total_field"], "data.total")
         self.assertEqual(api["primary_key"]["field"], "")
@@ -31,9 +31,11 @@ class TrafficAnalysisPageConfigTest(unittest.TestCase):
         self.assertEqual(api["date_window"]["end_field"], "endDate")
         self.assertEqual(api["date_window"]["default_start"], "2026-07-02")
         self.assertEqual(api["date_window"]["days"], 1)
+        self.assertEqual(api["rate_limit"]["sleep_seconds"], 65)
+        self.assertEqual(api["retry"]["retries"], 1)
         self.assertEqual(api["params"]["currency"], "CNY")
         self.assertEqual(api["params"]["page"], 1)
-        self.assertEqual(api["params"]["pagesize"], 100)
+        self.assertEqual(api["params"]["pagesize"], 500)
 
 
 if __name__ == "__main__":

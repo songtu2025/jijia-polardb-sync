@@ -861,7 +861,7 @@ apis:
       pagesize: 100
       model: {}
 
-  # 第四十一个真实文档接口：流量数据-ASIN，文档 id=1018，接口限流较严，使用 date_window 做单页单日窗口验证，默认保持 disabled。
+  # 第四十一个真实文档接口：流量数据-ASIN，文档 id=1018，接口限流较严，使用 date_window 做完整单日窗口验证，默认保持 disabled。
   - api_code: traffic_analysis_page
     name: 流量数据-ASIN
     enabled: false
@@ -871,8 +871,8 @@ apis:
       enabled: true
       page_no_field: page
       page_size_field: pagesize
-      page_size: 100
-      max_pages: 1
+      page_size: 500
+      max_pages: 8
       list_field: data.rows
       total_field: data.total
     primary_key:
@@ -886,14 +886,14 @@ apis:
       default_start: "2026-07-02"
       days: 1
     rate_limit:
-      sleep_seconds: 0.2
+      sleep_seconds: 65
     retry:
-      retries: 3
+      retries: 1
       delay_seconds: 1
     params:
       currency: CNY
       page: 1
-      pagesize: 100
+      pagesize: 500
 
   # 第五十个真实文档接口：流量统计-ASIN，文档 id=122，已完成完整单日窗口验证并加入 daily enabled。
   - api_code: traffic_page

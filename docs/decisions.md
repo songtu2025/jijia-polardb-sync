@@ -1914,3 +1914,9 @@
 - 阶段 11N 证据：单接口缺失扫描批次 `sync_20260705_121606_608741` 成功，请求 0 次、写入 0 条，`missing_by_pk=0`。
 - 阶段 11N 证据：完整 enabled 批次 `sync_20260705_121739_107135` 成功，37 个 API 全成功，3230 次请求，323340 条成功计数；同批次 `procure_detail` 请求 0 次、写入 0 条、失败 0。
 - 阶段 11N 结论：`procure_detail` 已具备 daily 增量边界并进入 enabled；enabled API 从 36 增至 37，configured disabled 从 14 降至 13。
+- 阶段 11O 决策：`traffic_analysis_page` 先补齐完整单日窗口，不直接进入 enabled。
+- 阶段 11O 证据：起点 `traffic_analysis_page` 只有早期单页窗口，checkpoint 已从 `2026-07-02` 推到 `2026-07-03`，但当时只写入 100 条且旧 total 为 528。
+- 阶段 11O 决策：将 `traffic_analysis_page` 改为 `page_size=500`、`max_pages=8`、`rate_limit.sleep_seconds=65`、`retry.retries=1`，仍保持 `enabled=false`。
+- 阶段 11O 证据：批次 `sync_20260705_134816_571790` 成功补齐 `2026-07-02` CNY 单日窗口，8 次请求、3537 条 raw、`item_count=3537`、`total_count=3537`，checkpoint 推进到 `next_window_start=2026-07-03`。
+- 阶段 11O 证据：紧接着推进 `2026-07-03` 的批次 `sync_20260705_135657_860017` 返回 509，响应消息为“接口调用次数已超过限制次数”，raw 写入 0，checkpoint 未推进。
+- 阶段 11O 结论：`traffic_analysis_page` 平台限流比单批次页间 65 秒更严格，暂不适合进入 enabled；下一阶段应在冷却后继续单接口推进，不应混入完整 `--sync-enabled` 长批次。
