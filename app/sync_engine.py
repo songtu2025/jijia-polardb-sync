@@ -496,7 +496,13 @@ class SyncEngine:
                 payload, attempt_count = self._request_with_retry(api, api_client, token, params)
                 request_count += attempt_count
                 items = self._response_items(payload, api)
-                self._insert_raw_items(connection, api, items, batch_no)
+                self._insert_raw_items(
+                    connection,
+                    api,
+                    items,
+                    batch_no,
+                    source_primary_key=self._source_primary_key_from_params(api, params),
+                )
                 item_count += len(items)
                 self._sleep_between_param_requests(api, index, total_count)
 
@@ -566,6 +572,7 @@ class SyncEngine:
         api: dict[str, Any],
         items: list[dict[str, Any]],
         batch_no: str,
+        source_primary_key: str | None = None,
     ) -> None:
         """把接口原始数据批量写入 raw_api_data。
 
@@ -580,11 +587,13 @@ class SyncEngine:
         primary_key_field = (api.get("primary_key") or {}).get("field")
         rows = []
         for item in items:
-            source_primary_key = str(item.get(primary_key_field)) if primary_key_field else None
+            item_primary_key = source_primary_key
+            if item_primary_key is None and primary_key_field:
+                item_primary_key = str(item.get(primary_key_field))
             rows.append(
                 {
                     "api_code": api_code,
-                    "source_primary_key": source_primary_key,
+                    "source_primary_key": item_primary_key,
                     "data_hash": self._data_hash(item),
                     "raw_json": json.dumps(item, ensure_ascii=False, sort_keys=True, default=str),
                     "data_date": self._data_date(api, item),
@@ -604,6 +613,7 @@ class SyncEngine:
                   :data_date, :sync_batch_no
                 )
                 ON DUPLICATE KEY UPDATE
+                  source_primary_key = COALESCE(NULLIF(VALUES(source_primary_key), ''), source_primary_key),
                   raw_json = VALUES(raw_json),
                   data_date = VALUES(data_date),
                   sync_batch_no = VALUES(sync_batch_no)
@@ -611,6 +621,21 @@ class SyncEngine:
             ),
             rows,
         )
+
+    def _source_primary_key_from_params(self, api: dict[str, Any], params: dict[str, Any]) -> str | None:
+        """从请求参数提取 raw 主键。
+
+        参数型详情接口的稳定业务键有时只存在于请求参数中，例如采购订单详情的
+        `poCode`。这里仅把该值写入 `source_primary_key`，不写回 raw_json，保证
+        `raw_json` 仍是接口返回的原始数据。
+        """
+        param_field = (api.get("primary_key") or {}).get("param_field")
+        if not param_field:
+            return None
+        value = self._get_by_path(params, str(param_field))
+        if value is None or str(value) == "":
+            return None
+        return str(value)
 
     def _insert_api_log(
         self,

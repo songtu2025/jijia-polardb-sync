@@ -1907,3 +1907,10 @@
 - 阶段 11M 理由：当前 `procure_detail` raw 的 `source_primary_key` 全空，顶层 `poCode`、`procureId`、`id` 均无覆盖；现有 offset 参数源能证明历史回填窗口完成，但不能证明未来新增 `lot_no_page.poCode` 在排序变化后一定不会被 offset 跳过。
 - 阶段 11M 决策：下一阶段优先解决稳定键或缺失扫描语义，而不是为追求 enabled 数量直接启用。
 - 阶段 11M 复盘：11K、11L、11M 三轮把 `procure_detail` 从 1003/1153 推进到 1153/1153，并完成 no-op 验证；完整历史拉取目标已在该接口上达成，但 daily 增量边界仍需单独验证。
+- 阶段 11N 决策：`procure_detail` 使用请求参数 `poCode` 作为 `raw_api_data.source_primary_key`，不把该参数写回 `raw_json`，保持原始响应不被污染。
+- 阶段 11N 证据：`warehouseProcureItemVos[].procureItemVos[].code` 在 1153 条 `procure_detail` raw 中每条恰好 1 个不同 code；该 code 集合与 `lot_no_page.raw_json.poCode` 的 1153 个去重值完全重合。
+- 阶段 11N 决策：历史 `procure_detail` raw 一次性回填 `source_primary_key`，从 1153 条空主键变为 1153 条非空主键、1153 个不同主键。
+- 阶段 11N 决策：`procure_detail` 配置新增 `primary_key.param_field=poCode` 和 `param_source.exclude_existing_target=true`，并将 `enabled=true`。
+- 阶段 11N 证据：单接口缺失扫描批次 `sync_20260705_121606_608741` 成功，请求 0 次、写入 0 条，`missing_by_pk=0`。
+- 阶段 11N 证据：完整 enabled 批次 `sync_20260705_121739_107135` 成功，37 个 API 全成功，3230 次请求，323340 条成功计数；同批次 `procure_detail` 请求 0 次、写入 0 条、失败 0。
+- 阶段 11N 结论：`procure_detail` 已具备 daily 增量边界并进入 enabled；enabled API 从 36 增至 37，configured disabled 从 14 降至 13。
