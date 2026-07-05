@@ -2,7 +2,7 @@
 
 ## Current Stage
 
-阶段 11O 已完成。`traffic_analysis_page` 已从单页验证配置升级为完整单日窗口配置，并补齐 `2026-07-02` 单日 CNY 窗口 3537/3537 条；但紧接着推进 `2026-07-03` 时触发平台 509 限流，暂不进入 enabled。当前真实配置 API 为 50 个，enabled API 为 37 个，configured disabled 为 13 个。
+阶段 11P 已完成。`traffic_analysis_page` 已在限流冷却后补齐 `2026-07-03` 单日 CNY 窗口 3548/3548 条，checkpoint 推进到 `2026-07-04`，但仍保持 disabled；当前真实配置 API 为 50 个，enabled API 为 37 个，configured disabled 为 13 个。11N-11P 三轮复盘已完成。
 
 ## Completed
 
@@ -5503,6 +5503,31 @@
   - 下一阶段应在冷却后继续从 checkpoint 的 `next_window_start=2026-07-03` 单独运行 `--sync-api traffic_analysis_page`，观察是否能逐日推进；在 7 月 3 日、7 月 4 日窗口稳定完整之前，不应启用。
   - 当前 configured real API 仍为 50 个，enabled 仍为 37 个，configured disabled 仍为 13 个。
 
+## Stage 11P
+
+- 阶段目标：在平台限流冷却后继续推进 `traffic_analysis_page` 的 `2026-07-03` 单日窗口，并完成 11N-11P 三轮复盘。
+- 已完成：
+  - DB 起点确认 `traffic_analysis_page.enabled=0`、`config_json.enabled=false`、`page.max_pages=8`、`page.page_size=500`、`rate_limit.sleep_seconds=65`。
+  - 起点 checkpoint 指向批次 `sync_20260705_134816_571790`，记录 `window_start=2026-07-02`、`item_count=3537`、`total_count=3537`、`next_window_start=2026-07-03`。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api traffic_analysis_page`，通过，批次 `sync_20260705_140151_126629`，8 次请求、写入 3548 条、失败 0。
+  - DB 核验显示批次 `sync_batch.status=success`、`total_api_count=1`、`success_api_count=1`、`failed_api_count=0`。
+  - 同批次 `sync_api_log.status=success`、`request_count=8`、`success_count=3548`、`failed_count=0`、`error_message=NULL`。
+  - 同批次 raw 为 3548 条、3548 个 `data_hash`，`data_date=2026-07-03`；`failed_request_log` 中本批次失败数为 0。
+  - `traffic_analysis_page` checkpoint 已推进为 `window_start=2026-07-03`、`window_end=2026-07-03`、`item_count=3548`、`total_count=3548`、`next_window_start=2026-07-04`。
+  - `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary`，通过，公开文档 API 185 个、真实配置 API 50 个、enabled 37 个；执行分层仍为 `configured=50`、`configured_enabled=37`、`configured_disabled=13`。
+  - `.\\.venv\\Scripts\\python.exe -m app.main` dry-run 显示 loaded 37 enabled API config(s)，确认 `traffic_analysis_page` 未误进入 enabled。
+  - `.\\.venv\\Scripts\\python.exe -m compileall app tests`，通过。
+  - `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"`，通过，83 个测试通过。
+- 11N-11P 复盘：
+  - 11N 将 `procure_detail` 从历史回填接口升级为 enabled 日增量接口，enabled API 从 36 增至 37。
+  - 11O 修正 `traffic_analysis_page` 的完整窗口配置，并补齐 `2026-07-02` 的 3537/3537 条；同日连续推进下一窗口触发平台 509，因此没有 enabled。
+  - 11P 在冷却后补齐 `traffic_analysis_page` 的 `2026-07-03` 窗口 3548/3548 条，证明该接口可以按冷却节奏逐日推进。
+  - 三轮结论：完整拉取能力继续前进，但 `traffic_analysis_page` 仍需要低频单接口调度观察；在 `2026-07-04` 窗口也稳定完整前，不应进入 enabled 长批次。
+- 当前结论：
+  - `traffic_analysis_page` 已连续补齐 `2026-07-02` 和 `2026-07-03` 两个单日窗口，checkpoint 停在 `next_window_start=2026-07-04`。
+  - 由于 11O 已证明连续同批次下一天会触发 509，本轮不立即继续请求 `2026-07-04`；下一阶段应在冷却后再跑。
+  - 当前 configured real API 仍为 50 个，enabled 仍为 37 个，configured disabled 仍为 13 个。
+
 ## Known Issues
 
 - `amazon_shop_page` 第一版以 `data_hash` 去重，不强行编造业务主键。
@@ -5513,7 +5538,7 @@
 - 当前依赖参数来源机制支持从 `raw_api_data.source_primary_key` 取单个参数，也支持从 `raw_json` 点路径提取多个参数、从单层数组路径如 `raw_json.marketListVos[].marketId` 展开一个参数，并可用 `param_source.filters` 做固定等值过滤、用 `param_source.auto_advance` 基于 checkpoint 推进窗口；`source_primary_key` 和 `raw_json` 点路径参数源均已支持 `exclude_existing_target=true` 按目标表缺失主键做增量拾取；参数型详情接口还支持用 `primary_key.param_field` 把请求参数写入 raw 主键但不污染 `raw_json`；响应提取机制已支持列表、单对象和标量包装；`product_detail`、`transfer_detail`、`lot_no_detail` 和 `procure_detail` 已通过该机制进入 enabled；另有 111307 个库存参数对或 142281 个发货单号尚未纳入生产级调度。
 - `primary_key.required=true` 会过滤缺少必填主键的响应对象，避免详情接口返回全空对象时写入 `source_primary_key="None"` 的 raw。
 - 覆盖矩阵是公开文档视角，不等同于当前账号真实授权可调用结果；真实可访问性仍需单接口运行验证。
-- `purchase_plan_page` 当前总量为 0 条，已进入 enabled；`storage_return_page` 当前总量为 1 条；`strategy_template_page` 当前总量为 19 条；`country_province_query` 已覆盖当前 6 个国家/区域码并进入 enabled，追平批次中请求 0 次；`transfer_page` 当前总量为 6759 条，已进入 enabled，请求约 68 页；`lot_no_page` 当前总量为 8631 条，已进入 enabled，请求约 87 页；`procure_detail` 当前覆盖 1153/1153 个采购单号，已进入 enabled，缺失扫描批次中请求 0 次；`transfer_detail` 已覆盖 6499/6499 个调拨单详情并进入 enabled，空缺口批次中请求 0 次；`lot_no_detail` 已覆盖 8261/8261 个 LNInbound 交货单详情并进入 enabled，空缺口批次中请求 0 次；`traffic_analysis_page` 在 `2026-07-02` 单日 CNY 窗口已补齐 3537/3537 条，checkpoint 停在 `next_window_start=2026-07-03`，紧接着请求下一天会触发 509 限流，仍保持 disabled；`traffic_page` 在 `2026-07-02` 单日 CNY/day 窗口总量为 583 条，已进入 enabled，`2026-07-04` 窗口当前返回 0 条并已推进 checkpoint；`traffic_sku_page` 在 `2026-07-02` 单日 CNY/day 窗口总量为 170 条，已进入 enabled，`2026-07-04` 窗口当前返回 0 条并已推进 checkpoint；`shipment_data_page` 在 `2026-07-02` 单日窗口完整验证为 1191 条、12 次请求，已进入 enabled，`2026-07-03` 窗口为 241 条、3 次请求并已推进 checkpoint；`storage_ledger_page` 在 `2026-07-02` 单日窗口当前总量为 1163 条，已进入 enabled，`2026-07-04` 窗口当前返回 0 条并已推进 checkpoint；`storage_ledger_detail_page` 在 `2026-07-02` 单日窗口总量为 27104 条；`storage_ledger_month_page` 在 `2026-06` 月窗口总量为 6044 条；`inventory_receipts_page` 在 `2026-07-02` 单日窗口总量为 735 条，在 `2026-07-03` 单日窗口总量为 157 条，已进入 enabled，`2026-07-04` 窗口当前返回 0 条并已推进 checkpoint；`purchase_sale_storage_fba_page` 当前 MSKU 数量维度总量为 58955 条；`platform_msku_page` 当前总量为 1707 条，已进入 enabled；`product_page` 当前总量为 8258 条，请求 83 页；`amazon_msku_page` 当前总量为 18430 条，请求约 185 页；`fba_inventory_page` 和 `fba_inventory_v2_page` 当前总量均为 30759 条，请求约 308 页；`inventory_adjustments_page` 当前总量为 58239 条，请求约 583 页；`product_inventory_page` 当前总量为 118653 条，请求 1187 页；`storage_inbound_page` 当前总量为 174286 条，请求约 1744 页；`inventory_event_page` 当前总量为 2669068 条，请求约 26691 页；`inventory_age_page` 当前总量为 6597161 条，当前小窗口配置为每页 10 条且单页响应很慢。当前 37 个 enabled API 的真实批量同步为 3230 次请求，11N 实测耗时约 4664 秒，必须按长耗时任务安排 cron 窗口。
+- `purchase_plan_page` 当前总量为 0 条，已进入 enabled；`storage_return_page` 当前总量为 1 条；`strategy_template_page` 当前总量为 19 条；`country_province_query` 已覆盖当前 6 个国家/区域码并进入 enabled，追平批次中请求 0 次；`transfer_page` 当前总量为 6759 条，已进入 enabled，请求约 68 页；`lot_no_page` 当前总量为 8631 条，已进入 enabled，请求约 87 页；`procure_detail` 当前覆盖 1153/1153 个采购单号，已进入 enabled，缺失扫描批次中请求 0 次；`transfer_detail` 已覆盖 6499/6499 个调拨单详情并进入 enabled，空缺口批次中请求 0 次；`lot_no_detail` 已覆盖 8261/8261 个 LNInbound 交货单详情并进入 enabled，空缺口批次中请求 0 次；`traffic_analysis_page` 已补齐 `2026-07-02` 的 3537/3537 条和 `2026-07-03` 的 3548/3548 条，checkpoint 停在 `next_window_start=2026-07-04`，仍保持 disabled；`traffic_page` 在 `2026-07-02` 单日 CNY/day 窗口总量为 583 条，已进入 enabled，`2026-07-04` 窗口当前返回 0 条并已推进 checkpoint；`traffic_sku_page` 在 `2026-07-02` 单日 CNY/day 窗口总量为 170 条，已进入 enabled，`2026-07-04` 窗口当前返回 0 条并已推进 checkpoint；`shipment_data_page` 在 `2026-07-02` 单日窗口完整验证为 1191 条、12 次请求，已进入 enabled，`2026-07-03` 窗口为 241 条、3 次请求并已推进 checkpoint；`storage_ledger_page` 在 `2026-07-02` 单日窗口当前总量为 1163 条，已进入 enabled，`2026-07-04` 窗口当前返回 0 条并已推进 checkpoint；`storage_ledger_detail_page` 在 `2026-07-02` 单日窗口总量为 27104 条；`storage_ledger_month_page` 在 `2026-06` 月窗口总量为 6044 条；`inventory_receipts_page` 在 `2026-07-02` 单日窗口总量为 735 条，在 `2026-07-03` 单日窗口总量为 157 条，已进入 enabled，`2026-07-04` 窗口当前返回 0 条并已推进 checkpoint；`purchase_sale_storage_fba_page` 当前 MSKU 数量维度总量为 58955 条；`platform_msku_page` 当前总量为 1707 条，已进入 enabled；`product_page` 当前总量为 8258 条，请求 83 页；`amazon_msku_page` 当前总量为 18430 条，请求约 185 页；`fba_inventory_page` 和 `fba_inventory_v2_page` 当前总量均为 30759 条，请求约 308 页；`inventory_adjustments_page` 当前总量为 58239 条，请求约 583 页；`product_inventory_page` 当前总量为 118653 条，请求 1187 页；`storage_inbound_page` 当前总量为 174286 条，请求约 1744 页；`inventory_event_page` 当前总量为 2669068 条，请求约 26691 页；`inventory_age_page` 当前总量为 6597161 条，当前小窗口配置为每页 10 条且单页响应很慢。当前 37 个 enabled API 的真实批量同步为 3230 次请求，11N 实测耗时约 4664 秒，必须按长耗时任务安排 cron 窗口。
 - `--sync-enabled` 已在 5W 改为批次头、单 API、最终汇总分事务提交，已完成 API 的 raw、log 和 checkpoint 可随 API 完成后提交；但总运行时长仍由接口请求量和数据库写入量决定。
 - 请求参数已支持 `{{ today }}`、`{{ yesterday }}`、`{{ days_ago:N }}` 三类日期模板；`date_window` 已通过 `traffic_analysis_page`、`traffic_page`、`traffic_sku_page`、`shipment_data_page`、`storage_ledger_page`、`storage_ledger_detail_page` 和 `inventory_receipts_page` 真实验证，可用 checkpoint 中的 `next_window_start` 推进历史窗口，支持嵌套字段，并已支持追平当前日期后的自动跳过；日期窗口接口如果 `item_count < total_count` 会记为 failed 且不推进 checkpoint。
 - 后续如果继续增加大分页接口或依赖型批量接口，需要关注运行时长、数据库写入耗时和 cron 窗口。
@@ -5522,16 +5547,16 @@
 
 ## Next Stage
 
-阶段 11P：继续推进完整拉取。`traffic_analysis_page` 已补齐 `2026-07-02` 完整窗口，但仍受平台 509 限流影响；下一阶段应在冷却后继续推进 `2026-07-03` 单日窗口。
+阶段 11Q：继续推进完整拉取。`traffic_analysis_page` 已连续补齐 `2026-07-02` 和 `2026-07-03` 两个完整单日窗口，下一阶段应在冷却后继续推进 `2026-07-04` 单日窗口。
 
 建议目标：
 
 - 继续保持 `traffic_analysis_page.enabled=false`。
-- 从 checkpoint 的 `next_window_start=2026-07-03` 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api traffic_analysis_page`，但必须在平台限流冷却后执行。
+- 从 checkpoint 的 `next_window_start=2026-07-04` 运行 `.\\.venv\\Scripts\\python.exe -m app.main --sync-api traffic_analysis_page`，但必须在平台限流冷却后执行。
 - 如果仍返回 509，不要继续重试；记录失败批次，并评估是否需要把该接口拆到独立低频调度。
-- 如果成功，核验 `item_count == total_count`、checkpoint 推进到 `2026-07-04`、raw 写入和失败日志，再决定是否继续推进 7 月 4 日。
-- 只有连续窗口完整且不会影响 enabled 长批次时，才评估是否进入 enabled；当前不要直接改 enabled。
-- 下一次三轮复盘放在 11P 完成后。
+- 如果成功，核验 `item_count == total_count`、checkpoint 推进到 `2026-07-05`、raw 写入和失败日志，再决定是否继续推进或评估低频调度。
+- 只有 7 月 4 日窗口也稳定完整且不会影响 enabled 长批次时，才评估是否进入 enabled；当前不要直接改 enabled。
+- 下一次三轮复盘放在 11S 完成后。
 - 任何日期窗口完整验证都必须确认 `item_count == total_count`；如触发 `date window page truncated`，应先修正分页上限后重跑。
 - 完成后同步 `api_config`、刷新覆盖矩阵并运行编译与单测。
 

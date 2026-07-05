@@ -1920,3 +1920,7 @@
 - 阶段 11O 证据：批次 `sync_20260705_134816_571790` 成功补齐 `2026-07-02` CNY 单日窗口，8 次请求、3537 条 raw、`item_count=3537`、`total_count=3537`，checkpoint 推进到 `next_window_start=2026-07-03`。
 - 阶段 11O 证据：紧接着推进 `2026-07-03` 的批次 `sync_20260705_135657_860017` 返回 509，响应消息为“接口调用次数已超过限制次数”，raw 写入 0，checkpoint 未推进。
 - 阶段 11O 结论：`traffic_analysis_page` 平台限流比单批次页间 65 秒更严格，暂不适合进入 enabled；下一阶段应在冷却后继续单接口推进，不应混入完整 `--sync-enabled` 长批次。
+- 阶段 11P 决策：继续保持 `traffic_analysis_page.enabled=false`，在限流冷却后单接口推进下一天窗口，不进入 enabled。
+- 阶段 11P 证据：批次 `sync_20260705_140151_126629` 成功补齐 `2026-07-03` CNY 单日窗口，8 次请求、3548 条 raw、`item_count=3548`、`total_count=3548`，checkpoint 推进到 `next_window_start=2026-07-04`。
+- 阶段 11P 复盘：11N 将 `procure_detail` 纳入 enabled，11O 补齐 `traffic_analysis_page` 的 `2026-07-02` 完整窗口，11P 补齐其 `2026-07-03` 完整窗口；enabled 仍为 37，`traffic_analysis_page` 仍需低频单接口节奏观察。
+- 阶段 11P 结论：`traffic_analysis_page` 已证明可按冷却节奏逐日完整拉取，但 11O 的 509 说明不能连续快速推进，也不应直接放进完整 `--sync-enabled` 长批次。
