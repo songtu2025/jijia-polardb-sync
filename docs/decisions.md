@@ -2027,3 +2027,12 @@
 - 阶段 12B 证据：覆盖矩阵刷新后仍为公开文档 API 185 个、真实配置 API 50 个、enabled 45 个、configured disabled 5 个。
 - 阶段 11Z-12B 复盘：三轮围绕 `storage_inbound_detail` 缺失扫描逐步放大窗口，从 6 个历史样本推进到 506、1506、3506 个已覆盖主键；500、1000、2000 三个窗口都证明按目标缺失主键回填可行，但当前覆盖率仍不足，不能 enabled。
 - 阶段 12B 结论：2000 窗口缺失扫描可用；下一阶段 12C 可继续 2000 窗口，或只读评估是否提高到 3000/5000；下一次三轮复盘放在 12E。
+- 阶段 12C 决策：将 `storage_inbound_detail.param_source.limit` 从 2000 提高到 3000；理由是 2000 窗口成功且仍有 17 万级缺口，但 2000 窗口已耗时 1725 秒，因此先提高到 3000，不直接跳到 5000。
+- 阶段 12C 约束：`storage_inbound_detail` 继续保持 `enabled=false`、`auto_advance=true` 和 `exclude_existing_target=true`，不进入 enabled 主链路。
+- 阶段 12C 证据：目标测试先失败于旧配置 `limit=2000`，修改 YAML 后与 `tests.test_product_detail_param_source` 一起通过，确认未误改相邻 `product_detail` 配置。
+- 阶段 12C 证据：配置同步后 dry-run 仍显示 loaded 45 enabled API config(s)，DB 显示 `storage_inbound_detail.enabled=0`、`param_source.limit=3000`、`exclude_existing_target=true`。
+- 阶段 12C 证据：单接口批次 `sync_20260706_072021_923826` 成功，3000 次请求、3000 条成功计数、失败 0，耗时 2041 秒。
+- 阶段 12C 证据：本批次 raw 为 3000 条、3000 个 `source_primary_key`、3000 个不同主键、3000 个 `data_hash`，`data_date` 覆盖 `2024-02-01` 到 `2024-06-11`。
+- 阶段 12C 证据：`storage_inbound_detail` 累计覆盖增至 6506/174334；本批次和该 API 累计 `failed_request_log` 均为 0。
+- 阶段 12C 证据：覆盖矩阵重跑后仍为公开文档 API 185 个、真实配置 API 50 个、enabled 45 个、configured disabled 5 个；第一次 120 秒工具窗口超时后无残留进程和文件 diff，使用 300 秒超时重跑成功。
+- 阶段 12C 结论：3000 窗口缺失扫描可用；下一阶段 12D 可继续 3000 窗口，或只读评估是否提高到 5000；下一次三轮复盘仍放在 12E。
