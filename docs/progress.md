@@ -2,7 +2,7 @@
 
 ## Current Stage
 
-阶段 12C 已完成。`storage_inbound_detail` 缺失扫描窗口已从 2000 提高到 3000，本轮补齐 3000 个缺失入库单详情；当前真实配置 API 为 50 个，enabled API 为 45 个，configured disabled 为 5 个。
+阶段 12D 已完成。`storage_inbound_detail` 缺失扫描窗口已从 3000 提高到 5000，本轮补齐 5000 个缺失入库单详情；当前真实配置 API 为 50 个，enabled API 为 45 个，configured disabled 为 5 个。
 
 ## Completed
 
@@ -5843,13 +5843,32 @@
   - `storage_inbound_detail` 的 3000 窗口缺失扫描已跑通，耗时 2041 秒，单轮效率优于 2000 窗口。
   - 该接口仍不应 enabled；下一阶段可继续 3000 窗口回填，或先只读评估是否提高到 5000。
 
+## Stage 12D
+
+- 阶段目标：继续推进 `storage_inbound_detail` 缺失扫描回填，并在 3000 窗口成功后提高到 5000。
+- 已完成：
+  - DB 起点确认 `storage_inbound_detail` 配置为 `enabled=0`、`param_source.limit=3000`、`exclude_existing_target=true`、`auto_advance=true`，累计覆盖 6506/174334，失败请求为 0。
+  - TDD 红灯：更新 `tests/test_storage_inbound_detail_param_source.py`，要求 `storage_inbound_detail.param_source.limit=5000`，测试先失败于旧配置 `limit=3000`。
+  - 将 `storage_inbound_detail.param_source.limit` 从 3000 调整为 5000，继续保持 `enabled=false`、`auto_advance=true` 和 `exclude_existing_target=true`。
+  - 目标测试和相邻 `tests.test_product_detail_param_source` 一起通过，确认未误改 `product_detail.param_source.limit=500`。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs`，通过，DB 同步 API 配置 52 条。
+  - `.\\.venv\\Scripts\\python.exe -m app.main` dry-run 显示 loaded 45 enabled API config(s)，确认 `storage_inbound_detail` 仍未进入 enabled。
+  - DB 配置确认 `storage_inbound_detail.enabled=0`、`param_source.limit=5000`、`exclude_existing_target=true`、`auto_advance=true`。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api storage_inbound_detail`，通过，批次 `sync_20260706_081235_083788`，5000 次请求、5000 条成功计数、失败 0，耗时 4241 秒。
+  - DB 核验显示本批次 raw 为 5000 条、5000 个 `source_primary_key`、5000 个不同主键、5000 个 `data_hash`，`data_date` 覆盖 `2024-06-11` 到 `2025-06-14`。
+  - DB 核验显示 `storage_inbound_detail` 累计覆盖从 6506 增至 11506/174334；本批次和该 API 累计 `failed_request_log` 均为 0。
+  - `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary`，通过，公开文档 API 185 个、真实配置 API 50 个、enabled 45 个；执行分层仍为 `configured=50`、`configured_enabled=45`、`configured_disabled=5`。
+- 当前结论：
+  - `storage_inbound_detail` 的 5000 窗口缺失扫描已跑通，但单批耗时 4241 秒。
+  - 该接口仍不应 enabled；下一阶段建议继续 5000 窗口或只读评估是否需要拆成更可控的多轮回填。12E 完成后需要复盘 12C-12E。
+
 ## Known Issues
 
 - `amazon_shop_page` 第一版以 `data_hash` 去重，不强行编造业务主键。
 - 各业务 API 的具体路径、字段、分页和主键需要逐个阅读文档确认。
 - 新增后续业务接口前，仍需要逐个阅读积加文档确认路径、分页、主键和日期字段。
 - 当前 enabled API 已有 45 个：`amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`、`product_page`、`amazon_msku_page`、`parent_product_page`、`kb_product_page`、`fba_warehouse_page`、`store_location_page`、`multi_shop_query`、`platform_msku_page`、`crm_tags_page`、`inventory_team_query`、`fba_inventory_page`、`fba_inventory_v2_page`、`inventory_adjustments_page`、`product_inventory_page`、`storage_inbound_page`、`transfer_page`、`lot_no_page`、`procure_detail`、`storage_return_page`、`strategy_template_page`、`traffic_analysis_page`、`traffic_page`、`traffic_sku_page`、`shipment_data_page`、`storage_ledger_page`、`storage_ledger_detail_page`、`storage_ledger_month_page`、`inventory_receipts_page`、`purchase_sale_storage_fba_page`、`purchase_plan_page`、`product_detail`、`country_province_query`、`transfer_detail`、`lot_no_detail`、`base_currency_query`。
-- 当前已配置真实 API 为 50 个，其中 45 个已加入 enabled，`market_inventory_query`、`storage_inbound_detail`、`delivery_fee_query`、`inventory_event_page` 和 `inventory_age_page` 已完成验证但保持 disabled；`storage_inbound_detail` 已进入缺失扫描回填模式，当前覆盖 6506/174334。
+- 当前已配置真实 API 为 50 个，其中 45 个已加入 enabled，`market_inventory_query`、`storage_inbound_detail`、`delivery_fee_query`、`inventory_event_page` 和 `inventory_age_page` 已完成验证但保持 disabled；`storage_inbound_detail` 已进入缺失扫描回填模式，当前覆盖 11506/174334。
 - 当前依赖参数来源机制支持从 `raw_api_data.source_primary_key` 取单个参数，也支持从 `raw_json` 点路径提取多个参数、从单层数组路径如 `raw_json.marketListVos[].marketId` 展开一个参数，并可用 `param_source.filters` 做固定等值过滤、用 `param_source.auto_advance` 基于 checkpoint 推进窗口；`source_primary_key` 和 `raw_json` 点路径参数源均已支持 `exclude_existing_target=true` 按目标表缺失主键做增量拾取；参数型详情接口还支持用 `primary_key.param_field` 把请求参数写入 raw 主键但不污染 `raw_json`；响应提取机制已支持列表、单对象和标量包装；`product_detail`、`transfer_detail`、`lot_no_detail` 和 `procure_detail` 已通过该机制进入 enabled；另有 111307 个库存参数对或 142281 个发货单号尚未纳入生产级调度。
 - `primary_key.required=true` 会过滤缺少必填主键的响应对象，避免详情接口返回全空对象时写入 `source_primary_key="None"` 的 raw。
 - 覆盖矩阵是公开文档视角，不等同于当前账号真实授权可调用结果；真实可访问性仍需单接口运行验证。
@@ -5862,14 +5881,14 @@
 
 ## Next Stage
 
-阶段 12D：继续推进完整拉取。下一阶段应继续推进 `storage_inbound_detail` 缺失扫描，或重新盘点剩余 5 个 configured disabled API 后选择更低风险目标；下一次三轮复盘在 12E 完成后进行。
+阶段 12E：继续推进完整拉取。下一阶段应继续推进 `storage_inbound_detail` 缺失扫描，或重新盘点剩余 5 个 configured disabled API 后选择更低风险目标；12E 完成后需要复盘 12C-12E 三轮。
 
 建议目标：
 
-- 优先继续 `storage_inbound_detail`，因为它已具备 `exclude_existing_target=true` 缺失扫描边界；下一轮可继续 3000 窗口，或在只读评估后提高到 5000。
+- 优先继续 `storage_inbound_detail`，因为它已具备 `exclude_existing_target=true` 缺失扫描边界；下一轮可继续 5000 窗口，或只读评估是否改回 3000 以缩短单批耗时。
 - 仍需只读关注剩余 configured disabled API：`market_inventory_query`、`delivery_fee_query`、`inventory_event_page`、`inventory_age_page`。
 - 大库存表、费用类和无稳定主键参数型接口应先做只读风险评估，不要直接 enabled。
-- 12B 已完成 11Z-12B 三轮复盘；下一次复盘放在 12E 完成后。
+- 12B 已完成 11Z-12B 三轮复盘；12E 完成后做 12C-12E 三轮复盘。
 - 任何日期窗口完整验证都必须确认 `item_count == total_count`；如触发 `date window page truncated`，应先修正分页上限后重跑。
 - 完成后同步 `api_config`、刷新覆盖矩阵并运行编译与单测。
 
