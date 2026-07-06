@@ -2045,3 +2045,13 @@
 - 阶段 12D 证据：`storage_inbound_detail` 累计覆盖增至 11506/174334；本批次和该 API 累计 `failed_request_log` 均为 0。
 - 阶段 12D 证据：覆盖矩阵刷新后仍为公开文档 API 185 个、真实配置 API 50 个、enabled 45 个、configured disabled 5 个。
 - 阶段 12D 结论：5000 窗口缺失扫描可用，但单批耗时 4241 秒；下一阶段 12E 可继续 5000 窗口或评估改回 3000，12E 完成后需要复盘 12C-12E。
+- 阶段 12E 决策：继续使用 `storage_inbound_detail.param_source.limit=5000`，不再改配置；理由是 12D 的 5000 窗口成功且仍有大缺口，但继续观察长任务耗时。
+- 阶段 12E 约束：`storage_inbound_detail` 继续保持 `enabled=false`、`auto_advance=true` 和 `exclude_existing_target=true`，不进入 enabled 主链路。
+- 阶段 12E 证据：目标测试和 `tests.test_product_detail_param_source` 一起通过，确认 5000 窗口和相邻 `product_detail` 配置仍受测试约束。
+- 阶段 12E 证据：配置同步后 dry-run 仍显示 loaded 45 enabled API config(s)，DB 显示 `storage_inbound_detail.enabled=0`、`param_source.limit=5000`、`exclude_existing_target=true`。
+- 阶段 12E 证据：单接口批次 `sync_20260706_094123_983181` 成功，5000 次请求、5000 条成功计数、失败 0，耗时 4563 秒。
+- 阶段 12E 证据：本批次 raw 为 5000 条、5000 个 `source_primary_key`、5000 个不同主键、5000 个 `data_hash`，`data_date` 覆盖 `2022-09-20` 到 `2026-07-03`。
+- 阶段 12E 证据：`storage_inbound_detail` 累计覆盖增至 16506/174334；本批次和该 API 累计 `failed_request_log` 均为 0。
+- 阶段 12E 证据：覆盖矩阵刷新后仍为公开文档 API 185 个、真实配置 API 50 个、enabled 45 个、configured disabled 5 个。
+- 阶段 12C-12E 复盘：三轮累计新增 13000 个入库单详情，覆盖从 3506 推进到 16506/174334；3000 与 5000 窗口都能稳定运行且失败为 0，但 5000 窗口单批耗时超过 70 分钟。
+- 阶段 12E 结论：`storage_inbound_detail` 仍不应 enabled；下一阶段 12F 继续回填，下一次三轮复盘放在 12H。

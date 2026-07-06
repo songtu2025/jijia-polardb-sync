@@ -25,7 +25,7 @@
 
 当前阶段：
 
-阶段 12D 已完成。下一阶段 12E 继续推进完整拉取。`storage_inbound_detail` 缺失扫描窗口已从 3000 提高到 5000，本轮补齐 5000 个缺失入库单详情；当前真实配置 API 为 50 个，enabled API 为 45 个，configured disabled 为 5 个。
+阶段 12E 已完成。下一阶段 12F 继续推进完整拉取。`storage_inbound_detail` 继续使用 5000 缺失扫描窗口，本轮补齐 5000 个缺失入库单详情；当前真实配置 API 为 50 个，enabled API 为 45 个，configured disabled 为 5 个。
 
 当前事实：
 
@@ -33,22 +33,22 @@
 - 当前已配置真实 API 有 50 个，其中 45 个已 enabled；剩余 5 个真实配置 API 已验证但保持 disabled。
 - 剩余 configured disabled API 为：`market_inventory_query`、`storage_inbound_detail`、`delivery_fee_query`、`inventory_event_page`、`inventory_age_page`。
 - `storage_inbound_detail` 当前配置为 `enabled=false`、`param_source.limit=5000`、`auto_advance=true`、`exclude_existing_target=true`，参数来自 `storage_inbound_page.raw_json.code`，响应主键为 `code`。
-- 阶段 12D 单接口批次 `sync_20260706_081235_083788` 成功，5000 次请求、5000 条成功计数、失败 0，耗时 4241 秒。
-- 同批次 `storage_inbound_detail` raw 为 5000 条、5000 个 `source_primary_key`、5000 个不同主键、5000 个 `data_hash`，`data_date` 覆盖 `2024-06-11` 到 `2025-06-14`。
-- `storage_inbound_detail` 累计覆盖为 11506/174334 个上游去重 code；还没有达到 enabled 条件。
+- 阶段 12E 单接口批次 `sync_20260706_094123_983181` 成功，5000 次请求、5000 条成功计数、失败 0，耗时 4563 秒。
+- 同批次 `storage_inbound_detail` raw 为 5000 条、5000 个 `source_primary_key`、5000 个不同主键、5000 个 `data_hash`，`data_date` 覆盖 `2022-09-20` 到 `2026-07-03`。
+- `storage_inbound_detail` 累计覆盖为 16506/174334 个上游去重 code；还没有达到 enabled 条件。
 - DB 配置已确认 `api_config.storage_inbound_detail.enabled=0`、`param_source.limit=5000`、`exclude_existing_target=true`、`auto_advance=true`。
-- 阶段 12D dry-run 显示 loaded 45 enabled API config(s)，确认未误启用 `storage_inbound_detail`。
-- 阶段 12D 覆盖矩阵显示公开文档 API 185 个，真实配置 API 50 个，enabled 45 个，configured disabled 5 个。
-- 阶段 12B 已完成 11Z-12B 三轮复盘；12E 完成后需要做 12C-12E 三轮复盘。
+- 阶段 12E dry-run 显示 loaded 45 enabled API config(s)，确认未误启用 `storage_inbound_detail`。
+- 阶段 12E 覆盖矩阵显示公开文档 API 185 个，真实配置 API 50 个，enabled 45 个，configured disabled 5 个。
+- 阶段 12E 已完成 12C-12E 三轮复盘：三轮累计新增 13000 个入库单详情，覆盖从 3506 推进到 16506/174334；3000 与 5000 窗口都能稳定运行且失败为 0，但 5000 窗口单批耗时超过 70 分钟。
 
 建议目标：
 
 - 优先继续 `storage_inbound_detail` 缺失扫描回填；下一轮可保持 `limit=5000` 再跑一批，或只读评估是否改回 3000 以缩短单批耗时。
-- 不要直接把 `storage_inbound_detail` 加入 enabled；它当前只覆盖 11506/174334。
+- 不要直接把 `storage_inbound_detail` 加入 enabled；它当前只覆盖 16506/174334。
 - 继续只读关注其他 configured disabled API：`market_inventory_query`、`delivery_fee_query`、`inventory_event_page`、`inventory_age_page`。
 - 不要直接启用超大接口：`inventory_event_page` 当前约 2669068 条，`inventory_age_page` 当前约 6597161 条且响应慢。
 - `market_inventory_query` 无稳定主键，`delivery_fee_query` 有空费用对象边界；二者进入 enabled 前必须先证明缺失扫描和幂等边界。
-- 12E 完成后必须做 12C-12E 三轮复盘。
+- 下一次三轮复盘放在 12H 完成后。
 
 验收：
 
