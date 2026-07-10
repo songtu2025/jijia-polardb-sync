@@ -4,29 +4,29 @@
     "detail_url_template": "https://open.gerpgo.com/api/openAdmin/doc/detail?id={doc_id}"
   },
   "summary": {
-    "tree_api_count": 185,
-    "detail_success_count": 185,
+    "tree_api_count": 187,
+    "detail_success_count": 187,
     "detail_error_count": 0,
-    "configured_real_api_count": 50,
+    "configured_real_api_count": 51,
     "configured_enabled_real_api_count": 45,
     "classification_counts": {
       "direct_read_candidate": 57,
-      "requires_upstream_params": 77,
+      "requires_upstream_params": 79,
       "sensitive_review": 23,
       "write_or_mutation": 28
     },
     "execution_bucket_counts": {
-      "configured": 50,
+      "configured": 51,
       "defer_or_review": 50,
       "needs_sensitive_review": 22,
-      "needs_upstream_params": 63
+      "needs_upstream_params": 64
     },
     "execution_stage_counts": {
-      "configured_disabled": 5,
+      "configured_disabled": 6,
       "configured_enabled": 45,
       "defer_write_or_mutation": 28,
       "known_risk_review": 2,
-      "needs_param_source": 63,
+      "needs_param_source": 64,
       "needs_sensitive_review": 22,
       "risk_review_before_probe": 20
     },
@@ -36,7 +36,7 @@
       "基础数据": 16,
       "多平台": 6,
       "客服": 4,
-      "广告": 23,
+      "广告": 25,
       "库存": 14,
       "报表": 8,
       "物流": 19,
@@ -1752,6 +1752,54 @@
       "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
     },
     {
+      "doc_id": 7410,
+      "menu_path": "广告",
+      "api_name": "Walmart-广告商品报表查询",
+      "api_url": "/operation/ads/walmartAdsProduct/query",
+      "method": "POST",
+      "op_type": "query",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "model"
+      ],
+      "business_required_fields": [
+        "model"
+      ],
+      "has_page_response": false,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
+    },
+    {
+      "doc_id": 7412,
+      "menu_path": "广告",
+      "api_name": "Tiktok-GMVMax广告商品报表查询",
+      "api_url": "/operation/ads/tiktokGmvMaxProduct/query",
+      "method": "POST",
+      "op_type": "query",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "model",
+        "size",
+        "current"
+      ],
+      "business_required_fields": [
+        "model"
+      ],
+      "has_page_response": false,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
+    },
+    {
       "doc_id": 15,
       "menu_path": "库存",
       "api_name": "查询产品库存",
@@ -3170,11 +3218,11 @@
       "has_page_response": true,
       "has_list_response": false,
       "has_sensitive_response_fields": true,
-      "configured_api_code": "",
+      "configured_api_code": "sales_analysis_market_page",
       "configured_enabled": false,
-      "execution_bucket": "needs_upstream_params",
-      "execution_stage": "needs_param_source",
-      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
+      "execution_bucket": "configured",
+      "execution_stage": "configured_disabled",
+      "execution_reason": "已配置但默认关闭，需按数据量、窗口和批量耗时评估后再启用。"
     },
     {
       "doc_id": 71,

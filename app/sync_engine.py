@@ -3,6 +3,7 @@ import hashlib
 import json
 import re
 import time
+from copy import deepcopy
 from datetime import date, datetime, timedelta
 from typing import Any
 
@@ -233,6 +234,9 @@ class SyncEngine:
             raise ValueError("test api requires database engine")
 
         api = self._api_by_code(api_code)
+        if api.get("commit_per_page"):
+            return self._test_api_once_commit_per_page(api, api_client, token)
+
         batch_no = self._new_batch_no()
         started_at = datetime.now()
 
@@ -253,6 +257,64 @@ class SyncEngine:
             result = self._sync_api_in_batch(connection, api, batch_no, api_client, token)
 
             status = "success" if result["failed_count"] == 0 else "failed"
+            connection.execute(
+                text(
+                    """
+                    UPDATE sync_batch
+                    SET status = :status,
+                        finished_at = :finished_at,
+                        success_api_count = :success_api_count,
+                        failed_api_count = :failed_api_count,
+                        message = :message
+                    WHERE sync_batch_no = :sync_batch_no
+                    """
+                ),
+                {
+                    "status": status,
+                    "finished_at": datetime.now(),
+                    "success_api_count": 1 if result["failed_count"] == 0 else 0,
+                    "failed_api_count": result["failed_count"],
+                    "message": "test api finished",
+                    "sync_batch_no": batch_no,
+                },
+            )
+
+        return {
+            "batch_no": batch_no,
+            "item_count": result["item_count"],
+            "request_count": result["request_count"],
+            "failed_count": result["failed_count"],
+        }
+
+    def _test_api_once_commit_per_page(self, api: dict[str, Any], api_client: Any, token: Any) -> dict[str, Any]:
+        """用短事务验证单个宽表分页接口。
+
+        销售表现这类接口单页字段很宽、页间还要限流。如果把 HTTP 请求、sleep
+        和所有 raw 写入放在同一个事务里，远程 PolarDB 连接更容易在长时间空闲
+        或大批量写入时失效。该路径只由 YAML 显式开启，避免改变普通接口行为。
+        """
+        if self.engine is None:
+            raise ValueError("test api requires database engine")
+
+        batch_no = self._new_batch_no()
+        started_at = datetime.now()
+        with self.engine.begin() as connection:
+            connection.execute(
+                text(
+                    """
+                    INSERT INTO sync_batch (
+                      sync_batch_no, status, started_at, total_api_count
+                    ) VALUES (
+                      :sync_batch_no, 'running', :started_at, 1
+                    )
+                    """
+                ),
+                {"sync_batch_no": batch_no, "started_at": started_at},
+            )
+
+        result = self._sync_api_with_page_transactions(api, batch_no, api_client, token)
+        status = "success" if result["failed_count"] == 0 else "failed"
+        with self.engine.begin() as connection:
             connection.execute(
                 text(
                     """
@@ -439,6 +501,156 @@ class SyncEngine:
 
         return {"item_count": item_count, "request_count": request_count, "failed_count": failed_count}
 
+    def _sync_api_with_page_transactions(
+        self,
+        api: dict[str, Any],
+        batch_no: str,
+        api_client: Any,
+        token: Any,
+    ) -> dict[str, int]:
+        """按页短事务同步单个分页接口。
+
+        该方法只用于显式配置的宽表接口。HTTP 请求不包在数据库事务里；每页
+        raw 写入单独提交，最后再写 checkpoint 和接口日志。
+        """
+        if self.engine is None:
+            raise ValueError("page transaction sync requires database engine")
+        if api.get("param_source"):
+            raise ValueError("commit_per_page does not support param_source APIs")
+
+        api_code = api["api_code"]
+        item_count = 0
+        request_count = 0
+        failed_count = 0
+        last_page = 0
+        total_count: int | None = None
+        api_started_at = datetime.now()
+
+        try:
+            date_window_caught_up, base_params = self._short_transaction_base_params(api)
+            if not date_window_caught_up:
+                for page_no, payload, attempt_count in self._paged_payloads_from_params(
+                    api,
+                    api_client,
+                    token,
+                    base_params,
+                ):
+                    request_count += attempt_count
+                    last_page = page_no
+                    items = self._response_items(payload, api)
+                    with self.engine.begin() as connection:
+                        self._insert_raw_items(
+                            connection,
+                            api,
+                            items,
+                            batch_no,
+                            data_date_override=self._data_date_from_params(api, base_params),
+                        )
+                    item_count += len(items)
+                    total_count = self._response_total(payload, api)
+                    self._sleep_between_pages(api, page_no, total_count)
+
+            self._ensure_date_window_not_truncated(api, item_count, total_count)
+            if date_window_caught_up:
+                checkpoint_extra = self._date_window_caught_up_checkpoint_extra(api, None)
+            else:
+                checkpoint_extra = self._date_window_checkpoint_extra(api, base_params)
+            with self.engine.begin() as connection:
+                self._update_checkpoint(
+                    connection,
+                    api_code,
+                    batch_no,
+                    item_count,
+                    request_count,
+                    last_page,
+                    total_count,
+                    extra=checkpoint_extra,
+                )
+                self._insert_api_log(connection, batch_no, api_code, "success", request_count, item_count, 0, api_started_at)
+        except Exception as error:
+            failed_count = 1
+            if isinstance(error, ApiRequestError):
+                request_count += error.attempt_count
+            with self.engine.begin() as connection:
+                if isinstance(error, ApiRequestError):
+                    self._insert_failed_request(connection, batch_no, api_code, error)
+                self._insert_api_log(
+                    connection,
+                    batch_no,
+                    api_code,
+                    "failed",
+                    request_count,
+                    item_count,
+                    failed_count,
+                    api_started_at,
+                    str(error),
+                )
+
+        return {"item_count": item_count, "request_count": request_count, "failed_count": failed_count}
+
+    def _short_transaction_base_params(self, api: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
+        """为短事务同步生成本次请求参数。
+
+        日期窗口需要读取 checkpoint，但这个读取应在请求前短暂完成，不能把后续
+        HTTP 分页和 sleep 一起包进数据库事务。
+        """
+        if not (api.get("date_window") or {}).get("enabled"):
+            return False, self._request_params(api, None)
+        if self.engine is None:
+            raise ValueError("page transaction sync requires database engine")
+
+        with self.engine.begin() as connection:
+            caught_up = self._date_window_caught_up(api, connection)
+            params = self._request_params(api, connection)
+        return caught_up, params
+
+    def _data_date_from_params(self, api: dict[str, Any], params: dict[str, Any]) -> Any:
+        """从请求参数取 raw 数据日期。
+
+        少数报表接口的行数据不返回日期，只能用本次请求窗口标记数据归属日期。
+        """
+        field = api.get("data_date_param")
+        if not field:
+            return None
+        return self._get_by_path(params, str(field))
+
+    def _paged_payloads_from_params(
+        self,
+        api: dict[str, Any],
+        api_client: Any,
+        token: Any,
+        base_params: dict[str, Any],
+    ) -> Any:
+        """基于已解析参数分页请求，避免每页重新打开 checkpoint 读取事务。"""
+        page_config = api.get("page") or {}
+        if not page_config.get("enabled", False):
+            payload, attempt_count = self._request_with_retry(api, api_client, token, deepcopy(base_params))
+            yield 1, payload, attempt_count
+            return
+
+        page_no_field = page_config.get("page_no_field", "page")
+        page_size_field = page_config.get("page_size_field", "pagesize")
+        page_size = int(page_config.get("page_size") or 20)
+        max_pages = int(page_config.get("max_pages") or 1)
+        page_no = int((api.get("params") or {}).get(page_no_field) or 1)
+        pages_requested = 0
+
+        while pages_requested < max_pages:
+            params = deepcopy(base_params)
+            params[page_no_field] = page_no
+            params[page_size_field] = page_size
+
+            payload, attempt_count = self._request_with_retry(api, api_client, token, params)
+            pages_requested += 1
+            yield page_no, payload, attempt_count
+
+            total = self._response_total(payload, api)
+            if total is None:
+                break
+            if page_no * page_size >= total:
+                break
+            page_no += 1
+
     def _sync_api_from_param_source_in_batch(
         self,
         connection: Any,
@@ -573,6 +785,7 @@ class SyncEngine:
         items: list[dict[str, Any]],
         batch_no: str,
         source_primary_key: str | None = None,
+        data_date_override: Any = None,
     ) -> None:
         """把接口原始数据批量写入 raw_api_data。
 
@@ -596,31 +809,32 @@ class SyncEngine:
                     "source_primary_key": item_primary_key,
                     "data_hash": self._data_hash(item),
                     "raw_json": json.dumps(item, ensure_ascii=False, sort_keys=True, default=str),
-                    "data_date": self._data_date(api, item),
+                    "data_date": self._coerce_data_date(data_date_override) or self._data_date(api, item),
                     "sync_batch_no": batch_no,
                 }
             )
 
-        # SQLAlchemy 收到参数列表时会走 executemany，避免远程 PolarDB 逐条往返。
-        connection.execute(
-            text(
-                """
-                INSERT INTO raw_api_data (
-                  api_code, source_primary_key, data_hash, raw_json,
-                  data_date, sync_batch_no
-                ) VALUES (
-                  :api_code, :source_primary_key, :data_hash, :raw_json,
-                  :data_date, :sync_batch_no
-                )
-                ON DUPLICATE KEY UPDATE
-                  source_primary_key = COALESCE(NULLIF(VALUES(source_primary_key), ''), source_primary_key),
-                  raw_json = VALUES(raw_json),
-                  data_date = VALUES(data_date),
-                  sync_batch_no = VALUES(sync_batch_no)
-                """
-            ),
-            rows,
+        statement = text(
+            """
+            INSERT INTO raw_api_data (
+              api_code, source_primary_key, data_hash, raw_json,
+              data_date, sync_batch_no
+            ) VALUES (
+              :api_code, :source_primary_key, :data_hash, :raw_json,
+              :data_date, :sync_batch_no
+            )
+            ON DUPLICATE KEY UPDATE
+              source_primary_key = COALESCE(NULLIF(VALUES(source_primary_key), ''), source_primary_key),
+              raw_json = VALUES(raw_json),
+              data_date = VALUES(data_date),
+              sync_batch_no = VALUES(sync_batch_no)
+            """
         )
+        write_batch_size = int(api.get("write_batch_size") or len(rows))
+        write_batch_size = max(write_batch_size, 1)
+        for start in range(0, len(rows), write_batch_size):
+            # 销售表现这类宽表 raw_json 很大，分块写入可以避免单次 executemany 过大导致远程连接中断。
+            connection.execute(statement, rows[start : start + write_batch_size])
 
     def _source_primary_key_from_params(self, api: dict[str, Any], params: dict[str, Any]) -> str | None:
         """从请求参数提取 raw 主键。
@@ -1481,7 +1695,15 @@ class SyncEngine:
         date_field = api.get("date_field")
         if not date_field or not item.get(date_field):
             return None
-        return date.fromisoformat(str(item[date_field])[:10])
+        return self._coerce_data_date(item[date_field])
+
+    def _coerce_data_date(self, value: Any) -> date | None:
+        """把配置来源的日期值转成 date；空值保持为空。"""
+        if not value:
+            return None
+        if isinstance(value, date):
+            return value
+        return date.fromisoformat(str(value)[:10])
 
     def _new_batch_no(self) -> str:
         """生成本次同步批次号。"""

@@ -966,6 +966,279 @@ apis:
       page: 1
       pagesize: 200
 
+  # 销售表现按 MSKU 维度，文档 id=3375。先保持 disabled，逐个粒度验证完整日窗口后再评估是否加入 daily enabled。
+  - api_code: sales_analysis_seller_sku_page
+    name: 销售表现-MSKU
+    enabled: false
+    method: POST
+    path: /operation/sts/salesAnalysis/page
+    page:
+      enabled: true
+      page_no_field: page
+      page_size_field: pagesize
+      page_size: 200
+      max_pages: 500
+      list_field: data.rows
+      total_field: data.total
+    write_batch_size: 10
+    commit_per_page: true
+    data_date_param: beginDate
+    primary_key:
+      field: ""
+      required: false
+    date_field: dateLine
+    date_window:
+      enabled: true
+      start_field: beginDate
+      end_field: endDate
+      default_start: "2026-07-02"
+      days: 1
+      lag_days: 1
+    rate_limit:
+      sleep_seconds: 20
+    retry:
+      retries: 1
+      delay_seconds: 1
+    params:
+      groupByType: seller_sku
+      showCurrencyType: YUAN
+      page: 1
+      pagesize: 200
+
+  # 销售表现按 ASIN 维度，和其他销售表现粒度拆成独立 api_code，避免不同业务粒度混写。
+  - api_code: sales_analysis_asin_page
+    name: 销售表现-ASIN
+    enabled: false
+    method: POST
+    path: /operation/sts/salesAnalysis/page
+    page:
+      enabled: true
+      page_no_field: page
+      page_size_field: pagesize
+      page_size: 200
+      max_pages: 500
+      list_field: data.rows
+      total_field: data.total
+    write_batch_size: 10
+    commit_per_page: true
+    data_date_param: beginDate
+    primary_key:
+      field: ""
+      required: false
+    date_field: dateLine
+    date_window:
+      enabled: true
+      start_field: beginDate
+      end_field: endDate
+      default_start: "2026-07-02"
+      days: 1
+      lag_days: 1
+    rate_limit:
+      sleep_seconds: 20
+    retry:
+      retries: 1
+      delay_seconds: 1
+    params:
+      groupByType: asin
+      showCurrencyType: YUAN
+      page: 1
+      pagesize: 200
+
+  # 销售表现按父 ASIN 维度。
+  - api_code: sales_analysis_variation_asin_page
+    name: 销售表现-父ASIN
+    enabled: false
+    method: POST
+    path: /operation/sts/salesAnalysis/page
+    page:
+      enabled: true
+      page_no_field: page
+      page_size_field: pagesize
+      page_size: 200
+      max_pages: 500
+      list_field: data.rows
+      total_field: data.total
+    write_batch_size: 10
+    commit_per_page: true
+    data_date_param: beginDate
+    primary_key:
+      field: ""
+      required: false
+    date_field: dateLine
+    date_window:
+      enabled: true
+      start_field: beginDate
+      end_field: endDate
+      default_start: "2026-07-02"
+      days: 1
+      lag_days: 1
+    rate_limit:
+      sleep_seconds: 20
+    retry:
+      retries: 1
+      delay_seconds: 1
+    params:
+      groupByType: variation_asin
+      showCurrencyType: YUAN
+      page: 1
+      pagesize: 200
+
+  # 销售表现按本地 SKU 维度。
+  - api_code: sales_analysis_sku_page
+    name: 销售表现-SKU
+    enabled: false
+    method: POST
+    path: /operation/sts/salesAnalysis/page
+    page:
+      enabled: true
+      page_no_field: page
+      page_size_field: pagesize
+      page_size: 200
+      max_pages: 500
+      list_field: data.rows
+      total_field: data.total
+    write_batch_size: 10
+    commit_per_page: true
+    data_date_param: beginDate
+    primary_key:
+      field: ""
+      required: false
+    date_field: dateLine
+    date_window:
+      enabled: true
+      start_field: beginDate
+      end_field: endDate
+      default_start: "2026-07-02"
+      days: 1
+      lag_days: 1
+    rate_limit:
+      sleep_seconds: 20
+    retry:
+      retries: 1
+      delay_seconds: 1
+    params:
+      groupByType: sku
+      showCurrencyType: YUAN
+      page: 1
+      pagesize: 200
+
+  # 销售表现按 SPU 维度。
+  - api_code: sales_analysis_spu_page
+    name: 销售表现-SPU
+    enabled: false
+    method: POST
+    path: /operation/sts/salesAnalysis/page
+    page:
+      enabled: true
+      page_no_field: page
+      page_size_field: pagesize
+      page_size: 200
+      max_pages: 500
+      list_field: data.rows
+      total_field: data.total
+    write_batch_size: 10
+    commit_per_page: true
+    data_date_param: beginDate
+    primary_key:
+      field: ""
+      required: false
+    date_field: dateLine
+    date_window:
+      enabled: true
+      start_field: beginDate
+      end_field: endDate
+      default_start: "2026-07-02"
+      days: 1
+      lag_days: 1
+    rate_limit:
+      sleep_seconds: 20
+    retry:
+      retries: 1
+      delay_seconds: 1
+    params:
+      groupByType: spu
+      showCurrencyType: YUAN
+      page: 1
+      pagesize: 200
+
+  # 销售表现按国家维度。
+  - api_code: sales_analysis_country_page
+    name: 销售表现-国家
+    enabled: false
+    method: POST
+    path: /operation/sts/salesAnalysis/page
+    page:
+      enabled: true
+      page_no_field: page
+      page_size_field: pagesize
+      page_size: 200
+      max_pages: 500
+      list_field: data.rows
+      total_field: data.total
+    write_batch_size: 10
+    commit_per_page: true
+    data_date_param: beginDate
+    primary_key:
+      field: ""
+      required: false
+    date_field: dateLine
+    date_window:
+      enabled: true
+      start_field: beginDate
+      end_field: endDate
+      default_start: "2026-07-02"
+      days: 1
+      lag_days: 1
+    rate_limit:
+      sleep_seconds: 20
+    retry:
+      retries: 1
+      delay_seconds: 1
+    params:
+      groupByType: country
+      showCurrencyType: YUAN
+      page: 1
+      pagesize: 200
+
+  # 销售表现按店铺维度。
+  - api_code: sales_analysis_market_page
+    name: 销售表现-店铺
+    enabled: false
+    method: POST
+    path: /operation/sts/salesAnalysis/page
+    page:
+      enabled: true
+      page_no_field: page
+      page_size_field: pagesize
+      page_size: 200
+      max_pages: 500
+      list_field: data.rows
+      total_field: data.total
+    write_batch_size: 10
+    commit_per_page: true
+    data_date_param: beginDate
+    primary_key:
+      field: ""
+      required: false
+    date_field: dateLine
+    date_window:
+      enabled: true
+      start_field: beginDate
+      end_field: endDate
+      default_start: "2026-07-02"
+      days: 1
+      lag_days: 1
+    rate_limit:
+      sleep_seconds: 20
+    retry:
+      retries: 1
+      delay_seconds: 1
+    params:
+      groupByType: market
+      showCurrencyType: YUAN
+      page: 1
+      pagesize: 200
+
   # 第四十二个真实文档接口：FBA货件看板，文档 id=1034，已完成完整单日窗口验证并加入 daily enabled。
   - api_code: shipment_data_page
     name: 查询FBA货件看板

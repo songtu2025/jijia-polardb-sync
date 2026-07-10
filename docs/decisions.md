@@ -2066,3 +2066,13 @@
 - 阶段 12F 证据：DB 显示 `storage_inbound_detail.enabled=0`、`param_source.limit=5000`、`exclude_existing_target=true`、`auto_advance=true`。
 - 阶段 12F 证据：覆盖矩阵刷新后仍为公开文档 API 185 个、真实配置 API 50 个、enabled 45 个、configured disabled 5 个。
 - 阶段 12F 结论：`storage_inbound_detail` 缺失扫描继续稳定推进但仍不能 enabled；下一阶段 12G 继续回填，12H 完成后做 12F-12H 复盘。
+- 阶段 12G 决策：接入销售表现 `/operation/sts/salesAnalysis/page` 时按 7 个 `groupByType` 拆成 7 个独立 `api_code`，分别落库，避免不同业务粒度混写。
+- 阶段 12G 约束：7 个销售表现配置全部保持 `enabled=false`；理由是 `asin`、`seller_sku`、`sku` 粒度需要多页慢速分页，加入 enabled 前必须评估每日 cron 窗口。
+- 阶段 12G 决策：销售表现使用 `rate_limit.sleep_seconds=20`、`retry.retries=1`、`page_size=200`；理由是快速分页在 `asin` 粒度触发 HTTP 509，而 20 秒页间隔已通过真实 14 页请求验证。
+- 阶段 12G 决策：新增 `commit_per_page=true` 单接口验证路径；理由是销售表现宽 JSON 在旧 `--sync-api` 长事务模型下曾导致 PolarDB 连接失效，按页短事务可以避免 HTTP 请求、sleep 和大量 raw 写入共用一个长事务。
+- 阶段 12G 决策：销售表现新增 `data_date_param=beginDate`；理由是真实响应中的 `dateLine` 字段为 JSON `null`，数据日期只能从请求窗口确定。
+- 阶段 12G 证据：7 个销售表现单接口批次均成功，最近成功计数分别为 `seller_sku=2673`、`asin=2651`、`variation_asin=113`、`sku=2097`、`spu=34`、`country=7`、`market=24`。
+- 阶段 12G 证据：修正 `data_date_param` 后，`sales_analysis_spu_page` 批次 `sync_20260707_102027_648202` 成功写入 35 条，DB 核验新窗口 `data_date=2026-07-03`。
+- 阶段 12G 证据：配置同步后 `api_config` 共 59 条，7 个销售表现配置均为 `enabled=0` 且 `commit_per_page=true`；dry-run 仍显示 loaded 45 enabled API config(s)。
+- 阶段 12G 证据：`compileall app tests` 与 89 个单元测试通过；覆盖矩阵刷新后为公开文档 API 187 个、真实配置 API 51 个、enabled 45 个、configured disabled 6 个。
+- 阶段 12G 结论：销售表现已经完成默认 disabled 接入和真实入库验证；下一阶段可继续 `storage_inbound_detail` 回填，或单独评估销售表现是否进入 enabled。

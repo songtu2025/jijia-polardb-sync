@@ -5905,13 +5905,37 @@
   - 该接口仍不应 enabled；下一阶段 12G 可继续 5000 窗口回填，也可只读评估是否改回 3000 缩短单批反馈周期。
   - 后续如再遇到锁等待，应先查 `information_schema.processlist` 和 `information_schema.innodb_trx`，确认没有遗留未提交事务。
 
+## Stage 12G
+
+- 阶段目标：接入销售表现接口 `/operation/sts/salesAnalysis/page`，覆盖 7 个 `groupByType`，并拆成多个 API 配置分别落库。
+- 已完成：
+  - 公开文档确认销售表现文档 id=3375，请求方式为 POST，路径为 `/operation/sts/salesAnalysis/page`，必填参数包含 `groupByType`、`showCurrencyType`、`beginDate`、`endDate`、`page`、`pagesize`。
+  - 新增 7 个默认 disabled 配置：`sales_analysis_seller_sku_page`、`sales_analysis_asin_page`、`sales_analysis_variation_asin_page`、`sales_analysis_sku_page`、`sales_analysis_spu_page`、`sales_analysis_country_page`、`sales_analysis_market_page`，分别对应 `seller_sku`、`asin`、`variation_asin`、`sku`、`spu`、`country`、`market`。
+  - 销售表现接口实测快速分页会触发 HTTP 509，因此配置 `rate_limit.sleep_seconds=20`、`retry.retries=1`，并保持 `page_size=200`。
+  - 新增 `commit_per_page=true` 的单接口验证路径：HTTP 请求和页间 sleep 不包在数据库事务中，每页 raw 写入单独提交，避免宽 JSON 报表在长事务中导致 PolarDB 连接失效。
+  - 新增 `write_batch_size=10`，降低销售表现宽 JSON 单次 executemany 体积。
+  - 真实响应中 `dateLine` 字段存在但值为 JSON `null`，因此新增 `data_date_param=beginDate`，用请求窗口日期写入 `raw_api_data.data_date`。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs` 已执行通过，DB 同步 API 配置 59 条。
+  - 7 个销售表现配置均已单接口跑通：`asin` 2651 条/14 次请求，`seller_sku` 2673 条/14 次请求，`sku` 2097 条/11 次请求，`spu` 34 条/1 次请求，`variation_asin` 113 条/1 次请求，`country` 7 条/1 次请求，`market` 24 条/1 次请求。
+  - `spu` 在修正 `data_date_param` 后再次回归成功，批次 `sync_20260707_102027_648202` 写入 35 条，DB 核验显示新写入记录 `data_date=2026-07-03`。
+  - DB 核验显示 7 个销售表现配置在 `api_config` 中仍为 `enabled=0`，且 `config_json.commit_per_page=true`。
+  - 最近一次 7 个销售表现 `sync_api_log` 均为 success，`failed_request_log` 无销售表现失败记录，`information_schema.innodb_trx` 使用 autocommit 查询为空。
+  - `.\\.venv\\Scripts\\python.exe -m compileall app tests` 通过。
+  - `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"` 通过，89 个测试 OK。
+  - `.\\.venv\\Scripts\\python.exe -m app.main` dry-run 显示 loaded 45 enabled API config(s)，确认销售表现仍未进入 enabled。
+  - `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary` 通过；公开文档 API 187 个，真实配置 API 51 个，enabled 45 个，configured disabled 6 个。
+- 当前结论：
+  - 销售表现接口已经完成 7 个业务粒度的默认 disabled 接入，并完成真实单接口入库验证。
+  - 该接口目前只验证了按日窗口单轮同步；由于页间限流较长，暂不进入 enabled，每日任务是否加入需要单独评估 cron 窗口。
+  - 修正前写入的部分销售表现历史 raw 记录 `data_date` 为空；修正后新写入窗口已可用 `beginDate` 写入 `data_date`。
+
 ## Known Issues
 
 - `amazon_shop_page` 第一版以 `data_hash` 去重，不强行编造业务主键。
 - 各业务 API 的具体路径、字段、分页和主键需要逐个阅读文档确认。
 - 新增后续业务接口前，仍需要逐个阅读积加文档确认路径、分页、主键和日期字段。
 - 当前 enabled API 已有 45 个：`amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`、`product_page`、`amazon_msku_page`、`parent_product_page`、`kb_product_page`、`fba_warehouse_page`、`store_location_page`、`multi_shop_query`、`platform_msku_page`、`crm_tags_page`、`inventory_team_query`、`fba_inventory_page`、`fba_inventory_v2_page`、`inventory_adjustments_page`、`product_inventory_page`、`storage_inbound_page`、`transfer_page`、`lot_no_page`、`procure_detail`、`storage_return_page`、`strategy_template_page`、`traffic_analysis_page`、`traffic_page`、`traffic_sku_page`、`shipment_data_page`、`storage_ledger_page`、`storage_ledger_detail_page`、`storage_ledger_month_page`、`inventory_receipts_page`、`purchase_sale_storage_fba_page`、`purchase_plan_page`、`product_detail`、`country_province_query`、`transfer_detail`、`lot_no_detail`、`base_currency_query`。
-- 当前已配置真实 API 为 50 个，其中 45 个已加入 enabled，`market_inventory_query`、`storage_inbound_detail`、`delivery_fee_query`、`inventory_event_page` 和 `inventory_age_page` 已完成验证但保持 disabled；`storage_inbound_detail` 已进入缺失扫描回填模式，当前覆盖 21506/174334。
+- 当前已配置真实 API 为 51 个，其中 45 个已加入 enabled，`market_inventory_query`、`storage_inbound_detail`、`delivery_fee_query`、`inventory_event_page`、`inventory_age_page` 和销售表现 `/operation/sts/salesAnalysis/page` 已完成验证但保持 disabled；`storage_inbound_detail` 已进入缺失扫描回填模式，当前覆盖 21506/174334。
 - 当前依赖参数来源机制支持从 `raw_api_data.source_primary_key` 取单个参数，也支持从 `raw_json` 点路径提取多个参数、从单层数组路径如 `raw_json.marketListVos[].marketId` 展开一个参数，并可用 `param_source.filters` 做固定等值过滤、用 `param_source.auto_advance` 基于 checkpoint 推进窗口；`source_primary_key` 和 `raw_json` 点路径参数源均已支持 `exclude_existing_target=true` 按目标表缺失主键做增量拾取；参数型详情接口还支持用 `primary_key.param_field` 把请求参数写入 raw 主键但不污染 `raw_json`；响应提取机制已支持列表、单对象和标量包装；`product_detail`、`transfer_detail`、`lot_no_detail` 和 `procure_detail` 已通过该机制进入 enabled；另有 111307 个库存参数对或 142281 个发货单号尚未纳入生产级调度。
 - `primary_key.required=true` 会过滤缺少必填主键的响应对象，避免详情接口返回全空对象时写入 `source_primary_key="None"` 的 raw。
 - 覆盖矩阵是公开文档视角，不等同于当前账号真实授权可调用结果；真实可访问性仍需单接口运行验证。
@@ -5924,12 +5948,12 @@
 
 ## Next Stage
 
-阶段 12G：继续推进完整拉取。下一阶段应继续推进 `storage_inbound_detail` 缺失扫描，或重新盘点剩余 5 个 configured disabled API 后选择更低风险目标；下一次三轮复盘在 12H 完成后进行。
+阶段 12H：继续推进完整拉取。下一阶段应继续推进 `storage_inbound_detail` 缺失扫描，或评估销售表现是否具备进入 enabled 的运行窗口；下一次三轮复盘在 12H 完成后进行。
 
 建议目标：
 
 - 优先继续 `storage_inbound_detail`，因为它已具备 `exclude_existing_target=true` 缺失扫描边界；下一轮可继续 5000 窗口，或只读评估是否改回 3000 以缩短单批耗时。
-- 仍需只读关注剩余 configured disabled API：`market_inventory_query`、`delivery_fee_query`、`inventory_event_page`、`inventory_age_page`。
+- 仍需只读关注剩余 configured disabled API：`market_inventory_query`、`storage_inbound_detail`、`delivery_fee_query`、`inventory_event_page`、`inventory_age_page` 和销售表现 `/operation/sts/salesAnalysis/page`。
 - 大库存表、费用类和无稳定主键参数型接口应先做只读风险评估，不要直接 enabled。
 - 12E 已完成 12C-12E 三轮复盘；下一次复盘放在 12H 完成后，12G 是下一轮复盘前的第二轮。
 - 任何日期窗口完整验证都必须确认 `item_count == total_count`；如触发 `date window page truncated`，应先修正分页上限后重跑。
@@ -5940,6 +5964,6 @@
 - 新接口、完整窗口或 enabled 评估必须由公开文档、覆盖矩阵、真实请求、数据库只读查询或测试证明，不靠猜测字段。
 - 如启用接口，必须证明 `api_config.enabled=1`、dry-run enabled 数量变化正确，并用真实同步批次证明成功；涉及缺失扫描时必须先证明不会重复拉取全部历史，也不会漏扫新增来源参数。
 - 如调整参数型详情接口的幂等或缺失扫描逻辑，必须先证明旧数据不丢、新数据可发现，并用测试覆盖关键逻辑；如推进日期窗口，必须证明 `item_count == total_count` 或者明确说明接口返回总量为 0。
-- `api_config` 与覆盖矩阵显示真实配置 API 或 enabled 数量符合本轮目标；当前基线是真实配置 API 50 个、enabled 45 个、configured disabled 5 个。
+- `api_config` 与覆盖矩阵显示真实配置 API 或 enabled 数量符合本轮目标；当前基线是真实配置 API 51 个、enabled 45 个、configured disabled 6 个。
 - `compileall` 和 `unittest discover` 通过。
 - 继续保持 `.env`、token 缓存、日志和真实凭证不提交。
