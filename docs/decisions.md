@@ -2092,3 +2092,10 @@
 - 阶段 12I 约束：只给 `--mock-sync`、`--test-api`、`--sync-api`、`--sync-enabled`、`--sync-api-configs` 加锁；dry-run、`--check-db`、`--test-token` 保持不加锁。
 - 阶段 12I 证据：新增 `tests/test_main_sync_lock.py`，先红灯失败于缺少 `_sync_task_lock` 和 `_requires_sync_lock`，实现后通过；该改动不改变同步引擎内部事务边界。
 - 阶段 12I 证据：dry-run 仍为 45 个 enabled API；`compileall app tests` 通过；全量 unittest 92 个测试 OK；真实数据库 named lock smoke test 通过且 `innodb_trx` 复查为 0。
+- 阶段 12J 决策：继续使用 `storage_inbound_detail.param_source.limit=2000` 做缺失扫描回填；理由是 12H 的 2000 窗口可控，12I 已先补上任务互斥。
+- 阶段 12J 处置：提交 12I 稳定点 `577cb49 Add sync task named lock` 后再进入回填，避免互斥代码和回填结果混在同一个提交里。
+- 阶段 12J 发现：首次后台启动持有 named lock 但未生成可见 batch，根因是 token 缓存过期后网络请求等待；停止该进程后 named lock 释放、`innodb_trx=0`，随后 `--test-token` 成功刷新缓存。
+- 阶段 12J 证据：单接口批次 `sync_20260710_215533_340234` 成功，2000 次请求、2000 条成功计数、失败 0，批次耗时 1853 秒，API 耗时 1850 秒。
+- 阶段 12J 证据：本批次 raw 为 2000 条、2000 个 `source_primary_key`、2000 个不同主键、2000 个 `data_hash`、空主键 0，`data_date` 覆盖 `2024-10-21` 到 `2025-07-07`。
+- 阶段 12J 证据：`storage_inbound_detail` 累计覆盖增至 25506/174334；本批次和该 API 累计 `failed_request_log` 均为 0；同步结束后 named lock 已释放且 `information_schema.innodb_trx=0`。
+- 阶段 12J 结论：named lock 不影响单接口回填成功路径；`storage_inbound_detail` 仍不能 enabled，12K 建议继续 2000 窗口并做 12I-12K 复盘。
