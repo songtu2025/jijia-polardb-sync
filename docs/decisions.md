@@ -2155,3 +2155,10 @@
 - 阶段 12R 证据：本批次 raw 为 2000 条、2000 个 `source_primary_key`、2000 个不同主键、2000 个 `data_hash`、空主键 0，`data_date` 覆盖 `2024-12-07` 到 `2024-12-10`。
 - 阶段 12R 证据：`storage_inbound_detail` 累计覆盖增至 41506/174334；本批次和该 API 累计 `failed_request_log` 均为 0；同步结束后 named lock 已释放且 `information_schema.innodb_trx=0`。
 - 阶段 12R 结论：`storage_inbound_detail` 仍不能 enabled；12S 建议继续 2000 窗口，下一次三轮复盘放在 12T。
+- 阶段 12S 决策：继续使用 `storage_inbound_detail.param_source.limit=2000` 做缺失扫描回填；理由是 12R 成功且覆盖仍只有 23.81%。
+- 阶段 12S 证据：前置核验显示工作区干净且最新提交为 `3c7b666`；named lock 空闲、`innodb_trx=0`、dry-run 45 个 enabled API、`storage_inbound_detail.enabled=0`、`param_source.limit=2000`。
+- 阶段 12S 证据：YAML 共 59 个 `api_code`、enabled 45 个；覆盖矩阵为公开文档 API 187 个、真实配置 API 51 个、enabled 45 个、configured disabled 6 个。
+- 阶段 12S 证据：单接口批次 `sync_20260711_043506_686038` 成功，2000 次请求、2000 条成功计数、失败 0，批次耗时 1356 秒，API 耗时 1354 秒。
+- 阶段 12S 证据：本批次 raw 为 2000 条、2000 个 `source_primary_key`、2000 个不同主键、2000 个 `data_hash`、空主键 0，`data_date` 覆盖 `2024-12-10` 到 `2024-12-11`。
+- 阶段 12S 证据：`storage_inbound_detail` 累计覆盖增至 43506/174334；本批次和该 API 累计 `failed_request_log` 均为 0；同步结束后 named lock 已释放且 `information_schema.innodb_trx=0`。
+- 阶段 12S 结论：`storage_inbound_detail` 仍不能 enabled；12T 建议继续 2000 窗口，并完成 12R-12T 三轮复盘。
