@@ -2,7 +2,7 @@
 
 ## Current Stage
 
-阶段 12H 已完成。`storage_inbound_detail` 因当前执行窗口限制从 5000 调整回 2000 缺失扫描窗口，本轮补齐 2000 个缺失入库单详情；当前真实配置 API 为 51 个，enabled API 为 45 个，configured disabled 为 6 个。
+阶段 12I 已完成同步任务并发互斥的最小实现。`storage_inbound_detail` 未继续回填，仍为 `enabled=false`、`param_source.limit=2000`；当前真实配置 API 为 51 个，enabled API 为 45 个，configured disabled 为 6 个。本轮先释放交接复核发现的 Sleep 事务，再为写库/真实同步入口增加 MySQL named lock，避免任务重叠执行。
 
 ## Completed
 
@@ -5944,7 +5944,7 @@
   - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api storage_inbound_detail`，通过，批次 `sync_20260710_193937_362020`，2000 次请求、2000 条成功计数、失败 0，批次耗时 1771 秒。
   - DB 核验显示本批次 raw 为 2000 条、2000 个 `source_primary_key`、2000 个不同主键、2000 个 `data_hash`，`data_date` 覆盖 `2023-12-14` 到 `2024-10-21`。
   - DB 核验显示 `storage_inbound_detail` 累计覆盖从 21506 增至 23506/174334；该 API 累计 `failed_request_log` 为 0。
-  - DB 核验显示 `api_config` 共 59 条、enabled 45 条，`information_schema.innodb_trx` 为空。
+  - DB 核验显示 `api_config` 共 59 条、enabled 45 条；本次交接复核时 `information_schema.innodb_trx` 不为空，存在 1 条 Sleep 事务，线程号 `5143219`，未在本轮只读核验中处理。
   - `.\\.venv\\Scripts\\python.exe -m app.doc_catalog --output config\\jijia_api_catalog.generated.json --summary`，通过，公开文档 API 187 个、真实配置 API 51 个、enabled 45 个、configured disabled 6 个。
 - 12F-12H 复盘：
   - 12F 继续 5000 窗口，处理遗留 Sleep 事务导致的锁等待后重跑成功，覆盖从 16506 推进到 21506/174334，耗时 4191 秒。
@@ -5955,6 +5955,24 @@
 - 当前结论：
   - `storage_inbound_detail` 缺失扫描回填继续推进，当前已覆盖 23506/174334，仍不能 enabled。
   - 下一阶段 12I 建议继续使用 2000 窗口推进，除非先实现更稳妥的长任务 runner 或单独运维窗口。
+
+## Stage 12I
+
+- 阶段目标：先实现同步任务并发互斥，避免 cron 或人工命令重叠写入 PolarDB。
+- 已完成：
+  - 交接只读复核发现 `information_schema.innodb_trx` 存在 1 条 Sleep 事务，线程号 `5143219`；用户确认后已执行 `KILL 5143219`，复查 `innodb_trx` 为空。
+  - 新增入口层 MySQL named lock：锁名为 `jijia_polardb_sync_task`，超时为 0 秒，拿不到锁直接退出，不等待、不抢占。
+  - 加锁范围限定为会写库或请求真实业务接口的命令：`--mock-sync`、`--test-api`、`--sync-api`、`--sync-enabled`、`--sync-api-configs`。
+  - dry-run、`--check-db` 和 `--test-token` 不使用该互斥锁。
+  - 新增 `tests/test_main_sync_lock.py`，先验证缺少 `_sync_task_lock` 和 `_requires_sync_lock` 时失败，再实现最小代码使测试通过。
+  - 真实数据库 smoke test 已验证 `_sync_task_lock` 可获取并释放 named lock，随后 `information_schema.innodb_trx` 为 0。
+  - `.\\.venv\\Scripts\\python.exe -m app.main` dry-run 通过，仍显示 45 个 enabled API。
+  - `.\\.venv\\Scripts\\python.exe -m compileall app tests` 通过。
+  - `.\\.venv\\Scripts\\python.exe -m unittest discover -s tests -p "test_*.py"` 通过，92 个测试 OK。
+  - `git diff --check` 通过，仅有 LF/CRLF 提示。
+- 当前结论：
+  - 同步互斥已在入口层生效，不改变 `SyncEngine` 的批次、分页、短事务和 raw 写入逻辑。
+  - 本阶段未新增 API、未启用 `storage_inbound_detail`、未推进销售表现 enabled。
 
 ## Known Issues
 

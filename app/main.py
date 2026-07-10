@@ -1,7 +1,10 @@
 import argparse
 import logging
+from contextlib import contextmanager
+from typing import Any
 
 from requests import HTTPError, RequestException
+from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.auth import JijiaAuthClient
@@ -10,6 +13,8 @@ from app.config import load_api_configs, load_settings
 from app.db import check_db_connection, create_db_engine
 from app.logger import setup_logging
 from app.sync_engine import SyncEngine
+
+SYNC_TASK_LOCK_NAME = "jijia_polardb_sync_task"
 
 
 def parse_args() -> argparse.Namespace:
@@ -70,7 +75,8 @@ def main() -> None:
     if args.mock_sync:
         engine = create_db_engine(settings)
         try:
-            batch_no = SyncEngine(api_configs, engine).mock_sync()
+            with _sync_task_lock(engine):
+                batch_no = SyncEngine(api_configs, engine).mock_sync()
         except SQLAlchemyError:
             logger.error("mock sync failed: check database connection, schema, and privileges")
             raise SystemExit(1)
@@ -79,6 +85,41 @@ def main() -> None:
 
     SyncEngine(api_configs).dry_run()
     logger.info("dry-run finished; use --mock-sync to verify database writes")
+
+
+def _requires_sync_lock(args: argparse.Namespace) -> bool:
+    """判断当前命令是否需要同步任务互斥。"""
+    return bool(args.mock_sync or args.test_api or args.sync_api or args.sync_enabled or args.sync_api_configs)
+
+
+@contextmanager
+def _sync_task_lock(engine: Any):
+    """用 MySQL named lock 防止两个同步任务同时写入。
+
+    锁连接必须在任务期间保持打开；释放前不等待、不抢占，拿不到锁就直接退出，
+    避免 cron 重叠时两个长同步任务同时写 raw 表。
+    """
+    logger = logging.getLogger(__name__)
+    connection = engine.connect()
+    lock_acquired = False
+    try:
+        result = connection.execute(
+            text("SELECT GET_LOCK(:lock_name, 0)"),
+            {"lock_name": SYNC_TASK_LOCK_NAME},
+        ).scalar()
+        if result != 1:
+            logger.error("sync task is already running: lock=%s", SYNC_TASK_LOCK_NAME)
+            raise SystemExit(1)
+
+        lock_acquired = True
+        yield
+    finally:
+        if lock_acquired:
+            connection.execute(
+                text("SELECT RELEASE_LOCK(:lock_name)"),
+                {"lock_name": SYNC_TASK_LOCK_NAME},
+            )
+        connection.close()
 
 
 def _check_db(settings) -> None:
@@ -126,7 +167,8 @@ def _sync_api_configs(settings, api_configs) -> None:
     logger = logging.getLogger(__name__)
     engine = create_db_engine(settings)
     try:
-        count = SyncEngine(api_configs, engine).sync_api_configs()
+        with _sync_task_lock(engine):
+            count = SyncEngine(api_configs, engine).sync_api_configs()
     except SQLAlchemyError:
         logger.error("sync api configs failed: check database schema and privileges")
         raise SystemExit(1)
@@ -143,9 +185,10 @@ def _sync_enabled(settings, api_configs) -> None:
     logger = logging.getLogger(__name__)
     engine = create_db_engine(settings)
     try:
-        auth_client = JijiaAuthClient(settings)
-        token = auth_client.get_access_token()
-        result = SyncEngine(api_configs, engine).sync_enabled_apis(JijiaApiClient(settings, auth_client=auth_client), token)
+        with _sync_task_lock(engine):
+            auth_client = JijiaAuthClient(settings)
+            token = auth_client.get_access_token()
+            result = SyncEngine(api_configs, engine).sync_enabled_apis(JijiaApiClient(settings, auth_client=auth_client), token)
     except HTTPError as error:
         status_code = error.response.status_code if error.response is not None else "unknown"
         logger.error("sync enabled failed: http_status=%s", status_code)
@@ -175,9 +218,10 @@ def _run_single_api(settings, api_configs, api_code: str, action_label: str) -> 
     logger = logging.getLogger(__name__)
     engine = create_db_engine(settings)
     try:
-        auth_client = JijiaAuthClient(settings)
-        token = auth_client.get_access_token()
-        result = SyncEngine(api_configs, engine).test_api_once(api_code, JijiaApiClient(settings, auth_client=auth_client), token)
+        with _sync_task_lock(engine):
+            auth_client = JijiaAuthClient(settings)
+            token = auth_client.get_access_token()
+            result = SyncEngine(api_configs, engine).test_api_once(api_code, JijiaApiClient(settings, auth_client=auth_client), token)
     except HTTPError as error:
         status_code = error.response.status_code if error.response is not None else "unknown"
         logger.error("%s failed: http_status=%s", action_label, status_code)

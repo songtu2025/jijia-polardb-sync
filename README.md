@@ -70,7 +70,7 @@ mysql -h <POLARDB_HOST> -P 3306 -u <DB_USER> -p <DB_NAME> < sql/init_tables.sql
 
 ## API 配置
 
-示例文件在 `config/api_config.example.yaml`。当前只放占位接口路径和示例字段，真实字段需要登录积加开放平台文档后补充。
+示例文件在 `config/api_config.example.yaml`。该文件当前同时包含少量占位示例和已按积加开放平台文档验证过的真实接口配置；新增或调整接口时仍需以真实文档和单接口验证结果为准。
 
 新增 API 的基本步骤：
 
@@ -155,6 +155,8 @@ python -m app.main --sync-enabled
 
 `--sync-enabled` 会读取 `config/api_config.example.yaml` 中 `enabled: true` 的接口，并在同一个 `sync_batch` 下逐个写入 `sync_api_log`。批次头会先提交，每个 API 使用独立事务提交 raw、log 和 checkpoint，最后再提交批次汇总状态，便于长任务运行时查看已完成接口。当前启用了 `amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`、`product_page`、`amazon_msku_page`、`parent_product_page`、`kb_product_page`、`fba_warehouse_page`、`store_location_page`、`multi_shop_query`、`platform_msku_page`、`crm_tags_page`、`inventory_team_query`、`fba_inventory_page`、`fba_inventory_v2_page`、`inventory_adjustments_page`、`product_inventory_page`、`storage_inbound_page`、`transfer_page`、`lot_no_page`、`procure_detail`、`storage_return_page`、`strategy_template_page`、`traffic_analysis_page`、`traffic_page`、`traffic_sku_page`、`shipment_data_page`、`storage_ledger_page`、`storage_ledger_detail_page`、`storage_ledger_month_page`、`inventory_receipts_page`、`purchase_sale_storage_fba_page`、`purchase_plan_page`、`product_detail`、`country_province_query`、`transfer_detail`、`lot_no_detail` 和 `base_currency_query`。
 
+会写数据库或请求真实业务接口的入口会先获取 MySQL named lock `jijia_polardb_sync_task`，包括 `--mock-sync`、`--test-api`、`--sync-api`、`--sync-enabled` 和 `--sync-api-configs`。如果已有同步任务在运行，新任务会直接退出，避免 cron 或人工命令重叠写入；dry-run、`--check-db` 和 `--test-token` 不使用该互斥锁。
+
 生成积加公开文档 API 覆盖矩阵：
 
 ```bash
@@ -225,7 +227,7 @@ python -m unittest discover -s tests -p "test_*.py"
 
 ### 示例 API 字段是否可以直接用于生产？
 
-不可以。`config/api_config.example.yaml` 中的路径和字段都是占位示例，需要按真实积加开放平台文档调整。
+不能一概直接使用。`config/api_config.example.yaml` 中已有一批真实验证过的接口配置，也保留了少量占位示例；生产启用前应确认对应 `api_code` 已通过真实文档、单接口同步和数据库核验。
 
 ### 没有稳定业务主键怎么办？
 

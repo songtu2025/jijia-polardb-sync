@@ -2082,7 +2082,13 @@
 - 阶段 12H 证据：`.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs` 同步 59 条配置；dry-run 仍显示 loaded 45 enabled API config(s)；DB 显示 `storage_inbound_detail.enabled=0`、`param_source.limit=2000`、`exclude_existing_target=true`、`auto_advance=true`。
 - 阶段 12H 证据：单接口批次 `sync_20260710_193937_362020` 成功，2000 次请求、2000 条成功计数、失败 0，批次耗时 1771 秒，API 耗时 1766 秒。
 - 阶段 12H 证据：本批次 raw 为 2000 条、2000 个 `source_primary_key`、2000 个不同主键、2000 个 `data_hash`，`data_date` 覆盖 `2023-12-14` 到 `2024-10-21`。
-- 阶段 12H 证据：`storage_inbound_detail` 累计覆盖增至 23506/174334；该 API 累计 `failed_request_log` 为 0；`information_schema.innodb_trx` 为空。
+- 阶段 12H 证据：`storage_inbound_detail` 累计覆盖增至 23506/174334；该 API 累计 `failed_request_log` 为 0。本次交接复核时 `information_schema.innodb_trx` 存在 1 条 Sleep 事务，线程号 `5143219`，因此继续长任务或实现并发互斥前应先确认事务状态。
 - 阶段 12H 证据：覆盖矩阵刷新后为公开文档 API 187 个、真实配置 API 51 个、enabled 45 个、configured disabled 6 个。
 - 阶段 12F-12H 复盘：12F 继续 5000 窗口并处理锁等待后覆盖到 21506/174334；12G 接入销售表现 7 个 disabled 配置并增加短事务验证路径；12H 降回 2000 窗口并覆盖到 23506/174334。结论是 `storage_inbound_detail` 缺失扫描边界成立，但 5000 更适合独立长任务窗口，当前前台回填优先使用 2000。
 - 阶段 12H 结论：`storage_inbound_detail` 仍不应 enabled；下一阶段 12I 继续 2000 窗口回填，或先实现更稳妥的长任务 runner。
+- 阶段 12I 决策：先实现同步任务并发互斥，不继续回填；理由是交接复核发现仍有 Sleep 事务，且当前 enabled 同步已是长任务，cron 或人工重叠运行会放大 raw 表锁等待风险。
+- 阶段 12I 处置：用户确认后结束 MySQL 线程 `5143219`，复查 `information_schema.innodb_trx` 为空。
+- 阶段 12I 决策：使用 MySQL named lock `jijia_polardb_sync_task` 做入口互斥，`GET_LOCK(..., 0)` 拿不到锁就退出；不等待、不抢占、不自动 kill 其他连接。
+- 阶段 12I 约束：只给 `--mock-sync`、`--test-api`、`--sync-api`、`--sync-enabled`、`--sync-api-configs` 加锁；dry-run、`--check-db`、`--test-token` 保持不加锁。
+- 阶段 12I 证据：新增 `tests/test_main_sync_lock.py`，先红灯失败于缺少 `_sync_task_lock` 和 `_requires_sync_lock`，实现后通过；该改动不改变同步引擎内部事务边界。
+- 阶段 12I 证据：dry-run 仍为 45 个 enabled API；`compileall app tests` 通过；全量 unittest 92 个测试 OK；真实数据库 named lock smoke test 通过且 `innodb_trx` 复查为 0。

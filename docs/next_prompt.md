@@ -25,7 +25,7 @@
 
 当前阶段：
 
-阶段 12H 已完成。`storage_inbound_detail` 因当前执行窗口限制从 5000 调整回 2000 缺失扫描窗口，批次 `sync_20260710_193937_362020` 成功补齐 2000 个缺失入库单详情；12F-12H 三轮复盘已完成。下一阶段 12I 继续推进完整拉取，优先继续 `storage_inbound_detail` 缺失扫描，或先评估是否需要更稳妥的长任务 runner。
+阶段 12I 已完成同步任务并发互斥的最小实现。`storage_inbound_detail` 本轮未继续回填，仍为 `enabled=false`、`param_source.limit=2000`；下一阶段继续推进完整拉取前，应先基于新的 named lock 确认不会发生 cron 或人工命令重叠写入。
 
 当前事实：
 
@@ -41,7 +41,9 @@
 - `storage_inbound_detail` 当前配置为 `enabled=false`、`param_source.limit=2000`、`auto_advance=true`、`exclude_existing_target=true`，累计覆盖为 23506/174334 个上游去重 code。
 - 12H 批次 `sync_20260710_193937_362020` 成功：2000 次请求、2000 条成功计数、失败 0；本批次 raw 为 2000 条、2000 个 `source_primary_key`、2000 个不同主键、2000 个 `data_hash`，`data_date` 覆盖 `2023-12-14` 到 `2024-10-21`。
 - 阶段 12F 曾遇到 `raw_api_data` upsert 锁等待超时，根因是后台启动尝试留下 MySQL Sleep 事务；如再遇到锁等待，应先查 `information_schema.processlist` 和 `information_schema.innodb_trx`。
-- 当前核验显示 `information_schema.innodb_trx` 为空。
+- 本次只读复核发现 `information_schema.innodb_trx` 曾有 1 条 Sleep 事务，线程号 `5143219`，连接库为 `jijia_sync`；用户确认后已释放该线程，复查 `innodb_trx` 为空。
+- 写库/真实同步入口已增加 MySQL named lock `jijia_polardb_sync_task`：覆盖 `--mock-sync`、`--test-api`、`--sync-api`、`--sync-enabled`、`--sync-api-configs`；dry-run、`--check-db`、`--test-token` 不加锁。
+- 本轮验收：dry-run 45 个 enabled API、`compileall app tests`、92 个 unittest、真实数据库 named lock smoke test 和 `git diff --check` 均通过。
 
 建议目标：
 
