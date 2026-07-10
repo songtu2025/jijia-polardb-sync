@@ -2108,3 +2108,9 @@
 - 阶段 12K 证据：`storage_inbound_detail` 累计覆盖增至 27506/174334；本批次和该 API 累计 `failed_request_log` 均为 0；同步结束后 named lock 已释放且 `information_schema.innodb_trx=0`。
 - 阶段 12I-12K 复盘：12I 增加入口 named lock；12J 和 12K 各完成 2000 个缺失入库单详情回填，覆盖从 23506 推进到 27506/174334。结论是 named lock 不影响回填成功路径，2000 窗口仍适合当前前台执行环境。
 - 阶段 12K 结论：`storage_inbound_detail` 仍不能 enabled；12L 建议继续 2000 窗口，下一次三轮复盘放在 12N。
+- 阶段 12L 决策：继续使用 `storage_inbound_detail.param_source.limit=2000` 做缺失扫描回填；理由是 12J/12K 均证明 named lock 后 2000 窗口稳定。
+- 阶段 12L 证据：前置核验显示 named lock 空闲、`innodb_trx=0`、dry-run 45 个 enabled API、`storage_inbound_detail.enabled=0`、`param_source.limit=2000`。
+- 阶段 12L 证据：单接口批次 `sync_20260710_234747_756768` 成功，2000 次请求、2000 条成功计数、失败 0，批次耗时 1882 秒，API 耗时 1879 秒。
+- 阶段 12L 证据：本批次 raw 为 2000 条、2000 个 `source_primary_key`、2000 个不同主键、2000 个 `data_hash`、空主键 0，`data_date` 覆盖 `2022-09-20` 到 `2026-07-03`。
+- 阶段 12L 证据：`storage_inbound_detail` 累计覆盖增至 29506/174334；本批次和该 API 累计 `failed_request_log` 均为 0；同步结束后 named lock 已释放且 `information_schema.innodb_trx=0`。
+- 阶段 12L 结论：`storage_inbound_detail` 仍不能 enabled；12M 建议继续 2000 窗口。
