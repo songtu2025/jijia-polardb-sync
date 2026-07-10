@@ -25,7 +25,7 @@
 
 当前阶段：
 
-阶段 12G 已完成。销售表现 `/operation/sts/salesAnalysis/page` 已按 7 个 `groupByType` 拆成独立 API 配置并真实验证入库；所有销售表现配置仍保持 `enabled=false`。下一阶段 12H 继续推进完整拉取，优先继续 `storage_inbound_detail` 缺失扫描，或单独评估销售表现是否具备进入 enabled 的运行窗口。
+阶段 12H 已完成。`storage_inbound_detail` 因当前执行窗口限制从 5000 调整回 2000 缺失扫描窗口，批次 `sync_20260710_193937_362020` 成功补齐 2000 个缺失入库单详情；12F-12H 三轮复盘已完成。下一阶段 12I 继续推进完整拉取，优先继续 `storage_inbound_detail` 缺失扫描，或先评估是否需要更稳妥的长任务 runner。
 
 当前事实：
 
@@ -38,17 +38,19 @@
 - 修正 `data_date_param` 后，`sales_analysis_spu_page` 批次 `sync_20260707_102027_648202` 成功写入 35 条，DB 核验新窗口 `data_date=2026-07-03`。
 - 销售表现真实响应里 `dateLine` 字段存在但值为 JSON `null`；后续不要再依赖 `dateLine` 作为 `raw_api_data.data_date` 来源。
 - `commit_per_page=true` 当前只用于 `--sync-api` 单接口验证路径；普通 enabled 同步路径未改变。
-- `storage_inbound_detail` 当前配置仍为 `enabled=false`、`param_source.limit=5000`、`auto_advance=true`、`exclude_existing_target=true`，累计覆盖仍为 21506/174334 个上游去重 code。
+- `storage_inbound_detail` 当前配置为 `enabled=false`、`param_source.limit=2000`、`auto_advance=true`、`exclude_existing_target=true`，累计覆盖为 23506/174334 个上游去重 code。
+- 12H 批次 `sync_20260710_193937_362020` 成功：2000 次请求、2000 条成功计数、失败 0；本批次 raw 为 2000 条、2000 个 `source_primary_key`、2000 个不同主键、2000 个 `data_hash`，`data_date` 覆盖 `2023-12-14` 到 `2024-10-21`。
 - 阶段 12F 曾遇到 `raw_api_data` upsert 锁等待超时，根因是后台启动尝试留下 MySQL Sleep 事务；如再遇到锁等待，应先查 `information_schema.processlist` 和 `information_schema.innodb_trx`。
+- 当前核验显示 `information_schema.innodb_trx` 为空。
 
 建议目标：
 
-- 优先继续 `storage_inbound_detail` 缺失扫描回填；下一轮可保持 `limit=5000` 再跑一批，或只读评估是否改回 3000 以缩短单批耗时。
-- 不要直接把 `storage_inbound_detail` 加入 enabled；它当前只覆盖 21506/174334。
+- 优先继续 `storage_inbound_detail` 缺失扫描回填；下一轮建议继续 `limit=2000`，避免当前前台执行窗口再次被 5000 长任务拖住。
+- 不要直接把 `storage_inbound_detail` 加入 enabled；它当前只覆盖 23506/174334。
 - 不要直接把销售表现加入 enabled；先评估 7 个粒度每天按 20 秒页间隔运行的 cron 窗口。
 - 继续只读关注其他 configured disabled API：`market_inventory_query`、`delivery_fee_query`、`inventory_event_page`、`inventory_age_page`。
 - 不要直接启用超大接口：`inventory_event_page` 当前约 2669068 条，`inventory_age_page` 当前约 6597161 条且响应慢。
-- 下一次三轮复盘放在 12H 完成后。
+- 下一次三轮复盘放在 12K 完成后。
 
 验收：
 

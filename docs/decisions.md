@@ -2076,3 +2076,13 @@
 - 阶段 12G 证据：配置同步后 `api_config` 共 59 条，7 个销售表现配置均为 `enabled=0` 且 `commit_per_page=true`；dry-run 仍显示 loaded 45 enabled API config(s)。
 - 阶段 12G 证据：`compileall app tests` 与 89 个单元测试通过；覆盖矩阵刷新后为公开文档 API 187 个、真实配置 API 51 个、enabled 45 个、configured disabled 6 个。
 - 阶段 12G 结论：销售表现已经完成默认 disabled 接入和真实入库验证；下一阶段可继续 `storage_inbound_detail` 回填，或单独评估销售表现是否进入 enabled。
+- 阶段 12H 决策：将 `storage_inbound_detail.param_source.limit` 从 5000 调整回 2000；理由是 5000 窗口虽然能跑通，但在当前前台执行窗口中过长，曾在 raw 写入阶段被中断，2000 窗口更利于稳定收口。
+- 阶段 12H 约束：`storage_inbound_detail` 继续保持 `enabled=false`、`auto_advance=true` 和 `exclude_existing_target=true`，不进入 enabled 主链路。
+- 阶段 12H 证据：目标测试先失败于旧配置 `limit=5000`，修改 YAML 后与 `tests.test_product_detail_param_source` 一起通过，确认未误改相邻 `product_detail` 配置。
+- 阶段 12H 证据：`.\\.venv\\Scripts\\python.exe -m app.main --sync-api-configs` 同步 59 条配置；dry-run 仍显示 loaded 45 enabled API config(s)；DB 显示 `storage_inbound_detail.enabled=0`、`param_source.limit=2000`、`exclude_existing_target=true`、`auto_advance=true`。
+- 阶段 12H 证据：单接口批次 `sync_20260710_193937_362020` 成功，2000 次请求、2000 条成功计数、失败 0，批次耗时 1771 秒，API 耗时 1766 秒。
+- 阶段 12H 证据：本批次 raw 为 2000 条、2000 个 `source_primary_key`、2000 个不同主键、2000 个 `data_hash`，`data_date` 覆盖 `2023-12-14` 到 `2024-10-21`。
+- 阶段 12H 证据：`storage_inbound_detail` 累计覆盖增至 23506/174334；该 API 累计 `failed_request_log` 为 0；`information_schema.innodb_trx` 为空。
+- 阶段 12H 证据：覆盖矩阵刷新后为公开文档 API 187 个、真实配置 API 51 个、enabled 45 个、configured disabled 6 个。
+- 阶段 12F-12H 复盘：12F 继续 5000 窗口并处理锁等待后覆盖到 21506/174334；12G 接入销售表现 7 个 disabled 配置并增加短事务验证路径；12H 降回 2000 窗口并覆盖到 23506/174334。结论是 `storage_inbound_detail` 缺失扫描边界成立，但 5000 更适合独立长任务窗口，当前前台回填优先使用 2000。
+- 阶段 12H 结论：`storage_inbound_detail` 仍不应 enabled；下一阶段 12I 继续 2000 窗口回填，或先实现更稳妥的长任务 runner。
