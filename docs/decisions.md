@@ -2099,3 +2099,12 @@
 - 阶段 12J 证据：本批次 raw 为 2000 条、2000 个 `source_primary_key`、2000 个不同主键、2000 个 `data_hash`、空主键 0，`data_date` 覆盖 `2024-10-21` 到 `2025-07-07`。
 - 阶段 12J 证据：`storage_inbound_detail` 累计覆盖增至 25506/174334；本批次和该 API 累计 `failed_request_log` 均为 0；同步结束后 named lock 已释放且 `information_schema.innodb_trx=0`。
 - 阶段 12J 结论：named lock 不影响单接口回填成功路径；`storage_inbound_detail` 仍不能 enabled，12K 建议继续 2000 窗口并做 12I-12K 复盘。
+- 阶段 12K 决策：继续使用 `storage_inbound_detail.param_source.limit=2000` 做缺失扫描回填；理由是 12J 成功且任务结束后 named lock 与 InnoDB 事务均正常释放。
+- 阶段 12K 处置：提交 12J 文档记录 `4272256 Document storage inbound detail 12J backfill` 后再进入回填，保持代码提交和回填交接记录分离。
+- 阶段 12K 证据：前置核验显示 named lock 空闲、`innodb_trx=0`、dry-run 45 个 enabled API、`storage_inbound_detail.enabled=0`、`param_source.limit=2000`。
+- 阶段 12K 发现：启动时短暂出现第二个 Python 进程组，但 named lock 阻止了并发重叠，实际同步只保留一组进程运行。
+- 阶段 12K 证据：单接口批次 `sync_20260710_231247_400113` 成功，2000 次请求、2000 条成功计数、失败 0，批次耗时 1691 秒，API 耗时 1688 秒。
+- 阶段 12K 证据：本批次 raw 为 2000 条、2000 个 `source_primary_key`、2000 个不同主键、2000 个 `data_hash`、空主键 0，`data_date` 覆盖 `2025-07-07` 到 `2026-01-29`。
+- 阶段 12K 证据：`storage_inbound_detail` 累计覆盖增至 27506/174334；本批次和该 API 累计 `failed_request_log` 均为 0；同步结束后 named lock 已释放且 `information_schema.innodb_trx=0`。
+- 阶段 12I-12K 复盘：12I 增加入口 named lock；12J 和 12K 各完成 2000 个缺失入库单详情回填，覆盖从 23506 推进到 27506/174334。结论是 named lock 不影响回填成功路径，2000 窗口仍适合当前前台执行环境。
+- 阶段 12K 结论：`storage_inbound_detail` 仍不能 enabled；12L 建议继续 2000 窗口，下一次三轮复盘放在 12N。
