@@ -2140,3 +2140,11 @@
 - 阶段 12P 证据：本批次 raw 为 2000 条、2000 个 `source_primary_key`、2000 个不同主键、2000 个 `data_hash`、空主键 0，`data_date` 覆盖 `2024-12-03` 到 `2024-12-06`。
 - 阶段 12P 证据：`storage_inbound_detail` 累计覆盖增至 37506/174334；本批次和该 API 累计 `failed_request_log` 均为 0；同步结束后 named lock 已释放且 `information_schema.innodb_trx=0`。
 - 阶段 12P 结论：`storage_inbound_detail` 仍不能 enabled；12Q 建议继续 2000 窗口，并完成 12O-12Q 三轮复盘。
+- 阶段 12Q 决策：继续使用 `storage_inbound_detail.param_source.limit=2000` 做缺失扫描回填；理由是 12O-12P 均稳定成功，且覆盖仍只有 21.51%。
+- 阶段 12Q 证据：前置核验显示 named lock 空闲、`innodb_trx=0`、dry-run 45 个 enabled API、`storage_inbound_detail.enabled=0`、`param_source.limit=2000`。
+- 阶段 12Q 证据：单接口批次 `sync_20260711_031541_067013` 成功，2000 次请求、2000 条成功计数、失败 0，批次耗时 1600 秒，API 耗时 1598 秒。
+- 阶段 12Q 证据：本批次 raw 为 2000 条、2000 个 `source_primary_key`、2000 个不同主键、2000 个 `data_hash`、空主键 0，`data_date` 覆盖 `2024-12-06` 到 `2024-12-07`。
+- 阶段 12Q 证据：`storage_inbound_detail` 累计覆盖增至 39506/174334；本批次和该 API 累计 `failed_request_log` 均为 0；同步结束后 named lock 已释放且 `information_schema.innodb_trx=0`。
+- 阶段 12O-12Q 三轮复盘：三轮 2000 窗口均成功，覆盖从 33506 推进到 39506/174334，净增 6000；主键、hash、失败日志和事务收口均正常。
+- 阶段 12O-12Q 三轮复盘：耗时从 2069 秒、1730 秒下降到 1600 秒，2000 窗口仍适合当前前台执行方式。
+- 阶段 12Q 结论：`storage_inbound_detail` 仍不能 enabled；12R 建议继续 2000 窗口，下一次三轮复盘放在 12T。
