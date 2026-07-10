@@ -2128,3 +2128,9 @@
 - 阶段 12L-12N 三轮复盘：三轮 2000 窗口均成功，覆盖从 27506 推进到 33506/174334，净增 6000；主键、hash、失败日志和事务收口均正常。
 - 阶段 12L-12N 三轮复盘：耗时从 1882 秒、1909 秒增加到 2156 秒，仍可自然完成，但后续如果继续升高，应优先评估参数型详情接口短事务或后台 runner。
 - 阶段 12N 结论：`storage_inbound_detail` 仍不能 enabled；12O 建议继续 2000 窗口，下一次三轮复盘放在 12Q。
+- 阶段 12O 决策：继续使用 `storage_inbound_detail.param_source.limit=2000` 做缺失扫描回填；理由是 12N 后覆盖仍不足 20%，且 2000 窗口仍可自然完成。
+- 阶段 12O 证据：前置核验显示 named lock 空闲、`innodb_trx=0`、dry-run 45 个 enabled API、`storage_inbound_detail.enabled=0`、`param_source.limit=2000`。
+- 阶段 12O 证据：单接口批次 `sync_20260711_015340_111753` 成功，2000 次请求、2000 条成功计数、失败 0，批次耗时 2069 秒，API 耗时 2067 秒。
+- 阶段 12O 证据：本批次 raw 为 2000 条、2000 个 `source_primary_key`、2000 个不同主键、2000 个 `data_hash`、空主键 0，`data_date` 覆盖 `2024-11-23` 到 `2024-12-03`。
+- 阶段 12O 证据：`storage_inbound_detail` 累计覆盖增至 35506/174334；本批次和该 API 累计 `failed_request_log` 均为 0；同步结束后 named lock 已释放且 `information_schema.innodb_trx=0`。
+- 阶段 12O 结论：`storage_inbound_detail` 仍不能 enabled；12P 建议继续 2000 窗口，下一次三轮复盘仍放在 12Q。
