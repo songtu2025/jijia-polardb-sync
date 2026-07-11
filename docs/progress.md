@@ -2,7 +2,7 @@
 
 ## Current Stage
 
-阶段 13G 已完成。`storage_inbound_detail` 继续使用 2000 缺失扫描窗口，本轮补齐 2000 个缺失入库单详情；当前累计覆盖 71506/174334，完成约 41.02%，剩余 102828。当前真实配置 API 为 51 个，enabled API 为 45 个，configured disabled 为 6 个。
+阶段 13H 已完成。`storage_inbound_detail` 继续使用 2000 缺失扫描窗口，本轮补齐 2000 个缺失入库单详情；当前累计覆盖 73506/174334，完成约 42.16%，剩余 100828。当前真实配置 API 为 51 个，enabled API 为 45 个，configured disabled 为 6 个。
 
 ## Completed
 
@@ -6386,13 +6386,30 @@
 - 当前结论：
   - `storage_inbound_detail` 仍不应 enabled；下一阶段 13H 建议继续 2000 窗口回填，下一次三轮复盘放在 13I 完成后。
 
+## Stage 13H
+
+- 阶段目标：继续推进 `storage_inbound_detail` 2000 窗口缺失扫描回填，并为 13I 三轮复盘保留连续证据。
+- 已完成：
+  - 前置核验显示工作区 `master...origin/master [ahead 25]` 且干净；最新提交为 `988d0e8 Document storage inbound detail 13G backfill`；`--test-token` 通过；dry-run 仍显示 45 个 enabled API。
+  - YAML 核验显示共 59 个 `api_code`、enabled 45 个；`storage_inbound_detail.enabled=false`、`param_source.limit=2000`、`exclude_existing_target=true`、`auto_advance=true`。
+  - 覆盖矩阵核验显示公开文档 API 187 个、真实配置 API 51 个、enabled 45 个、configured disabled 6 个；销售表现 7 个拆分配置仍均为 disabled、`commit_per_page=true`、`data_date_param=beginDate`。
+  - DB 前置核验显示 named lock 空闲、外部 `information_schema.innodb_trx=0`；`storage_inbound_detail` 起点覆盖为 71506/174334，累计失败请求为 0。
+  - `.\\.venv\\Scripts\\python.exe -m app.main --sync-api storage_inbound_detail` 通过，批次 `sync_20260711_135800_183626`，2000 次请求、2000 条成功计数、失败 0，批次耗时 1644 秒，API 耗时 1642 秒。
+  - 本批次 raw 为 2000 条、2000 个 `source_primary_key`、2000 个不同主键、2000 个 `data_hash`、空主键 0，`data_date` 覆盖 `2025-11-04` 到 `2025-11-13`。
+  - DB 核验显示 `storage_inbound_detail` 累计覆盖从 71506 增至 73506/174334，完成约 42.16%，剩余 100828；本批次和该 API 累计 `failed_request_log` 均为 0。
+  - 同步结束后 named lock 已释放，外部 `information_schema.innodb_trx=0`；最终批次未出现锁等待或残留事务。
+  - 验收命令通过：dry-run 45 个 enabled API、`compileall app tests`、92 个 unittest、`git diff --check`；`git diff --check` 仅提示文档 LF/CRLF 替换警告。
+  - 最终 DB 复核显示覆盖 73506/174334、`failed_request_log` 累计 0、named lock 空闲、外部 `information_schema.innodb_trx=0`。
+- 当前结论：
+  - `storage_inbound_detail` 仍不应 enabled；下一阶段 13I 建议继续 2000 窗口回填，并完成 13G-13I 三轮复盘。
+
 ## Known Issues
 
 - `amazon_shop_page` 第一版以 `data_hash` 去重，不强行编造业务主键。
 - 各业务 API 的具体路径、字段、分页和主键需要逐个阅读文档确认。
 - 新增后续业务接口前，仍需要逐个阅读积加文档确认路径、分页、主键和日期字段。
 - 当前 enabled API 已有 45 个：`amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`、`product_page`、`amazon_msku_page`、`parent_product_page`、`kb_product_page`、`fba_warehouse_page`、`store_location_page`、`multi_shop_query`、`platform_msku_page`、`crm_tags_page`、`inventory_team_query`、`fba_inventory_page`、`fba_inventory_v2_page`、`inventory_adjustments_page`、`product_inventory_page`、`storage_inbound_page`、`transfer_page`、`lot_no_page`、`procure_detail`、`storage_return_page`、`strategy_template_page`、`traffic_analysis_page`、`traffic_page`、`traffic_sku_page`、`shipment_data_page`、`storage_ledger_page`、`storage_ledger_detail_page`、`storage_ledger_month_page`、`inventory_receipts_page`、`purchase_sale_storage_fba_page`、`purchase_plan_page`、`product_detail`、`country_province_query`、`transfer_detail`、`lot_no_detail`、`base_currency_query`。
-- 当前已配置真实 API 为 51 个，其中 45 个已加入 enabled，`market_inventory_query`、`storage_inbound_detail`、`delivery_fee_query`、`inventory_event_page`、`inventory_age_page` 和销售表现 `/operation/sts/salesAnalysis/page` 已完成验证但保持 disabled；`storage_inbound_detail` 已进入缺失扫描回填模式，当前覆盖 71506/174334。
+- 当前已配置真实 API 为 51 个，其中 45 个已加入 enabled，`market_inventory_query`、`storage_inbound_detail`、`delivery_fee_query`、`inventory_event_page`、`inventory_age_page` 和销售表现 `/operation/sts/salesAnalysis/page` 已完成验证但保持 disabled；`storage_inbound_detail` 已进入缺失扫描回填模式，当前覆盖 73506/174334。
 - 当前依赖参数来源机制支持从 `raw_api_data.source_primary_key` 取单个参数，也支持从 `raw_json` 点路径提取多个参数、从单层数组路径如 `raw_json.marketListVos[].marketId` 展开一个参数，并可用 `param_source.filters` 做固定等值过滤、用 `param_source.auto_advance` 基于 checkpoint 推进窗口；`source_primary_key` 和 `raw_json` 点路径参数源均已支持 `exclude_existing_target=true` 按目标表缺失主键做增量拾取；参数型详情接口还支持用 `primary_key.param_field` 把请求参数写入 raw 主键但不污染 `raw_json`；响应提取机制已支持列表、单对象和标量包装；`product_detail`、`transfer_detail`、`lot_no_detail` 和 `procure_detail` 已通过该机制进入 enabled；另有 111307 个库存参数对或 142281 个发货单号尚未纳入生产级调度。
 - `primary_key.required=true` 会过滤缺少必填主键的响应对象，避免详情接口返回全空对象时写入 `source_primary_key="None"` 的 raw。
 - 覆盖矩阵是公开文档视角，不等同于当前账号真实授权可调用结果；真实可访问性仍需单接口运行验证。
@@ -6405,14 +6422,14 @@
 
 ## Next Stage
 
-阶段 13H：继续推进完整拉取。下一阶段建议继续推进 `storage_inbound_detail` 2000 窗口缺失扫描；销售表现仍需满足前置条件后再考虑 enabled。
+阶段 13I：继续推进完整拉取。下一阶段建议继续推进 `storage_inbound_detail` 2000 窗口缺失扫描，并完成 13G-13I 三轮复盘；销售表现仍需满足前置条件后再考虑 enabled。
 
 建议目标：
 
 - 优先继续 `storage_inbound_detail`，因为它已具备 `exclude_existing_target=true` 缺失扫描边界；下一轮建议继续 2000 窗口，避免当前前台执行窗口再次被 5000 长任务拖住。
 - 仍需只读关注剩余 configured disabled API：`market_inventory_query`、`storage_inbound_detail`、`delivery_fee_query`、`inventory_event_page`、`inventory_age_page` 和销售表现 `/operation/sts/salesAnalysis/page`。
 - 大库存表、费用类和无稳定主键参数型接口应先做只读风险评估，不要直接 enabled。
-- 13D-13F 三轮复盘已完成；13G 已继续推进覆盖到 71506/174334，耗时 1588 秒且无失败、无锁等待或残留事务。下一次三轮复盘放在 13I 完成后。
+- 13D-13F 三轮复盘已完成；13G-13H 已继续推进覆盖到 73506/174334，13H 耗时 1644 秒且无失败、无锁等待或残留事务。下一次三轮复盘放在 13I 完成后。
 - 任何日期窗口完整验证都必须确认 `item_count == total_count`；如触发 `date window page truncated`，应先修正分页上限后重跑。
 - 完成后同步 `api_config`、刷新覆盖矩阵并运行编译与单测。
 
@@ -6421,6 +6438,6 @@
 - 新接口、完整窗口或 enabled 评估必须由公开文档、覆盖矩阵、真实请求、数据库只读查询或测试证明，不靠猜测字段。
 - 如启用接口，必须证明 `api_config.enabled=1`、dry-run enabled 数量变化正确，并用真实同步批次证明成功；涉及缺失扫描时必须先证明不会重复拉取全部历史，也不会漏扫新增来源参数。
 - 如调整参数型详情接口的幂等或缺失扫描逻辑，必须先证明旧数据不丢、新数据可发现，并用测试覆盖关键逻辑；如推进日期窗口，必须证明 `item_count == total_count` 或者明确说明接口返回总量为 0。
-- `api_config` 与覆盖矩阵显示真实配置 API 或 enabled 数量符合本轮目标；当前基线是真实配置 API 51 个、enabled 45 个、configured disabled 6 个，`storage_inbound_detail` 覆盖 71506/174334。
+- `api_config` 与覆盖矩阵显示真实配置 API 或 enabled 数量符合本轮目标；当前基线是真实配置 API 51 个、enabled 45 个、configured disabled 6 个，`storage_inbound_detail` 覆盖 73506/174334。
 - `compileall` 和 `unittest discover` 通过。
 - 继续保持 `.env`、token 缓存、日志和真实凭证不提交。
