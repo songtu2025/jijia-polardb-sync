@@ -2205,3 +2205,11 @@
 - 阶段 12X 证据：`storage_inbound_detail` 累计覆盖增至 53506/174334；本批次和该 API 累计 `failed_request_log` 均为 0；同步结束后 named lock 已释放且 `information_schema.innodb_trx=0`。
 - 阶段 12X 发现：本轮耗时 2259 秒，超过 30 分钟时只读诊断仍显示事务 RUNNING 但无 SQL 锁等待，最终自然完成。
 - 阶段 12X 结论：`storage_inbound_detail` 仍不能 enabled；12Y 建议继续 2000 窗口，下一次三轮复盘放在 12Z。
+- 阶段 12Y 决策：继续使用 `storage_inbound_detail.param_source.limit=2000` 做缺失扫描回填；理由是 12X 自然完成且覆盖仍只有 30.69%，本轮继续为 12Z 三轮复盘积累证据。
+- 阶段 12Y 证据：前置核验显示工作区干净且最新提交为 `742c909`；named lock 空闲、`innodb_trx=0`、dry-run 45 个 enabled API、`storage_inbound_detail.enabled=0`、`param_source.limit=2000`。
+- 阶段 12Y 证据：YAML 共 59 个 `api_code`、enabled 45 个；覆盖矩阵为公开文档 API 187 个、真实配置 API 51 个、enabled 45 个、configured disabled 6 个。
+- 阶段 12Y 证据：单接口批次 `sync_20260711_084422_720644` 成功，2000 次请求、2000 条成功计数、失败 0，批次耗时 1870 秒，API 耗时 1869 秒。
+- 阶段 12Y 证据：本批次 raw 为 2000 条、2000 个 `source_primary_key`、2000 个不同主键、2000 个 `data_hash`、空主键 0，`data_date` 覆盖 `2025-01-13` 到 `2025-01-25`。
+- 阶段 12Y 证据：`storage_inbound_detail` 累计覆盖增至 55506/174334；本批次和该 API 累计 `failed_request_log` 均为 0；同步结束后 named lock 已释放且 `information_schema.innodb_trx=0`。
+- 阶段 12Y 发现：本轮耗时 1870 秒，较 12X 的 2259 秒回落，未出现 SQL 锁等待或残留事务。
+- 阶段 12Y 结论：`storage_inbound_detail` 仍不能 enabled；12Z 建议继续 2000 窗口，并完成 12X-12Z 三轮复盘。
