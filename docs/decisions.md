@@ -2487,3 +2487,12 @@
 - 阶段 14C 证据：`storage_inbound_detail` 累计覆盖增至 115506/174334，完成约 66.26%，剩余 58828；本批次和该 API 累计 `failed_request_log` 均为 0；同步结束后 named lock 已释放且外部 `information_schema.innodb_trx=0`。
 - 阶段 14C 验收：dry-run 45 个 enabled API、`compileall app tests`、93 个 unittest、`git diff --check` 均通过；最终 DB 复核显示 named lock 空闲且外部 `information_schema.innodb_trx=0`。
 - 阶段 14C 结论：`storage_inbound_detail` 仍不能 enabled；14D 建议继续 2000 窗口。按新目标模式，14D 将作为本组三轮的第 2 轮，14E 完成后做本组复盘和整体规划。
+- 阶段 14D 决策：继续使用 `storage_inbound_detail.param_source.limit=2000` 做缺失扫描回填；理由是 14C 成功后覆盖仍只有 66.26%，且 2000 窗口继续稳定推进。
+- 阶段 14D 证据：前置核验显示工作区干净且最新提交为 `8dc56c4`；README 已不再声明所有配置都是占位示例；YAML 共 59 个 `api_code`、enabled 45 个；`storage_inbound_detail.enabled=0`、`param_source.limit=2000`、`exclude_existing_target=true`、`auto_advance=true`。
+- 阶段 14D 证据：覆盖矩阵为公开文档 API 187 个、真实配置 API 51 个、enabled 45 个、configured disabled 6 个；销售表现 7 个拆分配置仍全部 disabled。
+- 阶段 14D 证据：DB 前置核验使用 `source_primary_key` 轻量口径统计，显示起点覆盖为 115506/174334，累计失败请求为 0，named lock 空闲，外部 `information_schema.innodb_trx=0`；DB `api_config` 为 59 条、enabled 45 条，`storage_inbound_detail.enabled=0`。
+- 阶段 14D 证据：单接口批次 `sync_20260712_021800_702802` 成功，2000 次请求、2000 条成功计数、失败 0，批次耗时 1905 秒，API 耗时 1903 秒；CLI 正常返回 0。
+- 阶段 14D 证据：本批次 raw 为 2000 条、2000 个 `source_primary_key`、2000 个不同主键、2000 个 `data_hash`、空主键 0，`data_date` 覆盖 `2025-12-17` 到 `2026-02-25`。
+- 阶段 14D 证据：`storage_inbound_detail` 累计覆盖增至 117506/174334，完成约 67.40%，剩余 56828；本批次和该 API 累计 `failed_request_log` 均为 0；同步结束后 named lock 已释放且外部 `information_schema.innodb_trx=0`。
+- 阶段 14D 验收：dry-run 45 个 enabled API、`compileall app tests`、93 个 unittest、`git diff --check` 均通过；最终 DB 复核显示 named lock 空闲且外部 `information_schema.innodb_trx=0`。
+- 阶段 14D 结论：`storage_inbound_detail` 仍不能 enabled；14E 建议继续 2000 窗口，并完成 14C-14E 三轮复盘和整体规划。
