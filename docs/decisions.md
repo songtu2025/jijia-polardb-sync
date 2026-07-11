@@ -2381,3 +2381,14 @@
 - 阶段 13P-13R 复盘：三轮均为 2000 请求、2000 成功、0 失败；批内主键和 hash 均唯一，空主键 0，`failed_request_log` 始终为 0；named lock 和外部事务收口正常。
 - 阶段 13R 验收：dry-run 45 个 enabled API、`compileall app tests`、93 个 unittest、`git diff --check` 均通过；最终 DB 复核显示 named lock 空闲且外部 `information_schema.innodb_trx=0`。
 - 阶段 13R 结论：`storage_inbound_detail` 仍不能 enabled；13S 建议继续 2000 窗口。按新目标模式，13Q-13R 已完成 2 轮，13S 完成后做 13Q-13S 复盘和整体规划。
+- 阶段 13S 决策：继续使用 `storage_inbound_detail.param_source.limit=2000` 做缺失扫描回填；理由是 13R 成功后覆盖仍只有 53.64%，且 2000 窗口仍能稳定在前台执行窗口内收口。
+- 阶段 13S 证据：前置核验显示工作区干净且最新提交为 `bb37e18`；named lock 空闲、外部 `innodb_trx=0`、dry-run 45 个 enabled API、`storage_inbound_detail.enabled=0`、`param_source.limit=2000`。
+- 阶段 13S 证据：YAML 共 59 个 `api_code`、enabled 45 个；覆盖矩阵为公开文档 API 187 个、真实配置 API 51 个、enabled 45 个、configured disabled 6 个；销售表现 7 个拆分配置仍全部 disabled。
+- 阶段 13S 证据：单接口批次 `sync_20260711_195939_221698` 成功，2000 次请求、2000 条成功计数、失败 0，批次耗时 1490 秒，API 耗时 1488 秒；CLI 正常返回 0。
+- 阶段 13S 证据：本批次 raw 为 2000 条、2000 个 `source_primary_key`、2000 个不同主键、2000 个 `data_hash`、空主键 0，`data_date` 覆盖 `2025-11-25` 到 `2025-12-03`。
+- 阶段 13S 证据：`storage_inbound_detail` 累计覆盖增至 95506/174334；本批次和该 API 累计 `failed_request_log` 均为 0；同步结束后 named lock 已释放且外部 `information_schema.innodb_trx=0`。
+- 阶段 13Q-13S 复盘：三轮均使用 2000 窗口并各补齐 2000 条，覆盖从 89506 推进到 95506/174334，净增 6000；三轮 CLI 均正常返回 0，未复现 13P 的锁释放 false failure。
+- 阶段 13Q-13S 复盘：三轮均为 2000 请求、2000 成功、0 失败；批内主键和 hash 均唯一，空主键 0，`failed_request_log` 始终为 0；named lock 和外部事务收口正常。
+- 阶段 13Q-13S 整体规划：继续以 `storage_inbound_detail` 2000 窗口推进完整拉取，暂不提升到 5000；销售表现仍保持 disabled，进入 enabled 前仍需补齐历史空 `data_date`、评估额外运行时间，并用真实 enabled 批次证明成功。
+- 阶段 13S 验收：dry-run 45 个 enabled API、`compileall app tests`、93 个 unittest、`git diff --check` 均通过；最终 DB 复核显示 named lock 空闲且外部 `information_schema.innodb_trx=0`。
+- 阶段 13S 结论：`storage_inbound_detail` 仍不能 enabled；13T 建议继续 2000 窗口。按新目标模式，13T 将作为下一组 3 轮的第 1 轮。
