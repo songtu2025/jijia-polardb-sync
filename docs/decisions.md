@@ -2249,3 +2249,11 @@
 - 阶段 13A-13C 三轮复盘：三轮 2000 窗口均成功，覆盖从 57506 推进到 63506/174334，净增 6000；主键、hash、失败日志和事务收口均正常。
 - 阶段 13A-13C 三轮复盘：耗时为 1753 秒、1665 秒、1533 秒，连续两轮回落；13B 的后台启动异常未产生半截批次，停止本轮进程后锁和事务恢复干净。
 - 阶段 13C 结论：`storage_inbound_detail` 仍不能 enabled；13D 建议继续 2000 窗口，下一次三轮复盘放在 13F。
+- 阶段 13D 决策：继续使用 `storage_inbound_detail.param_source.limit=2000` 做缺失扫描回填；理由是 13A-13C 三轮均成功且覆盖仍只有 36.43%，短期目标仍是扩大完整覆盖。
+- 阶段 13D 证据：前置核验显示工作区干净且最新提交为 `b01da26`；named lock 空闲、外部 `innodb_trx=0`、dry-run 45 个 enabled API、`storage_inbound_detail.enabled=0`、`param_source.limit=2000`。
+- 阶段 13D 证据：YAML 共 59 个 `api_code`、enabled 45 个；覆盖矩阵为公开文档 API 187 个、真实配置 API 51 个、enabled 45 个、configured disabled 6 个。
+- 阶段 13D 证据：单接口批次 `sync_20260711_114746_751848` 成功，2000 次请求、2000 条成功计数、失败 0，批次耗时 1595 秒，API 耗时 1593 秒。
+- 阶段 13D 证据：本批次 raw 为 2000 条、2000 个 `source_primary_key`、2000 个不同主键、2000 个 `data_hash`、空主键 0，`data_date` 覆盖 `2025-03-08` 到 `2026-06-29`。
+- 阶段 13D 证据：`storage_inbound_detail` 累计覆盖增至 65506/174334；本批次和该 API 累计 `failed_request_log` 均为 0；同步结束后 named lock 已释放且外部 `information_schema.innodb_trx=0`。
+- 阶段 13D 验收：dry-run 45 个 enabled API、`compileall app tests`、92 个 unittest、`git diff --check` 均通过；最终 DB 复核显示 named lock 空闲且外部 `information_schema.innodb_trx=0`。
+- 阶段 13D 结论：`storage_inbound_detail` 仍不能 enabled；13E 建议继续 2000 窗口，下一次三轮复盘放在 13F。
