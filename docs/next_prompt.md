@@ -25,7 +25,7 @@
 
 当前阶段：
 
-阶段 13N 已完成。`storage_inbound_detail` 在 12I named lock 已生效后继续完成 2000 窗口回填，最新批次 `sync_20260711_171343_254803` 成功补齐 2000 个缺失入库单详情；下一阶段 13O 建议继续 2000 窗口，并完成 13M-13O 三轮复盘。
+阶段 13O 已完成。`storage_inbound_detail` 在 12I named lock 已生效后继续完成 2000 窗口回填，最新批次 `sync_20260711_175024_981468` 成功补齐 2000 个缺失入库单详情；下一阶段 13P 建议继续 2000 窗口，下一次三轮复盘放在 13R 完成后。
 
 当前事实：
 
@@ -38,7 +38,7 @@
 - 修正 `data_date_param` 后，`sales_analysis_spu_page` 批次 `sync_20260707_102027_648202` 成功写入 35 条，DB 核验新窗口 `data_date=2026-07-03`。
 - 销售表现真实响应里 `dateLine` 字段存在但值为 JSON `null`；后续不要再依赖 `dateLine` 作为 `raw_api_data.data_date` 来源。
 - `commit_per_page=true` 当前只用于 `--sync-api` 单接口验证路径；普通 enabled 同步路径未改变。
-- `storage_inbound_detail` 当前配置为 `enabled=false`、`param_source.limit=2000`、`auto_advance=true`、`exclude_existing_target=true`，累计覆盖为 85506/174334 个上游去重 code，完成约 49.05%，剩余 88828。
+- `storage_inbound_detail` 当前配置为 `enabled=false`、`param_source.limit=2000`、`auto_advance=true`、`exclude_existing_target=true`，累计覆盖为 87506/174334 个上游去重 code，完成约 50.19%，剩余 86828。
 - 12H 批次 `sync_20260710_193937_362020` 成功：2000 次请求、2000 条成功计数、失败 0；本批次 raw 为 2000 条、2000 个 `source_primary_key`、2000 个不同主键、2000 个 `data_hash`，`data_date` 覆盖 `2023-12-14` 到 `2024-10-21`。
 - 12J 批次 `sync_20260710_215533_340234` 成功：2000 次请求、2000 条成功计数、失败 0，耗时 1853 秒；本批次 raw 为 2000 条、2000 个 `source_primary_key`、2000 个不同主键、2000 个 `data_hash`、空主键 0，`data_date` 覆盖 `2024-10-21` 到 `2025-07-07`。
 - 12K 批次 `sync_20260710_231247_400113` 成功：2000 次请求、2000 条成功计数、失败 0，耗时 1691 秒；本批次 raw 为 2000 条、2000 个 `source_primary_key`、2000 个不同主键、2000 个 `data_hash`、空主键 0，`data_date` 覆盖 `2025-07-07` 到 `2026-01-29`。
@@ -72,26 +72,27 @@
 - 13L 批次 `sync_20260711_160250_409869` 成功：2000 次请求、2000 条成功计数、失败 0，耗时 1944 秒；本批次 raw 为 2000 条、2000 个 `source_primary_key`、2000 个不同主键、2000 个 `data_hash`、空主键 0，`data_date` 覆盖 `2025-12-03` 到 `2025-12-05`。
 - 13M 批次 `sync_20260711_164043_135730` 成功：2000 次请求、2000 条成功计数、失败 0，耗时 1654 秒；本批次 raw 为 2000 条、2000 个 `source_primary_key`、2000 个不同主键、2000 个 `data_hash`、空主键 0，`data_date` 覆盖 `2025-12-05` 到 `2025-12-06`。
 - 13N 批次 `sync_20260711_171343_254803` 成功：2000 次请求、2000 条成功计数、失败 0，耗时 1792 秒；本批次 raw 为 2000 条、2000 个 `source_primary_key`、2000 个不同主键、2000 个 `data_hash`、空主键 0，`data_date` 覆盖 `2025-12-06` 到 `2025-12-09`。
+- 13O 批次 `sync_20260711_175024_981468` 成功：2000 次请求、2000 条成功计数、失败 0，耗时 1769 秒；本批次 raw 为 2000 条、2000 个 `source_primary_key`、2000 个不同主键、2000 个 `data_hash`、空主键 0，`data_date` 覆盖 `2025-12-09` 到 `2025-12-16`。
 - 阶段 12F 曾遇到 `raw_api_data` upsert 锁等待超时，根因是后台启动尝试留下 MySQL Sleep 事务；如再遇到锁等待，应先查 `information_schema.processlist` 和 `information_schema.innodb_trx`。
 - 本次只读复核发现 `information_schema.innodb_trx` 曾有 1 条 Sleep 事务，线程号 `5143219`，连接库为 `jijia_sync`；用户确认后已释放该线程，复查 `innodb_trx` 为空。
 - 写库/真实同步入口已增加 MySQL named lock `jijia_polardb_sync_task`：覆盖 `--mock-sync`、`--test-api`、`--sync-api`、`--sync-enabled`、`--sync-api-configs`；dry-run、`--check-db`、`--test-token` 不加锁。
 - 本轮验收：dry-run 45 个 enabled API、`compileall app tests`、92 个 unittest 和 `git diff --check` 均通过。
-- 13N 回填结束后 named lock 已释放，外部 `information_schema.innodb_trx=0`；本批次和该 API 累计 `failed_request_log` 均为 0。
+- 13O 回填结束后 named lock 已释放，外部 `information_schema.innodb_trx=0`；本批次和该 API 累计 `failed_request_log` 均为 0。
 
 建议目标：
 
 - 优先继续 `storage_inbound_detail` 缺失扫描回填；下一轮建议继续 `limit=2000`，避免当前前台执行窗口再次被 5000 长任务拖住。
-- 不要直接把 `storage_inbound_detail` 加入 enabled；它当前只覆盖 85506/174334。
+- 不要直接把 `storage_inbound_detail` 加入 enabled；它当前只覆盖 87506/174334。
 - 不要直接把销售表现加入 enabled；先评估 7 个粒度每天按 20 秒页间隔运行的 cron 窗口。
 - 继续只读关注其他 configured disabled API：`market_inventory_query`、`delivery_fee_query`、`inventory_event_page`、`inventory_age_page`。
 - 不要直接启用超大接口：`inventory_event_page` 当前约 2669068 条，`inventory_age_page` 当前约 6597161 条且响应慢。
-- 13J-13L 三轮复盘已完成：三轮均成功，覆盖从 75506 推进到 81506/174334，净增 6000；13M-13N 已继续推进到 85506/174334，13N 耗时 1792 秒且无失败、无锁等待或残留事务。下一次三轮复盘放在 13O 完成后。
+- 13M-13O 三轮复盘已完成：三轮均成功，覆盖从 81506 推进到 87506/174334，净增 6000；13O 耗时 1769 秒且无失败、无锁等待或残留事务。下一次三轮复盘放在 13R 完成后。
 
 验收：
 
 - 新接口、完整窗口或回填评估必须由公开文档、覆盖矩阵、真实请求、数据库只读查询或测试证明，不靠猜测字段。
 - 如启用接口，必须证明 `api_config.enabled=1`、dry-run enabled 数量变化正确，并用真实同步批次证明成功。
-- 如继续 `storage_inbound_detail`，必须证明 `exclude_existing_target=true` 生效、批次没有重复主键、失败日志为 0，并记录累计覆盖进度；当前覆盖基线是 85506/174334。
+- 如继续 `storage_inbound_detail`，必须证明 `exclude_existing_target=true` 生效、批次没有重复主键、失败日志为 0，并记录累计覆盖进度；当前覆盖基线是 87506/174334。
 - 如继续推进销售表现，必须区分“7 个拆分 api_code”和“覆盖矩阵 1 个文档接口”的口径差异。
 - `api_config` 与覆盖矩阵显示真实配置 API 或 enabled 数量符合本轮目标；当前基线是真实配置 API 51 个、enabled 45 个、configured disabled 6 个。
 - `compileall` 和 `unittest discover` 通过。
