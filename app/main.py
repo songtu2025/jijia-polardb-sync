@@ -115,10 +115,13 @@ def _sync_task_lock(engine: Any):
         yield
     finally:
         if lock_acquired:
-            connection.execute(
-                text("SELECT RELEASE_LOCK(:lock_name)"),
-                {"lock_name": SYNC_TASK_LOCK_NAME},
-            )
+            try:
+                connection.execute(
+                    text("SELECT RELEASE_LOCK(:lock_name)"),
+                    {"lock_name": SYNC_TASK_LOCK_NAME},
+                )
+            except SQLAlchemyError:
+                logger.warning("release sync task lock failed: lock=%s", SYNC_TASK_LOCK_NAME)
         connection.close()
 
 

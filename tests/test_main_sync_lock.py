@@ -1,6 +1,8 @@
 import argparse
 import unittest
 
+from sqlalchemy.exc import SQLAlchemyError
+
 import app.main as main_module
 
 
@@ -38,6 +40,18 @@ class FakeLockEngine:
         return self.connection
 
 
+class FakeReleaseFailLockConnection(FakeLockConnection):
+    def execute(self, statement, params=None):
+        if "RELEASE_LOCK" in str(statement):
+            raise SQLAlchemyError("release failed")
+        return super().execute(statement, params)
+
+
+class FakeReleaseFailLockEngine(FakeLockEngine):
+    def __init__(self):
+        self.connection = FakeReleaseFailLockConnection(lock_result=1)
+
+
 class SyncTaskLockTest(unittest.TestCase):
     def test_exits_before_task_when_named_lock_is_unavailable(self):
         engine = FakeLockEngine(lock_result=0)
@@ -63,6 +77,18 @@ class SyncTaskLockTest(unittest.TestCase):
         self.assertIn("GET_LOCK", engine.connection.statements[0])
         self.assertTrue(any("RELEASE_LOCK" in statement for statement in engine.connection.statements))
         self.assertTrue(engine.connection.closed)
+
+    def test_release_failure_after_successful_task_does_not_fail_task(self):
+        engine = FakeReleaseFailLockEngine()
+        task_ran = False
+
+        with self.assertLogs("app.main", level="WARNING") as logs:
+            with main_module._sync_task_lock(engine):
+                task_ran = True
+
+        self.assertTrue(task_ran)
+        self.assertTrue(engine.connection.closed)
+        self.assertTrue(any("release sync task lock failed" in message for message in logs.output))
 
     def test_only_database_write_modes_require_sync_lock(self):
         args = argparse.Namespace(
