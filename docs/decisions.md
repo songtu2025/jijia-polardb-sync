@@ -2775,3 +2775,12 @@
 - 阶段 15D-15F 复盘：15F 暴露顶层 CLI 失败路径仍可能留下 Sleep InnoDB 事务；本轮先记录事实，不扩大回填窗口，不启用 `storage_inbound_detail`。
 - 阶段 15F 验收：dry-run 45 个 enabled API、`compileall app tests`、93 个 unittest、`git diff --check` 和最终 DB 复核均通过；`git diff --check` 仅提示文档 LF/CRLF 替换警告。
 - 阶段 15F 结论：`storage_inbound_detail` 仍不能 enabled；15G 建议继续 2000 窗口完成剩余 828 个缺失详情，并作为下一组三轮第 1 轮继续推进。
+- 阶段 15G 决策：继续使用官方 CLI `app.main --sync-api storage_inbound_detail` 跑剩余缺口；理由是 15F 后仅剩 828 个上游 code，短 `_sync_task_lock` 烟测未复现 Sleep InnoDB 事务残留，官方路径能同时完成收尾和验证 CLI 是否仍失败。
+- 阶段 15G 证据：前置核验显示最新提交为 `e393bda`；YAML 共 59 个 `api_code`、enabled 45 个；`storage_inbound_detail.enabled=0`、`param_source.limit=2000`、`exclude_existing_target=true`、`auto_advance=true`。
+- 阶段 15G 证据：覆盖矩阵为公开文档 API 187 个、真实配置 API 51 个、enabled 45 个、configured disabled 6 个；销售表现 7 个拆分配置仍全部 disabled 且 `commit_per_page=true`。
+- 阶段 15G 证据：DB 前置核验显示起点覆盖为 173506/174334，累计失败请求为 0，named lock 空闲，外部 `information_schema.innodb_trx=0`；DB `api_config` 为 59 条、enabled 45 条，`storage_inbound_detail.enabled=0`。
+- 阶段 15G 证据：短 `_sync_task_lock` 烟测期间任务锁由当前连接持有但未出现外部 InnoDB 事务；释放后 named lock 为空、外部事务为 0，因此 15F 的 Sleep 事务残留未被该短路径复现。
+- 阶段 15G 证据：官方 CLI 批次 `sync_20260712_185853_014941` 成功，828 次请求、828 条成功计数、失败 0，批次耗时 656 秒，API 耗时 654 秒；CLI 正常返回 0。
+- 阶段 15G 证据：本批次 raw 为 828 条、828 个 `source_primary_key`、828 个不同主键、828 个 `data_hash`、空主键 0，`data_date` 覆盖 `2025-09-23` 到 `2026-07-04`。
+- 阶段 15G 证据：`storage_inbound_detail` 累计覆盖增至 174334/174334，完成 100.00%，剩余 0；本批次和该 API 累计 `failed_request_log` 均为 0；同步结束后 named lock 已释放且外部 `information_schema.innodb_trx=0`。
+- 阶段 15G 结论：`storage_inbound_detail` 已按当前上游 `storage_inbound_page` 去重 code 完成历史回填，但仍不直接 enabled；15H 建议先做空缺口验证和 enabled 边界评估，销售表现继续保持 disabled。
