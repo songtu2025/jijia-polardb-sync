@@ -7377,13 +7377,28 @@
 - 当前结论：
   - 销售表现仍不能进入 enabled。进入 enabled 前仍必须完成：enabled 路径支持 `commit_per_page` 或等价短事务、补齐 7728 条历史空 `data_date`、接受约 22 分钟额外单日运行时间、用真实 enabled 批次证明成功。
 
+## Stage 15K
+
+- 阶段目标：只读复核剩余 configured disabled API 的风险分层，明确下一轮最小目标；本轮不改代码、不改 YAML、不启用接口。
+- 本轮结果：
+  - 前置核验显示工作区 `master...origin/master [ahead 80]`；最新提交为 `3c9e245 Document sales analysis 15J enabled prerequisites`。
+  - YAML 核验显示共 59 个 `api_code`，其中真实配置 57 个、enabled 45 个、disabled 12 个；catalog summary 仍为公开文档 API 187 个、真实配置 API 51 个、enabled 45 个、configured disabled 6 个。DB `api_config` disabled 为 14 条，是因为还包含 7 个销售表现拆分配置和 2 个占位示例 `order_list`、`product_list`。
+  - catalog 中 6 个 configured disabled 真实文档接口为：`market_inventory_query`、`storage_inbound_detail`、`delivery_fee_query`、`inventory_event_page`、`inventory_age_page` 和销售表现 `/operation/sts/salesAnalysis/page`。其中 3 个为 `requires_upstream_params`，2 个为大分页 `direct_read_candidate`，销售表现带敏感响应字段且需要日期/分组参数。
+  - DB 运行日志显示：`storage_inbound_detail` 最新空缺口批次 `sync_20260712_191559_497680` 为 0 请求、0 写入、0 失败，累计覆盖 174334/174334；`delivery_fee_query` 最新验证 3 请求、0 成功、0 失败，当前 raw 仍为 0；`market_inventory_query` 最新验证 4 请求、1 成功、0 失败，当前 raw 4 条但主键均为空、`data_date` 均为空。
+  - 参数源覆盖显示：`storage_inbound_detail` 上游去重 code 为 174334，目标覆盖 174334，缺口 0；`delivery_fee_query` 当前 OROutbound 发货单参数约 142288 个，目标覆盖 0；`market_inventory_query` 当前库存参数对约 111307 个，但该接口暂无稳定主键和日期字段配置。
+  - 大分页接口仍保持 disabled：`inventory_event_page` 当前小样本 raw 300 条，历史估算总量约 2669068 条、约 26691 页；`inventory_age_page` 当前小样本 raw 30 条，历史估算总量约 6597161 条，当前每页 10 且响应慢，曾有 1 条失败日志。
+  - 销售表现仍保持 7 个拆分配置 disabled；最新只读证据仍是合计 7728 条空 `data_date`、单接口验证约 1323 秒，且 enabled 路径尚不支持 `commit_per_page` 短事务。
+  - DB 终态核验显示 named lock 空闲；排除当前核验连接后外部 `information_schema.innodb_trx=0`。
+- 当前结论：
+  - 不应批量启用剩余 disabled 接口。`storage_inbound_detail` 是最接近 enabled 的候选，但仍需明确确认后才能改 YAML/DB 并跑真实 enabled 批次；`delivery_fee_query` 和 `market_inventory_query` 需要先解决费用风险、主键和生产级参数窗口；`inventory_event_page`、`inventory_age_page` 继续保持 disabled；销售表现继续被四个 enabled 前置条件阻挡。
+
 ## Known Issues
 
 - `amazon_shop_page` 第一版以 `data_hash` 去重，不强行编造业务主键。
 - 各业务 API 的具体路径、字段、分页和主键需要逐个阅读文档确认。
 - 新增后续业务接口前，仍需要逐个阅读积加文档确认路径、分页、主键和日期字段。
 - 当前 enabled API 已有 45 个：`amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`、`product_page`、`amazon_msku_page`、`parent_product_page`、`kb_product_page`、`fba_warehouse_page`、`store_location_page`、`multi_shop_query`、`platform_msku_page`、`crm_tags_page`、`inventory_team_query`、`fba_inventory_page`、`fba_inventory_v2_page`、`inventory_adjustments_page`、`product_inventory_page`、`storage_inbound_page`、`transfer_page`、`lot_no_page`、`procure_detail`、`storage_return_page`、`strategy_template_page`、`traffic_analysis_page`、`traffic_page`、`traffic_sku_page`、`shipment_data_page`、`storage_ledger_page`、`storage_ledger_detail_page`、`storage_ledger_month_page`、`inventory_receipts_page`、`purchase_sale_storage_fba_page`、`purchase_plan_page`、`product_detail`、`country_province_query`、`transfer_detail`、`lot_no_detail`、`base_currency_query`。
-- 当前已配置真实 API 为 51 个，其中 45 个已加入 enabled，`market_inventory_query`、`storage_inbound_detail`、`delivery_fee_query`、`inventory_event_page`、`inventory_age_page` 和销售表现 `/operation/sts/salesAnalysis/page` 已完成验证但保持 disabled；`storage_inbound_detail` 缺失扫描回填已覆盖 174334/174334，空缺口批次已验证为 0 请求、0 写入、0 失败，enabled 主链路边界已只读确认，但仍等待明确确认后再启用。
+- 当前已配置真实 API 为 51 个，其中 45 个已加入 enabled，`market_inventory_query`、`storage_inbound_detail`、`delivery_fee_query`、`inventory_event_page`、`inventory_age_page` 和销售表现 `/operation/sts/salesAnalysis/page` 已完成验证但保持 disabled；`storage_inbound_detail` 缺失扫描回填已覆盖 174334/174334，空缺口批次已验证为 0 请求、0 写入、0 失败，enabled 主链路边界已只读确认，但仍等待明确确认后再启用；`delivery_fee_query` 当前约 142288 个 OROutbound 参数未纳入生产级调度，`market_inventory_query` 当前约 111307 个库存参数对但仍缺稳定主键和日期字段决策。
 - 当前依赖参数来源机制支持从 `raw_api_data.source_primary_key` 取单个参数，也支持从 `raw_json` 点路径提取多个参数、从单层数组路径如 `raw_json.marketListVos[].marketId` 展开一个参数，并可用 `param_source.filters` 做固定等值过滤、用 `param_source.auto_advance` 基于 checkpoint 推进窗口；`source_primary_key` 和 `raw_json` 点路径参数源均已支持 `exclude_existing_target=true` 按目标表缺失主键做增量拾取；参数型详情接口还支持用 `primary_key.param_field` 把请求参数写入 raw 主键但不污染 `raw_json`；响应提取机制已支持列表、单对象和标量包装；`product_detail`、`transfer_detail`、`lot_no_detail` 和 `procure_detail` 已通过该机制进入 enabled；另有 111307 个库存参数对或 142281 个发货单号尚未纳入生产级调度。
 - `primary_key.required=true` 会过滤缺少必填主键的响应对象，避免详情接口返回全空对象时写入 `source_primary_key="None"` 的 raw。
 - 覆盖矩阵是公开文档视角，不等同于当前账号真实授权可调用结果；真实可访问性仍需单接口运行验证。
@@ -7396,13 +7411,13 @@
 
 ## Next Stage
 
-阶段 15K：优先处理一个已确认的最小实施项。当前有两个候选：其一是同步任务互斥锁连接加 `AUTOCOMMIT`，降低 named lock 专用连接留下隐式事务的风险；其二是 `storage_inbound_detail` enabled 最小实施。两者都需要明确确认后再改代码或 YAML。销售表现仍不满足 enabled 条件。
+阶段 15L：优先在获得明确确认后执行一个最小实施项，并在完成后做 15J-15L 三轮复盘。当前最稳的实施候选仍是同步任务互斥锁连接加 `AUTOCOMMIT`，降低 named lock 专用连接留下隐式事务的风险；另一个候选是 `storage_inbound_detail` enabled 最小实施。两者都需要明确确认后再改代码或 YAML。销售表现仍不满足 enabled 条件。
 
 建议目标：
 
 - 优先获得明确确认并执行一个最小实施项：建议先做同步任务互斥锁连接 `AUTOCOMMIT` 小改造；如果确认启用 `storage_inbound_detail`，则先更新测试和 YAML，再同步 DB 配置并验证 dry-run 从 45 变为 46 个 enabled。
-- 仍需只读关注剩余 configured disabled API：`market_inventory_query`、`storage_inbound_detail`、`delivery_fee_query`、`inventory_event_page`、`inventory_age_page` 和销售表现 `/operation/sts/salesAnalysis/page`。
-- 大库存表、费用类和无稳定主键参数型接口应先做只读风险评估，不要直接 enabled。
+- `delivery_fee_query`、`market_inventory_query`、`inventory_event_page`、`inventory_age_page` 和销售表现继续保持只读观察，不要直接 enabled。
+- 15J 已完成销售表现前置复核，15K 已完成剩余 disabled 风险分层；15L 完成后需要做 15J-15L 三轮复盘和整体规划。
 - 13T-13V 三轮复盘已完成；13W-13Y 三轮复盘已完成；13Z-14B 三轮复盘已完成；14C-14E 三轮复盘已完成；14F-14H 三轮复盘已完成；14I-14K 三轮复盘已完成；14L-14N 三轮复盘已完成；14O-14Q 三轮复盘已完成；14R-14T 三轮复盘已完成；14U-14W 三轮复盘已完成；14X-14Z 三轮复盘已完成；15A-15C 三轮复盘已完成；15D-15F 三轮复盘已完成；15G-15I 三轮复盘已完成；15J 已完成销售表现 enabled 前置条件只读复核，结论是仍不能 enabled。
 - 任何日期窗口完整验证都必须确认 `item_count == total_count`；如触发 `date window page truncated`，应先修正分页上限后重跑。
 - 如启用 `storage_inbound_detail`，完成后同步 `api_config`、刷新覆盖矩阵并运行编译、单测、dry-run、真实批次和 DB 复核。

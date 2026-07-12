@@ -2807,3 +2807,12 @@
 - 阶段 15J 证据：DB 只读核验显示销售表现 raw 空 `data_date` 合计仍为 7728 条，其中 `seller_sku=2673`、`asin=2651`、`sku=2097`、`variation_asin=217`、`market=44`、`spu=32`、`country=14`。
 - 阶段 15J 证据：最新销售表现单接口日志合计 43 次请求、7600 条成功、0 失败、1323 秒，约 22 分钟；该证据只能证明单接口验证成本，不能替代真实 enabled 批次证明。
 - 阶段 15J 结论：销售表现仍不能 enabled；下一阶段应优先在获得确认后实施同步任务互斥锁连接 `AUTOCOMMIT` 小改造，或实施 `storage_inbound_detail` enabled 最小变更，二者不要和销售表现 enabled 混在同一轮。
+- 阶段 15K 决策：只读复核剩余 configured disabled API 的风险分层，不直接改代码、YAML 或 DB enabled 状态；理由是 15K 尚未获得互斥锁 `AUTOCOMMIT` 或 `storage_inbound_detail` enabled 的明确实施确认，继续推进前应先把剩余 disabled 的真实边界核清。
+- 阶段 15K 证据：前置核验显示最新提交为 `3c9e245`；YAML 共 59 个 `api_code`，真实配置 57 个、enabled 45 个、disabled 12 个；catalog summary 为公开文档 API 187 个、真实配置 API 51 个、enabled 45 个、configured disabled 6 个；DB disabled 为 14 条，因为包含 7 个销售表现拆分配置和 2 个占位示例。
+- 阶段 15K 证据：catalog 中 6 个 configured disabled 真实文档接口为 `market_inventory_query`、`storage_inbound_detail`、`delivery_fee_query`、`inventory_event_page`、`inventory_age_page` 和销售表现 `/operation/sts/salesAnalysis/page`。
+- 阶段 15K 证据：`storage_inbound_detail` 最新日志为 0 请求、0 成功、0 失败，累计覆盖 174334/174334，缺口 0；这是最接近 enabled 的候选，但尚未启用。
+- 阶段 15K 证据：`delivery_fee_query` 上游 OROutbound 参数约 142288 个，目标覆盖 0；最新验证 3 请求、0 成功、0 失败。该接口属于费用类查询，进入生产级调度前需要更小窗口和风险确认。
+- 阶段 15K 证据：`market_inventory_query` 上游库存参数对约 111307 个，当前 raw 4 条但主键均为空且 `data_date` 为空；该接口进入生产级调度前需要先确定稳定主键或幂等口径。
+- 阶段 15K 证据：`inventory_event_page` 小样本 raw 300 条，历史估算约 2669068 条；`inventory_age_page` 小样本 raw 30 条，历史估算约 6597161 条且响应慢，并有 1 条失败日志；二者继续 disabled。
+- 阶段 15K 证据：销售表现仍为 7 个拆分配置 disabled，空 `data_date` 合计 7728 条，最新单接口验证约 1323 秒，enabled 路径仍不支持 `commit_per_page` 短事务。
+- 阶段 15K 结论：剩余 disabled 接口不能批量启用；15L 建议在获得确认后优先实施同步任务互斥锁连接 `AUTOCOMMIT` 小改造，或实施 `storage_inbound_detail` enabled 最小变更，并在 15L 完成后做 15J-15L 三轮复盘。
