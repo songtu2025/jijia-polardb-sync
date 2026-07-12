@@ -2762,3 +2762,16 @@
 - 阶段 15E 证据：`storage_inbound_detail` 累计覆盖增至 171506/174334，完成约 98.38%，剩余 2828；本批次和该 API 累计 `failed_request_log` 均为 0；同步结束后 named lock 已释放且外部 `information_schema.innodb_trx=0`。
 - 阶段 15E 验收：dry-run 45 个 enabled API、`compileall app tests`、93 个 unittest、`git diff --check` 和最终 DB 复核均通过；`git diff --check` 仅提示文档 LF/CRLF 替换警告。
 - 阶段 15E 结论：`storage_inbound_detail` 仍不能 enabled；15F 建议继续 2000 窗口，并作为本组三轮第 3 轮继续推进，完成后做 15D-15F 三轮复盘。
+- 阶段 15F 决策：继续使用 `storage_inbound_detail.param_source.limit=2000` 做缺失扫描回填；理由是 15E 后剩余 2828 个上游 code，继续 2000 窗口能保持已验证的缺失扫描边界，并完成 15D-15F 三轮复盘。
+- 阶段 15F 证据：前置核验显示最新提交为 `4a52d77`；YAML 共 59 个 `api_code`、enabled 45 个；`storage_inbound_detail.enabled=0`、`param_source.limit=2000`、`exclude_existing_target=true`、`auto_advance=true`。
+- 阶段 15F 证据：覆盖矩阵为公开文档 API 187 个、真实配置 API 51 个、enabled 45 个、configured disabled 6 个；销售表现 7 个拆分配置仍全部 disabled。
+- 阶段 15F 证据：DB 前置核验显示起点覆盖为 171506/174334，累计失败请求为 0，named lock 空闲，外部 `information_schema.innodb_trx=0`；DB `api_config` 为 59 条、enabled 45 条，`storage_inbound_detail.enabled=0`。
+- 阶段 15F 证据：两次 `app.main --sync-api storage_inbound_detail` 返回通用失败并提示 `release sync task lock failed`；DB 复核显示均未生成可见新批次、覆盖未推进、失败日志为 0，但分别留下 Sleep InnoDB 事务 `5635742` 和 `5637222`，已定位后结束连接并确认 named lock 与外部事务恢复为空。
+- 阶段 15F 证据：诊断脚本直接调用 `SyncEngine.test_api_once('storage_inbound_detail', ...)` 成功，单接口批次 `sync_20260712_182634_361462` 写入 2000 条，2000 次请求、2000 条成功计数、失败 0，批次耗时 1498 秒，API 耗时 1494 秒。
+- 阶段 15F 证据：本批次 raw 为 2000 条、2000 个 `source_primary_key`、2000 个不同主键、2000 个 `data_hash`、空主键 0，`data_date` 覆盖 `2026-01-22` 到 `2026-03-09`。
+- 阶段 15F 证据：`storage_inbound_detail` 累计覆盖增至 173506/174334，完成约 99.53%，剩余 828；本批次和该 API 累计 `failed_request_log` 均为 0；同步结束后 named lock 已释放且外部 `information_schema.innodb_trx=0`。
+- 阶段 15D-15F 复盘：三轮最终成功批次合计 6000 请求、6000 条成功计数、失败 0；覆盖从 167506/174334 推进到 173506/174334，净增 6000，剩余从 6828 降到 828。
+- 阶段 15D-15F 复盘：三轮最终成功批次内主键和 hash 均唯一，空主键均为 0；最终状态下无 `failed_request_log`、named lock 残留或外部 InnoDB 事务残留。
+- 阶段 15D-15F 复盘：15F 暴露顶层 CLI 失败路径仍可能留下 Sleep InnoDB 事务；本轮先记录事实，不扩大回填窗口，不启用 `storage_inbound_detail`。
+- 阶段 15F 验收：dry-run 45 个 enabled API、`compileall app tests`、93 个 unittest、`git diff --check` 和最终 DB 复核均通过；`git diff --check` 仅提示文档 LF/CRLF 替换警告。
+- 阶段 15F 结论：`storage_inbound_detail` 仍不能 enabled；15G 建议继续 2000 窗口完成剩余 828 个缺失详情，并作为下一组三轮第 1 轮继续推进。
