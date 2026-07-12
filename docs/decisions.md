@@ -2616,3 +2616,15 @@
 - 阶段 14P 证据：`storage_inbound_detail` 累计覆盖增至 141506/174334，完成约 81.17%，剩余 32828；本批次和该 API 累计 `failed_request_log` 均为 0；同步结束后 named lock 已释放且外部 `information_schema.innodb_trx=0`。
 - 阶段 14P 验收：dry-run 45 个 enabled API、`compileall app tests`、93 个 unittest、`git diff --check` 均通过；最终 DB 复核显示 named lock 空闲且外部 `information_schema.innodb_trx=0`。
 - 阶段 14P 结论：`storage_inbound_detail` 仍不能 enabled；14Q 建议继续 2000 窗口，并完成 14O-14Q 三轮复盘和整体规划。
+- 阶段 14Q 决策：继续使用 `storage_inbound_detail.param_source.limit=2000` 做缺失扫描回填；理由是 14P 成功后覆盖仍只有 81.17%，且本轮需要完成 14O-14Q 三轮复盘。
+- 阶段 14Q 证据：前置核验显示工作区干净且最新提交为 `7c73880`；README 已不再声明所有配置都是占位示例；YAML 共 59 个 `api_code`、enabled 45 个；`storage_inbound_detail.enabled=0`、`param_source.limit=2000`、`exclude_existing_target=true`、`auto_advance=true`。
+- 阶段 14Q 证据：覆盖矩阵为公开文档 API 187 个、真实配置 API 51 个、enabled 45 个、configured disabled 6 个；销售表现 7 个拆分配置仍全部 disabled。
+- 阶段 14Q 证据：DB 前置核验使用 `source_primary_key` 轻量口径统计，显示起点覆盖为 141506/174334，累计失败请求为 0，named lock 空闲，外部 `information_schema.innodb_trx=0`；DB `api_config` 为 59 条、enabled 45 条，`storage_inbound_detail.enabled=0`。
+- 阶段 14Q 证据：单接口批次 `sync_20260712_100226_982262` 成功，2000 次请求、2000 条成功计数、失败 0，批次耗时 1653 秒，API 耗时 1651 秒；CLI 正常返回 0。
+- 阶段 14Q 证据：本批次 raw 为 2000 条、2000 个 `source_primary_key`、2000 个不同主键、2000 个 `data_hash`、空主键 0，`data_date` 覆盖 `2025-11-21` 到 `2025-11-25`。
+- 阶段 14Q 证据：`storage_inbound_detail` 累计覆盖增至 143506/174334，完成约 82.32%，剩余 30828；本批次和该 API 累计 `failed_request_log` 均为 0；同步结束后 named lock 已释放且外部 `information_schema.innodb_trx=0`。
+- 阶段 14O-14Q 复盘：三轮均使用 2000 窗口并各补齐 2000 条，覆盖从 137506 推进到 143506/174334，净增 6000；三轮同步命令均正常返回 0，最终批次均为 2000 请求、2000 成功、0 失败。
+- 阶段 14O-14Q 复盘：三轮批内主键和 hash 均唯一，空主键 0，`failed_request_log` 始终为 0；named lock 和外部事务收口正常。
+- 阶段 14O-14Q 整体规划：继续以 `storage_inbound_detail` 2000 窗口推进完整拉取，暂不提升到 5000；销售表现仍保持 disabled，进入 enabled 前仍需补齐历史空 `data_date`、评估额外运行时间，并用真实 enabled 批次证明成功。
+- 阶段 14Q 验收：dry-run 45 个 enabled API、`compileall app tests`、93 个 unittest、`git diff --check` 均通过；最终 DB 复核显示 named lock 空闲且外部 `information_schema.innodb_trx=0`。
+- 阶段 14Q 结论：`storage_inbound_detail` 仍不能 enabled；14R 建议继续 2000 窗口。按新目标模式，14R 将作为下一组 3 轮的第 1 轮。
