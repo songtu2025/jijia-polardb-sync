@@ -2801,3 +2801,9 @@
 - 阶段 15I 证据：与当前配置同口径的 LEFT JOIN 缺口查询返回 `missing_count=0`；`exclude_existing_target=true` 会忽略 checkpoint offset，按目标表缺失 `source_primary_key` 决定是否请求详情。
 - 阶段 15G-15I 复盘：15G 补齐最后 828 个详情，15H 空缺口验证为 0 请求、0 写入、0 失败，15I 只读确认 enabled 主链路边界；三轮结束后覆盖为 174334/174334，失败日志为 0，named lock 与外部 InnoDB 事务均无残留。
 - 阶段 15I 结论：`storage_inbound_detail` 具备进入 enabled 的技术边界，但尚未启用；15J 如获确认，应以最小改动更新测试和 YAML，同步 DB 配置，验证 dry-run 为 46 个 enabled，并用真实批次证明成功。
+- 阶段 15J 决策：只读复核销售表现 enabled 前置条件，不启用销售表现；理由是该接口族仍有短事务 enabled 路径、历史空 `data_date`、运行时长和真实 enabled 批次证明四个门槛。
+- 阶段 15J 证据：YAML 与 DB 均显示 7 个销售表现拆分配置仍为 `enabled=0`，且均为 `commit_per_page=true`、`data_date_param=beginDate`、`write_batch_size=10`、`rate_limit.sleep_seconds=20`、`retry.retries=1`。
+- 阶段 15J 证据：代码路径显示 `commit_per_page` 只在 `SyncEngine.test_api_once()` 单接口路径进入 `_test_api_once_commit_per_page()`；`sync_enabled_apis()` 仍直接调用 `_sync_api_in_batch()`，因此 enabled 路径尚不支持销售表现所需短事务。
+- 阶段 15J 证据：DB 只读核验显示销售表现 raw 空 `data_date` 合计仍为 7728 条，其中 `seller_sku=2673`、`asin=2651`、`sku=2097`、`variation_asin=217`、`market=44`、`spu=32`、`country=14`。
+- 阶段 15J 证据：最新销售表现单接口日志合计 43 次请求、7600 条成功、0 失败、1323 秒，约 22 分钟；该证据只能证明单接口验证成本，不能替代真实 enabled 批次证明。
+- 阶段 15J 结论：销售表现仍不能 enabled；下一阶段应优先在获得确认后实施同步任务互斥锁连接 `AUTOCOMMIT` 小改造，或实施 `storage_inbound_detail` enabled 最小变更，二者不要和销售表现 enabled 混在同一轮。

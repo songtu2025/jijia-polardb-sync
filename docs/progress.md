@@ -2,7 +2,7 @@
 
 ## Current Stage
 
-阶段 15I 已完成。`storage_inbound_detail` 已完成 enabled 主链路边界只读评估：`--sync-enabled` 会复用同一套 `param_source` / `exclude_existing_target=true` 逻辑，YAML 顺序保证 `storage_inbound_page` 先于详情接口执行，当前同口径缺口为 0；本轮未启用该接口。当前真实配置 API 为 51 个，enabled API 为 45 个，configured disabled 为 6 个。
+阶段 15J 已完成。销售表现 `/operation/sts/salesAnalysis/page` 的 enabled 前置条件已重新只读复核：7 个拆分配置仍全部 disabled，`commit_per_page=true` 仍只覆盖 `--sync-api` 单接口路径，历史空 `data_date` 仍为 7728 条，最新单接口验证合计约 1323 秒，尚无真实 enabled 批次证明；本轮未启用销售表现，也未启用 `storage_inbound_detail`。当前真实配置 API 为 51 个，enabled API 为 45 个，configured disabled 为 6 个。
 
 ## Completed
 
@@ -7364,6 +7364,19 @@
 - 当前结论：
   - `storage_inbound_detail` 可以作为下一轮 15J 的候选 enabled 实施目标，但必须先获得确认；本轮没有新增 API、没有启用接口、没有调整销售表现。
 
+## Stage 15J
+
+- 阶段目标：只读复核销售表现进入 enabled 的四个前置条件，避免在未满足条件时误加入 daily enabled。
+- 本轮结果：
+  - 前置核验显示工作区 `master...origin/master [ahead 79]`；最新提交为 `ee2029e Document storage inbound detail 15I enabled boundary`。
+  - YAML 和 DB 均显示 7 个销售表现拆分配置仍为 `enabled=false`；配置保持 `commit_per_page=true`、`data_date_param=beginDate`、`write_batch_size=10`、`rate_limit.sleep_seconds=20`、`retry.retries=1`。
+  - 代码路径核验显示 `commit_per_page` 目前只在 `SyncEngine.test_api_once()` 单接口路径分流到 `_test_api_once_commit_per_page()`；`sync_enabled_apis()` 仍直接调用 `_sync_api_in_batch()`，因此 enabled 路径尚不支持销售表现需要的等价短事务。
+  - DB 只读核验显示销售表现 raw 当前合计空 `data_date` 仍为 7728 条，分布为：`sales_analysis_seller_sku_page=2673`、`sales_analysis_asin_page=2651`、`sales_analysis_sku_page=2097`、`sales_analysis_variation_asin_page=217`、`sales_analysis_market_page=44`、`sales_analysis_spu_page=32`、`sales_analysis_country_page=14`。
+  - 最新销售表现单接口验证日志合计为 43 次请求、7600 条成功、0 失败、1323 秒，约 22 分钟；这仍只是单接口验证日志，不是 enabled 批次证明。
+  - dry-run 仍显示 45 个 enabled API，未包含任何销售表现配置；DB named lock 空闲且外部 `information_schema.innodb_trx=0`。
+- 当前结论：
+  - 销售表现仍不能进入 enabled。进入 enabled 前仍必须完成：enabled 路径支持 `commit_per_page` 或等价短事务、补齐 7728 条历史空 `data_date`、接受约 22 分钟额外单日运行时间、用真实 enabled 批次证明成功。
+
 ## Known Issues
 
 - `amazon_shop_page` 第一版以 `data_hash` 去重，不强行编造业务主键。
@@ -7383,14 +7396,14 @@
 
 ## Next Stage
 
-阶段 15J：进入 `storage_inbound_detail` enabled 最小实施决策。建议先确认是否启用；如确认，则只做最小改动：更新配置和测试、同步 DB 配置、dry-run 验证 46 个 enabled，并用真实批次证明启用后成功。销售表现仍需满足前置条件后再考虑 enabled。
+阶段 15K：优先处理一个已确认的最小实施项。当前有两个候选：其一是同步任务互斥锁连接加 `AUTOCOMMIT`，降低 named lock 专用连接留下隐式事务的风险；其二是 `storage_inbound_detail` enabled 最小实施。两者都需要明确确认后再改代码或 YAML。销售表现仍不满足 enabled 条件。
 
 建议目标：
 
-- 优先决定是否执行 `storage_inbound_detail` enabled 最小实施；若确认启用，先更新测试和 YAML，再同步 DB 配置并验证 dry-run 从 45 变为 46 个 enabled。
+- 优先获得明确确认并执行一个最小实施项：建议先做同步任务互斥锁连接 `AUTOCOMMIT` 小改造；如果确认启用 `storage_inbound_detail`，则先更新测试和 YAML，再同步 DB 配置并验证 dry-run 从 45 变为 46 个 enabled。
 - 仍需只读关注剩余 configured disabled API：`market_inventory_query`、`storage_inbound_detail`、`delivery_fee_query`、`inventory_event_page`、`inventory_age_page` 和销售表现 `/operation/sts/salesAnalysis/page`。
 - 大库存表、费用类和无稳定主键参数型接口应先做只读风险评估，不要直接 enabled。
-- 13T-13V 三轮复盘已完成；13W-13Y 三轮复盘已完成；13Z-14B 三轮复盘已完成；14C-14E 三轮复盘已完成；14F-14H 三轮复盘已完成；14I-14K 三轮复盘已完成；14L-14N 三轮复盘已完成；14O-14Q 三轮复盘已完成；14R-14T 三轮复盘已完成；14U-14W 三轮复盘已完成；14X-14Z 三轮复盘已完成；15A-15C 三轮复盘已完成；15D-15F 三轮复盘已完成；15G-15I 三轮复盘已完成，结论是 `storage_inbound_detail` 已覆盖 174334/174334，空缺口验证和 enabled 边界只读评估均通过，但尚未启用。
+- 13T-13V 三轮复盘已完成；13W-13Y 三轮复盘已完成；13Z-14B 三轮复盘已完成；14C-14E 三轮复盘已完成；14F-14H 三轮复盘已完成；14I-14K 三轮复盘已完成；14L-14N 三轮复盘已完成；14O-14Q 三轮复盘已完成；14R-14T 三轮复盘已完成；14U-14W 三轮复盘已完成；14X-14Z 三轮复盘已完成；15A-15C 三轮复盘已完成；15D-15F 三轮复盘已完成；15G-15I 三轮复盘已完成；15J 已完成销售表现 enabled 前置条件只读复核，结论是仍不能 enabled。
 - 任何日期窗口完整验证都必须确认 `item_count == total_count`；如触发 `date window page truncated`，应先修正分页上限后重跑。
 - 如启用 `storage_inbound_detail`，完成后同步 `api_config`、刷新覆盖矩阵并运行编译、单测、dry-run、真实批次和 DB 复核。
 
