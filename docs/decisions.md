@@ -2792,3 +2792,12 @@
 - 阶段 15H 证据：本批次 raw 写入 0 条；累计覆盖仍为 174334/174334，完成 100.00%，剩余 0；本批次和该 API 累计 `failed_request_log` 均为 0；同步结束后 named lock 已释放且外部 `information_schema.innodb_trx=0`。
 - 阶段 15H 证据：`sync_checkpoint` 已更新到批次 `sync_20260712_191559_497680`，`checkpoint_value` 记录 `request_count=0`、`item_count=0`、`total_count=0`、`param_limit=2000`、`next_param_offset=0`。
 - 阶段 15H 结论：`storage_inbound_detail` 空缺口不会重复拉取历史；15I 建议先做 enabled 主链路边界只读评估，并在完成后做 15G-15I 三轮复盘，销售表现继续保持 disabled。
+- 阶段 15I 决策：只读评估 `storage_inbound_detail` enabled 主链路边界，不直接修改 YAML 或 DB enabled 状态；理由是 15G 已补齐历史、15H 已证明空缺口不重复拉取，但 enabled 会改变每日批量同步范围，必须先确认主链路复用路径和新增 code 发现边界。
+- 阶段 15I 证据：前置核验显示最新提交为 `5839c35`；YAML 共 59 个 `api_code`、enabled 45 个；`storage_inbound_detail.enabled=0`、`param_source.limit=2000`、`exclude_existing_target=true`、`auto_advance=true`。
+- 阶段 15I 证据：catalog summary 为公开文档 API 187 个、真实配置 API 51 个、enabled 45 个、configured disabled 6 个；销售表现 7 个拆分配置仍全部 disabled 且 `commit_per_page=true`。
+- 阶段 15I 证据：DB 前置核验显示 `storage_inbound_detail` 覆盖 174334/174334、剩余 0，累计失败请求为 0，named lock 空闲，外部 `information_schema.innodb_trx=0`；DB `api_config` 为 59 条、enabled 45 条，`storage_inbound_detail.enabled=0`。
+- 阶段 15I 证据：`--sync-enabled` 通过 `SyncEngine.sync_enabled_apis()` 遍历 `_enabled_apis()`，每个 API 进入 `_sync_api_in_batch()`；带 `param_source` 的接口会调用 `_sync_api_from_param_source_in_batch()`，因此 `storage_inbound_detail` 启用后会复用已经验证过的缺口扫描路径。
+- 阶段 15I 证据：YAML 顺序中 `storage_inbound_page` 位于 `storage_inbound_detail` 之前；内存态启用探针显示 enabled 数量会从 45 变为 46，且 `storage_inbound_page` 仍先于 `storage_inbound_detail`，后续新增上游 code 能在同一 enabled 批次后段被详情接口发现。
+- 阶段 15I 证据：与当前配置同口径的 LEFT JOIN 缺口查询返回 `missing_count=0`；`exclude_existing_target=true` 会忽略 checkpoint offset，按目标表缺失 `source_primary_key` 决定是否请求详情。
+- 阶段 15G-15I 复盘：15G 补齐最后 828 个详情，15H 空缺口验证为 0 请求、0 写入、0 失败，15I 只读确认 enabled 主链路边界；三轮结束后覆盖为 174334/174334，失败日志为 0，named lock 与外部 InnoDB 事务均无残留。
+- 阶段 15I 结论：`storage_inbound_detail` 具备进入 enabled 的技术边界，但尚未启用；15J 如获确认，应以最小改动更新测试和 YAML，同步 DB 配置，验证 dry-run 为 46 个 enabled，并用真实批次证明成功。

@@ -2,7 +2,7 @@
 
 ## Current Stage
 
-阶段 15H 已完成。`storage_inbound_detail` 在覆盖 174334/174334 后完成空缺口验证；本轮批次请求 0、写入 0、失败 0，确认 `exclude_existing_target=true` 不会重复拉取已覆盖历史。当前真实配置 API 为 51 个，enabled API 为 45 个，configured disabled 为 6 个。
+阶段 15I 已完成。`storage_inbound_detail` 已完成 enabled 主链路边界只读评估：`--sync-enabled` 会复用同一套 `param_source` / `exclude_existing_target=true` 逻辑，YAML 顺序保证 `storage_inbound_page` 先于详情接口执行，当前同口径缺口为 0；本轮未启用该接口。当前真实配置 API 为 51 个，enabled API 为 45 个，configured disabled 为 6 个。
 
 ## Completed
 
@@ -7345,13 +7345,32 @@
 - 当前结论：
   - `storage_inbound_detail` 已具备“空缺口不重复拉取历史”的证据，但仍先不加入 enabled；下一阶段 15I 建议做 enabled 边界只读评估，并在完成后做 15G-15I 三轮复盘和整体规划。
 
+## Stage 15I
+
+- 阶段目标：只读评估 `storage_inbound_detail` 是否具备进入 enabled 的最小边界，并完成 15G-15I 三轮复盘；本轮不直接启用。
+- 本轮结果：
+  - 前置核验显示工作区 `master...origin/master [ahead 78]`；最新提交为 `5839c35 Document storage inbound detail 15H empty gap`。
+  - YAML 核验显示共 59 个 `api_code`、enabled 45 个；`storage_inbound_detail.enabled=false`、`param_source.limit=2000`、`exclude_existing_target=true`、`auto_advance=true`。
+  - 覆盖矩阵 summary 显示公开文档 API 187 个、真实配置 API 51 个、enabled 45 个、configured disabled 6 个；销售表现 7 个拆分配置仍全部 disabled，且均为 `commit_per_page=true`。
+  - DB 前置核验显示 `storage_inbound_detail` 累计覆盖 174334/174334，剩余 0，累计失败请求为 0；named lock 空闲，外部 `information_schema.innodb_trx=0`；DB `api_config` 为 59 条、enabled 45 条，`storage_inbound_detail.enabled=0`。
+  - 代码路径核验显示 `--sync-enabled` 通过 `SyncEngine.sync_enabled_apis()` 遍历 `_enabled_apis()`，每个 API 进入 `_sync_api_in_batch()`；遇到 `param_source` 时复用 `_sync_api_from_param_source_in_batch()`，与 `--sync-api storage_inbound_detail` 的参数源、缺口扫描和写入路径一致。
+  - YAML 顺序核验显示 `storage_inbound_page` 位于 `storage_inbound_detail` 之前；若后续启用详情接口，enabled 列表会先同步上游入库单分页，再由详情接口按目标表缺失主键扫描新增 code。
+  - 当前同口径 LEFT JOIN 缺口查询返回 `missing_count=0`；`exclude_existing_target=true` 会忽略 checkpoint offset，按 `raw_json.code` 与目标 `source_primary_key` 的缺口决定是否请求详情。
+  - 既有测试已覆盖 enabled 批次分事务提交、详情接口从 `raw_json` 字段取参数、`exclude_existing_target=true` 生成 LEFT JOIN 缺口过滤，以及 `storage_inbound_detail` 当前 disabled 和参数源配置。
+- 15G-15I 三轮复盘：
+  - 15G 补齐最后 828 个详情，覆盖从 173506/174334 推进到 174334/174334；15H 空缺口验证为 0 请求、0 写入、0 失败；15I 只读确认 enabled 主链路会复用同一套缺口扫描逻辑。
+  - 三轮结束后 `storage_inbound_detail` 当前覆盖为 174334/174334，失败日志为 0，named lock 与外部 InnoDB 事务均无残留。
+  - 当前结论是“具备进入 enabled 的技术边界”，不是“已经 enabled”；真正启用仍需修改 YAML、同步 DB 配置、dry-run 变为 46 个 enabled，并用真实批次证明。
+- 当前结论：
+  - `storage_inbound_detail` 可以作为下一轮 15J 的候选 enabled 实施目标，但必须先获得确认；本轮没有新增 API、没有启用接口、没有调整销售表现。
+
 ## Known Issues
 
 - `amazon_shop_page` 第一版以 `data_hash` 去重，不强行编造业务主键。
 - 各业务 API 的具体路径、字段、分页和主键需要逐个阅读文档确认。
 - 新增后续业务接口前，仍需要逐个阅读积加文档确认路径、分页、主键和日期字段。
 - 当前 enabled API 已有 45 个：`amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`、`product_page`、`amazon_msku_page`、`parent_product_page`、`kb_product_page`、`fba_warehouse_page`、`store_location_page`、`multi_shop_query`、`platform_msku_page`、`crm_tags_page`、`inventory_team_query`、`fba_inventory_page`、`fba_inventory_v2_page`、`inventory_adjustments_page`、`product_inventory_page`、`storage_inbound_page`、`transfer_page`、`lot_no_page`、`procure_detail`、`storage_return_page`、`strategy_template_page`、`traffic_analysis_page`、`traffic_page`、`traffic_sku_page`、`shipment_data_page`、`storage_ledger_page`、`storage_ledger_detail_page`、`storage_ledger_month_page`、`inventory_receipts_page`、`purchase_sale_storage_fba_page`、`purchase_plan_page`、`product_detail`、`country_province_query`、`transfer_detail`、`lot_no_detail`、`base_currency_query`。
-- 当前已配置真实 API 为 51 个，其中 45 个已加入 enabled，`market_inventory_query`、`storage_inbound_detail`、`delivery_fee_query`、`inventory_event_page`、`inventory_age_page` 和销售表现 `/operation/sts/salesAnalysis/page` 已完成验证但保持 disabled；`storage_inbound_detail` 缺失扫描回填已覆盖 174334/174334，空缺口批次已验证为 0 请求、0 写入、0 失败。
+- 当前已配置真实 API 为 51 个，其中 45 个已加入 enabled，`market_inventory_query`、`storage_inbound_detail`、`delivery_fee_query`、`inventory_event_page`、`inventory_age_page` 和销售表现 `/operation/sts/salesAnalysis/page` 已完成验证但保持 disabled；`storage_inbound_detail` 缺失扫描回填已覆盖 174334/174334，空缺口批次已验证为 0 请求、0 写入、0 失败，enabled 主链路边界已只读确认，但仍等待明确确认后再启用。
 - 当前依赖参数来源机制支持从 `raw_api_data.source_primary_key` 取单个参数，也支持从 `raw_json` 点路径提取多个参数、从单层数组路径如 `raw_json.marketListVos[].marketId` 展开一个参数，并可用 `param_source.filters` 做固定等值过滤、用 `param_source.auto_advance` 基于 checkpoint 推进窗口；`source_primary_key` 和 `raw_json` 点路径参数源均已支持 `exclude_existing_target=true` 按目标表缺失主键做增量拾取；参数型详情接口还支持用 `primary_key.param_field` 把请求参数写入 raw 主键但不污染 `raw_json`；响应提取机制已支持列表、单对象和标量包装；`product_detail`、`transfer_detail`、`lot_no_detail` 和 `procure_detail` 已通过该机制进入 enabled；另有 111307 个库存参数对或 142281 个发货单号尚未纳入生产级调度。
 - `primary_key.required=true` 会过滤缺少必填主键的响应对象，避免详情接口返回全空对象时写入 `source_primary_key="None"` 的 raw。
 - 覆盖矩阵是公开文档视角，不等同于当前账号真实授权可调用结果；真实可访问性仍需单接口运行验证。
@@ -7364,16 +7383,16 @@
 
 ## Next Stage
 
-阶段 15I：进入 `storage_inbound_detail` enabled 边界只读评估。下一阶段建议不直接启用，先检查 enabled 主链路是否会复用 `exclude_existing_target=true`、空缺口能否在 enabled 中稳定跳过、以及新增上游 code 的发现路径；销售表现仍需满足前置条件后再考虑 enabled。15I 将作为本组三轮第 3 轮，并在完成后做 15G-15I 三轮复盘。
+阶段 15J：进入 `storage_inbound_detail` enabled 最小实施决策。建议先确认是否启用；如确认，则只做最小改动：更新配置和测试、同步 DB 配置、dry-run 验证 46 个 enabled，并用真实批次证明启用后成功。销售表现仍需满足前置条件后再考虑 enabled。
 
 建议目标：
 
-- 优先做 `storage_inbound_detail` enabled 边界只读评估，因为空缺口批次已证明不会重复扫描全量历史；不要直接 enabled，先确认每日 enabled 主链路的实际事务、请求和新增发现边界。
+- 优先决定是否执行 `storage_inbound_detail` enabled 最小实施；若确认启用，先更新测试和 YAML，再同步 DB 配置并验证 dry-run 从 45 变为 46 个 enabled。
 - 仍需只读关注剩余 configured disabled API：`market_inventory_query`、`storage_inbound_detail`、`delivery_fee_query`、`inventory_event_page`、`inventory_age_page` 和销售表现 `/operation/sts/salesAnalysis/page`。
 - 大库存表、费用类和无稳定主键参数型接口应先做只读风险评估，不要直接 enabled。
-- 13T-13V 三轮复盘已完成；13W-13Y 三轮复盘已完成；13Z-14B 三轮复盘已完成；14C-14E 三轮复盘已完成；14F-14H 三轮复盘已完成；14I-14K 三轮复盘已完成；14L-14N 三轮复盘已完成；14O-14Q 三轮复盘已完成；14R-14T 三轮复盘已完成；14U-14W 三轮复盘已完成；14X-14Z 三轮复盘已完成；15A-15C 三轮复盘已完成，覆盖从 161506 推进到 167506/174334，净增 6000；15D-15F 三轮复盘已完成，覆盖从 167506 推进到 173506/174334，净增 6000；15G 覆盖从 173506 推进到 174334/174334；15H 空缺口验证为 0 请求、0 写入、0 失败。15I 将作为本组三轮第 3 轮并做复盘。
+- 13T-13V 三轮复盘已完成；13W-13Y 三轮复盘已完成；13Z-14B 三轮复盘已完成；14C-14E 三轮复盘已完成；14F-14H 三轮复盘已完成；14I-14K 三轮复盘已完成；14L-14N 三轮复盘已完成；14O-14Q 三轮复盘已完成；14R-14T 三轮复盘已完成；14U-14W 三轮复盘已完成；14X-14Z 三轮复盘已完成；15A-15C 三轮复盘已完成；15D-15F 三轮复盘已完成；15G-15I 三轮复盘已完成，结论是 `storage_inbound_detail` 已覆盖 174334/174334，空缺口验证和 enabled 边界只读评估均通过，但尚未启用。
 - 任何日期窗口完整验证都必须确认 `item_count == total_count`；如触发 `date window page truncated`，应先修正分页上限后重跑。
-- 完成后同步 `api_config`、刷新覆盖矩阵并运行编译与单测。
+- 如启用 `storage_inbound_detail`，完成后同步 `api_config`、刷新覆盖矩阵并运行编译、单测、dry-run、真实批次和 DB 复核。
 
 验收：
 
