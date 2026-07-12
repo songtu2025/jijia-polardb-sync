@@ -2,7 +2,7 @@
 
 ## Current Stage
 
-阶段 15G 已完成。`storage_inbound_detail` 继续使用 2000 缺失扫描窗口，本轮用官方 CLI 路径补齐最后 828 个缺失入库单详情；当前累计覆盖 174334/174334，完成 100.00%，剩余 0。当前真实配置 API 为 51 个，enabled API 为 45 个，configured disabled 为 6 个。
+阶段 15H 已完成。`storage_inbound_detail` 在覆盖 174334/174334 后完成空缺口验证；本轮批次请求 0、写入 0、失败 0，确认 `exclude_existing_target=true` 不会重复拉取已覆盖历史。当前真实配置 API 为 51 个，enabled API 为 45 个，configured disabled 为 6 个。
 
 ## Completed
 
@@ -7329,13 +7329,29 @@
 - 当前结论：
   - `storage_inbound_detail` 历史缺失详情已按当前上游 `storage_inbound_page` 去重 code 补齐，但仍先不加入 enabled；下一阶段 15H 建议做空缺口验证、enabled 运行边界评估和 15G-15I 本组三轮的第 2 轮推进。
 
+## Stage 15H
+
+- 阶段目标：对已补齐的 `storage_inbound_detail` 做空缺口验证，证明 `exclude_existing_target=true` 不会重复拉取全量历史，并作为 15G-15I 本组三轮第 2 轮。
+- 本轮结果：
+  - 前置核验显示工作区 `master...origin/master [ahead 77]`；最新提交为 `2f1ea76 Document storage inbound detail 15G backfill`。
+  - 文档交接已指向 15H；YAML 核验显示共 59 个 `api_code`、enabled 45 个；`storage_inbound_detail.enabled=false`、`param_source.limit=2000`、`exclude_existing_target=true`、`auto_advance=true`。
+  - 覆盖矩阵 summary 显示公开文档 API 187 个、真实配置 API 51 个、enabled 45 个、configured disabled 6 个；销售表现 7 个拆分配置仍全部 disabled、`commit_per_page=true`。
+  - DB 前置核验显示 named lock 空闲、外部 `information_schema.innodb_trx=0`；`storage_inbound_detail` 起点覆盖为 174334/174334，累计失败请求为 0；DB `api_config` 为 59 条、enabled 45 条，`storage_inbound_detail.enabled=0`。
+  - 官方 CLI `.\\.venv\\Scripts\\python.exe -m app.main --sync-api storage_inbound_detail` 成功，批次 `sync_20260712_191559_497680`，0 次请求、0 条成功计数、失败 0，批次耗时 4 秒，API 耗时 2 秒。
+  - 本批次 raw 写入 0 条；DB 核验显示累计覆盖仍为 174334/174334，完成 100.00%，剩余 0；本批次和该 API 累计 `failed_request_log` 均为 0。
+  - 同步结束后 named lock 已释放，外部 `information_schema.innodb_trx=0`；DB `api_config` 仍为 59 条、enabled 45 条，`storage_inbound_detail.enabled=0`。
+  - `sync_checkpoint` 已更新到批次 `sync_20260712_191559_497680`，`checkpoint_value` 记录 `request_count=0`、`item_count=0`、`total_count=0`、`param_limit=2000`、`next_param_offset=0`。
+  - 本轮一个辅助 checkpoint 查询曾误用不存在的列名 `last_page`；查 `SHOW COLUMNS FROM sync_checkpoint` 后确认真实结构为 `checkpoint_value` JSON，已用实际结构复核完成，不涉及同步链路异常。
+- 当前结论：
+  - `storage_inbound_detail` 已具备“空缺口不重复拉取历史”的证据，但仍先不加入 enabled；下一阶段 15I 建议做 enabled 边界只读评估，并在完成后做 15G-15I 三轮复盘和整体规划。
+
 ## Known Issues
 
 - `amazon_shop_page` 第一版以 `data_hash` 去重，不强行编造业务主键。
 - 各业务 API 的具体路径、字段、分页和主键需要逐个阅读文档确认。
 - 新增后续业务接口前，仍需要逐个阅读积加文档确认路径、分页、主键和日期字段。
 - 当前 enabled API 已有 45 个：`amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`、`product_page`、`amazon_msku_page`、`parent_product_page`、`kb_product_page`、`fba_warehouse_page`、`store_location_page`、`multi_shop_query`、`platform_msku_page`、`crm_tags_page`、`inventory_team_query`、`fba_inventory_page`、`fba_inventory_v2_page`、`inventory_adjustments_page`、`product_inventory_page`、`storage_inbound_page`、`transfer_page`、`lot_no_page`、`procure_detail`、`storage_return_page`、`strategy_template_page`、`traffic_analysis_page`、`traffic_page`、`traffic_sku_page`、`shipment_data_page`、`storage_ledger_page`、`storage_ledger_detail_page`、`storage_ledger_month_page`、`inventory_receipts_page`、`purchase_sale_storage_fba_page`、`purchase_plan_page`、`product_detail`、`country_province_query`、`transfer_detail`、`lot_no_detail`、`base_currency_query`。
-- 当前已配置真实 API 为 51 个，其中 45 个已加入 enabled，`market_inventory_query`、`storage_inbound_detail`、`delivery_fee_query`、`inventory_event_page`、`inventory_age_page` 和销售表现 `/operation/sts/salesAnalysis/page` 已完成验证但保持 disabled；`storage_inbound_detail` 缺失扫描回填已覆盖 174334/174334。
+- 当前已配置真实 API 为 51 个，其中 45 个已加入 enabled，`market_inventory_query`、`storage_inbound_detail`、`delivery_fee_query`、`inventory_event_page`、`inventory_age_page` 和销售表现 `/operation/sts/salesAnalysis/page` 已完成验证但保持 disabled；`storage_inbound_detail` 缺失扫描回填已覆盖 174334/174334，空缺口批次已验证为 0 请求、0 写入、0 失败。
 - 当前依赖参数来源机制支持从 `raw_api_data.source_primary_key` 取单个参数，也支持从 `raw_json` 点路径提取多个参数、从单层数组路径如 `raw_json.marketListVos[].marketId` 展开一个参数，并可用 `param_source.filters` 做固定等值过滤、用 `param_source.auto_advance` 基于 checkpoint 推进窗口；`source_primary_key` 和 `raw_json` 点路径参数源均已支持 `exclude_existing_target=true` 按目标表缺失主键做增量拾取；参数型详情接口还支持用 `primary_key.param_field` 把请求参数写入 raw 主键但不污染 `raw_json`；响应提取机制已支持列表、单对象和标量包装；`product_detail`、`transfer_detail`、`lot_no_detail` 和 `procure_detail` 已通过该机制进入 enabled；另有 111307 个库存参数对或 142281 个发货单号尚未纳入生产级调度。
 - `primary_key.required=true` 会过滤缺少必填主键的响应对象，避免详情接口返回全空对象时写入 `source_primary_key="None"` 的 raw。
 - 覆盖矩阵是公开文档视角，不等同于当前账号真实授权可调用结果；真实可访问性仍需单接口运行验证。
@@ -7348,14 +7364,14 @@
 
 ## Next Stage
 
-阶段 15H：进入 `storage_inbound_detail` 收尾后的稳定性核验。下一阶段建议先跑空缺口验证，确认 0 请求/0 新写入、锁和事务收口正常，再评估是否需要为该接口设计 enabled 边界；销售表现仍需满足前置条件后再考虑 enabled。按新目标模式，15H 将作为本组三轮的第 2 轮。
+阶段 15I：进入 `storage_inbound_detail` enabled 边界只读评估。下一阶段建议不直接启用，先检查 enabled 主链路是否会复用 `exclude_existing_target=true`、空缺口能否在 enabled 中稳定跳过、以及新增上游 code 的发现路径；销售表现仍需满足前置条件后再考虑 enabled。15I 将作为本组三轮第 3 轮，并在完成后做 15G-15I 三轮复盘。
 
 建议目标：
 
-- 优先做 `storage_inbound_detail` 空缺口验证，因为它已按当前上游 code 覆盖 100%；不要直接 enabled，先证明空缺口批次不会重复扫描全量历史。
+- 优先做 `storage_inbound_detail` enabled 边界只读评估，因为空缺口批次已证明不会重复扫描全量历史；不要直接 enabled，先确认每日 enabled 主链路的实际事务、请求和新增发现边界。
 - 仍需只读关注剩余 configured disabled API：`market_inventory_query`、`storage_inbound_detail`、`delivery_fee_query`、`inventory_event_page`、`inventory_age_page` 和销售表现 `/operation/sts/salesAnalysis/page`。
 - 大库存表、费用类和无稳定主键参数型接口应先做只读风险评估，不要直接 enabled。
-- 13T-13V 三轮复盘已完成；13W-13Y 三轮复盘已完成；13Z-14B 三轮复盘已完成；14C-14E 三轮复盘已完成；14F-14H 三轮复盘已完成；14I-14K 三轮复盘已完成；14L-14N 三轮复盘已完成；14O-14Q 三轮复盘已完成；14R-14T 三轮复盘已完成；14U-14W 三轮复盘已完成；14X-14Z 三轮复盘已完成；15A-15C 三轮复盘已完成，覆盖从 161506 推进到 167506/174334，净增 6000；15D-15F 三轮复盘已完成，覆盖从 167506 推进到 173506/174334，净增 6000；15G 覆盖从 173506 推进到 174334/174334，剩余 0。15H 将作为本组三轮第 2 轮。
+- 13T-13V 三轮复盘已完成；13W-13Y 三轮复盘已完成；13Z-14B 三轮复盘已完成；14C-14E 三轮复盘已完成；14F-14H 三轮复盘已完成；14I-14K 三轮复盘已完成；14L-14N 三轮复盘已完成；14O-14Q 三轮复盘已完成；14R-14T 三轮复盘已完成；14U-14W 三轮复盘已完成；14X-14Z 三轮复盘已完成；15A-15C 三轮复盘已完成，覆盖从 161506 推进到 167506/174334，净增 6000；15D-15F 三轮复盘已完成，覆盖从 167506 推进到 173506/174334，净增 6000；15G 覆盖从 173506 推进到 174334/174334；15H 空缺口验证为 0 请求、0 写入、0 失败。15I 将作为本组三轮第 3 轮并做复盘。
 - 任何日期窗口完整验证都必须确认 `item_count == total_count`；如触发 `date window page truncated`，应先修正分页上限后重跑。
 - 完成后同步 `api_config`、刷新覆盖矩阵并运行编译与单测。
 

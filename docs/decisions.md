@@ -2784,3 +2784,11 @@
 - 阶段 15G 证据：本批次 raw 为 828 条、828 个 `source_primary_key`、828 个不同主键、828 个 `data_hash`、空主键 0，`data_date` 覆盖 `2025-09-23` 到 `2026-07-04`。
 - 阶段 15G 证据：`storage_inbound_detail` 累计覆盖增至 174334/174334，完成 100.00%，剩余 0；本批次和该 API 累计 `failed_request_log` 均为 0；同步结束后 named lock 已释放且外部 `information_schema.innodb_trx=0`。
 - 阶段 15G 结论：`storage_inbound_detail` 已按当前上游 `storage_inbound_page` 去重 code 完成历史回填，但仍不直接 enabled；15H 建议先做空缺口验证和 enabled 边界评估，销售表现继续保持 disabled。
+- 阶段 15H 决策：在不启用 `storage_inbound_detail` 的前提下运行一次官方 CLI 空缺口验证；理由是 15G 已覆盖 174334/174334，进入 enabled 前必须先证明 `exclude_existing_target=true` 不会重复拉取全量历史。
+- 阶段 15H 证据：前置核验显示最新提交为 `2f1ea76`；YAML 共 59 个 `api_code`、enabled 45 个；`storage_inbound_detail.enabled=0`、`param_source.limit=2000`、`exclude_existing_target=true`、`auto_advance=true`。
+- 阶段 15H 证据：catalog summary 为公开文档 API 187 个、真实配置 API 51 个、enabled 45 个、configured disabled 6 个；销售表现 7 个拆分配置仍全部 disabled 且 `commit_per_page=true`。
+- 阶段 15H 证据：DB 前置核验显示起点覆盖为 174334/174334，累计失败请求为 0，named lock 空闲，外部 `information_schema.innodb_trx=0`；DB `api_config` 为 59 条、enabled 45 条，`storage_inbound_detail.enabled=0`。
+- 阶段 15H 证据：官方 CLI 批次 `sync_20260712_191559_497680` 成功，0 次请求、0 条成功计数、失败 0，批次耗时 4 秒，API 耗时 2 秒；CLI 正常返回 0。
+- 阶段 15H 证据：本批次 raw 写入 0 条；累计覆盖仍为 174334/174334，完成 100.00%，剩余 0；本批次和该 API 累计 `failed_request_log` 均为 0；同步结束后 named lock 已释放且外部 `information_schema.innodb_trx=0`。
+- 阶段 15H 证据：`sync_checkpoint` 已更新到批次 `sync_20260712_191559_497680`，`checkpoint_value` 记录 `request_count=0`、`item_count=0`、`total_count=0`、`param_limit=2000`、`next_param_offset=0`。
+- 阶段 15H 结论：`storage_inbound_detail` 空缺口不会重复拉取历史；15I 建议先做 enabled 主链路边界只读评估，并在完成后做 15G-15I 三轮复盘，销售表现继续保持 disabled。
