@@ -2744,3 +2744,12 @@
 - 阶段 15C 规划：下一组从 15D 开始，继续以 `storage_inbound_detail` 2000 窗口推进完整拉取；当前剩余 6828，仍不在前台任务中临时放大到 5000。
 - 阶段 15C 验收：dry-run 45 个 enabled API、`compileall app tests`、93 个 unittest、`git diff --check` 和最终 DB 复核均通过。
 - 阶段 15C 结论：`storage_inbound_detail` 仍不能 enabled；15D 建议继续 2000 窗口。销售表现继续保持 disabled，直到短事务 enabled 路径、空 `data_date` 补齐、运行时长评估和真实 enabled 批次证明全部满足。
+- 阶段 15D 决策：继续使用 `storage_inbound_detail.param_source.limit=2000` 做缺失扫描回填；理由是 15C 后剩余 6828 个上游 code，2000 窗口仍稳定，且本轮作为下一组三轮的第 1 轮先保持策略不变。
+- 阶段 15D 证据：前置核验显示最新提交为 `b1e9fac`；YAML 共 59 个 `api_code`、enabled 45 个；`storage_inbound_detail.enabled=0`、`param_source.limit=2000`、`exclude_existing_target=true`、`auto_advance=true`。
+- 阶段 15D 证据：覆盖矩阵为公开文档 API 187 个、真实配置 API 51 个、enabled 45 个、configured disabled 6 个；销售表现 7 个拆分配置仍全部 disabled。
+- 阶段 15D 证据：DB 前置核验显示起点覆盖为 167506/174334，累计失败请求为 0，named lock 空闲，外部 `information_schema.innodb_trx=0`；DB `api_config` 为 59 条、enabled 45 条，`storage_inbound_detail.enabled=0`。
+- 阶段 15D 证据：单接口批次 `sync_20260712_170335_445099` 成功，2000 次请求、2000 条成功计数、失败 0，批次耗时 1868 秒，API 耗时 1865 秒；CLI 正常返回 0。
+- 阶段 15D 证据：本批次 raw 为 2000 条、2000 个 `source_primary_key`、2000 个不同主键、2000 个 `data_hash`、空主键 0，`data_date` 覆盖 `2025-12-17` 到 `2025-12-24`。
+- 阶段 15D 证据：`storage_inbound_detail` 累计覆盖增至 169506/174334，完成约 97.23%，剩余 4828；本批次和该 API 累计 `failed_request_log` 均为 0；同步结束后 named lock 已释放且外部 `information_schema.innodb_trx=0`。
+- 阶段 15D 验收：dry-run 45 个 enabled API、`compileall app tests`、93 个 unittest、`git diff --check` 和最终 DB 复核均通过；`git diff --check` 仅提示文档 LF/CRLF 替换警告。
+- 阶段 15D 结论：`storage_inbound_detail` 仍不能 enabled；15E 建议继续 2000 窗口，并作为本组三轮第 2 轮继续推进。
