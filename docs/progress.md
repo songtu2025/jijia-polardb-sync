@@ -7392,6 +7392,24 @@
 - 当前结论：
   - 不应批量启用剩余 disabled 接口。`storage_inbound_detail` 是最接近 enabled 的候选，但仍需明确确认后才能改 YAML/DB 并跑真实 enabled 批次；`delivery_fee_query` 和 `market_inventory_query` 需要先解决费用风险、主键和生产级参数窗口；`inventory_event_page`、`inventory_age_page` 继续保持 disabled；销售表现继续被四个 enabled 前置条件阻挡。
 
+## Stage 15L
+
+- 阶段目标：实施同步任务互斥锁连接 `AUTOCOMMIT` 最小改造，降低 named lock 专用连接留下隐式事务的风险，并完成 15J-15L 三轮复盘。
+- 本轮结果：
+  - 前置核验显示工作区 `master...origin/master [ahead 81]`；最新提交为 `4d7d306 Document disabled API 15K risk review`。
+  - 本轮未启用任何 API，未修改 YAML 或 DB `api_config.enabled`；`storage_inbound_detail` 仍为 disabled，销售表现 7 个拆分配置仍为 disabled。
+  - TDD RED：先修改 `tests/test_main_sync_lock.py`，让 fake 连接记录 `execution_options()` 调用，并断言 `_sync_task_lock()` 必须使用 `isolation_level="AUTOCOMMIT"`；此时 `python -m unittest tests.test_main_sync_lock` 按预期失败，失败原因为未找到该 isolation level 调用。
+  - GREEN：将 `app/main.py` 的锁专用连接改为 `engine.connect().execution_options(isolation_level="AUTOCOMMIT")`，只影响 named lock 连接，不改变业务写入事务边界。
+  - 锁测试通过：`python -m unittest tests.test_main_sync_lock` 运行 4 个测试全部通过，覆盖拿不到锁退出、异常释放、释放失败不掩盖任务成功、以及锁连接 AUTOCOMMIT。
+  - DB 锁烟测通过：持锁期间 `IS_FREE_LOCK('jijia_polardb_sync_task')=0` 且外部 `information_schema.innodb_trx=0`；释放后 `IS_FREE_LOCK(...)=1` 且外部事务仍为 0。
+  - 主验证通过：dry-run 仍加载 45 个 enabled API，`compileall app tests` 通过，93 个 unittest 通过。
+- 15J-15L 三轮复盘：
+  - 15J 只读复核销售表现 enabled 前置条件，结论是仍不能 enabled：enabled 路径未支持短事务、历史空 `data_date` 仍为 7728 条、单接口耗时约 1323 秒、没有 enabled 批次证明。
+  - 15K 只读复核 configured disabled 风险分层，结论是不应批量启用剩余 disabled；`storage_inbound_detail` 最接近 enabled，`delivery_fee_query`、`market_inventory_query`、两个大分页接口和销售表现均需继续分层推进。
+  - 15L 完成同步任务互斥锁连接 `AUTOCOMMIT` 小改造，把 15F 暴露的 named lock 专用连接隐式事务风险向下收敛；本轮没有改变 API enabled 范围。
+- 当前结论：
+  - 同步互斥稳定性已有一项最小改造落地；下一阶段 15M 建议在明确确认后实施 `storage_inbound_detail` enabled 最小变更，并用 dry-run 46 个 enabled、真实 enabled 批次和 DB 复核证明成功。
+
 ## Known Issues
 
 - `amazon_shop_page` 第一版以 `data_hash` 去重，不强行编造业务主键。
@@ -7406,21 +7424,21 @@
 - `--sync-enabled` 已在 5W 改为批次头、单 API、最终汇总分事务提交，已完成 API 的 raw、log 和 checkpoint 可随 API 完成后提交；但总运行时长仍由接口请求量和数据库写入量决定。
 - 请求参数已支持 `{{ today }}`、`{{ yesterday }}`、`{{ days_ago:N }}` 三类日期模板；`date_window` 已通过 `traffic_analysis_page`、`traffic_page`、`traffic_sku_page`、`shipment_data_page`、`storage_ledger_page`、`storage_ledger_detail_page` 和 `inventory_receipts_page` 真实验证，可用 checkpoint 中的 `next_window_start` 推进历史窗口，支持嵌套字段，并已支持追平当前日期后的自动跳过；日期窗口接口如果 `item_count < total_count` 会记为 failed 且不推进 checkpoint。
 - 后续如果继续增加大分页接口或依赖型批量接口，需要关注运行时长、数据库写入耗时和 cron 窗口。
-- 远程 PolarDB 如出现遗留睡眠未提交事务，可能导致 raw 写入锁等待超时，需要先查 `information_schema.processlist` 和 `information_schema.innodb_trx`。
+- 远程 PolarDB 如出现遗留睡眠未提交事务，可能导致 raw 写入锁等待超时，需要先查 `information_schema.processlist` 和 `information_schema.innodb_trx`；同步任务互斥锁专用连接已在 15L 改为 `AUTOCOMMIT`，但业务写入连接仍需按事务边界正常排查。
 - 覆盖矩阵已增加执行分层；当前未配置且可直接普通探测的候选为 0 个，剩余接口应按 `needs_param_source`、`needs_sensitive_review`、`risk_review_before_probe`、`known_risk_review` 和 `defer_write_or_mutation` 分别推进。
 
 ## Next Stage
 
-阶段 15L：优先在获得明确确认后执行一个最小实施项，并在完成后做 15J-15L 三轮复盘。当前最稳的实施候选仍是同步任务互斥锁连接加 `AUTOCOMMIT`，降低 named lock 专用连接留下隐式事务的风险；另一个候选是 `storage_inbound_detail` enabled 最小实施。两者都需要明确确认后再改代码或 YAML。销售表现仍不满足 enabled 条件。
+阶段 15M：建议在明确确认后实施 `storage_inbound_detail` enabled 最小变更。该接口已完成 174334/174334 历史回填、空缺口验证和 enabled 主链路边界只读评估；15L 已先完成同步互斥锁连接 `AUTOCOMMIT` 稳定性改造。销售表现仍不满足 enabled 条件。
 
 建议目标：
 
-- 优先获得明确确认并执行一个最小实施项：建议先做同步任务互斥锁连接 `AUTOCOMMIT` 小改造；如果确认启用 `storage_inbound_detail`，则先更新测试和 YAML，再同步 DB 配置并验证 dry-run 从 45 变为 46 个 enabled。
+- 如确认启用 `storage_inbound_detail`，先更新测试期望和 YAML，再同步 DB `api_config`，验证 dry-run 从 45 变为 46 个 enabled，并运行真实 enabled 批次证明成功。
 - `delivery_fee_query`、`market_inventory_query`、`inventory_event_page`、`inventory_age_page` 和销售表现继续保持只读观察，不要直接 enabled。
-- 15J 已完成销售表现前置复核，15K 已完成剩余 disabled 风险分层；15L 完成后需要做 15J-15L 三轮复盘和整体规划。
+- 15J 已完成销售表现前置复核，15K 已完成剩余 disabled 风险分层，15L 已完成同步互斥锁连接 `AUTOCOMMIT` 改造和 15J-15L 三轮复盘；15M 将作为下一组三轮的第 1 轮。
 - 13T-13V 三轮复盘已完成；13W-13Y 三轮复盘已完成；13Z-14B 三轮复盘已完成；14C-14E 三轮复盘已完成；14F-14H 三轮复盘已完成；14I-14K 三轮复盘已完成；14L-14N 三轮复盘已完成；14O-14Q 三轮复盘已完成；14R-14T 三轮复盘已完成；14U-14W 三轮复盘已完成；14X-14Z 三轮复盘已完成；15A-15C 三轮复盘已完成；15D-15F 三轮复盘已完成；15G-15I 三轮复盘已完成；15J 已完成销售表现 enabled 前置条件只读复核，结论是仍不能 enabled。
 - 任何日期窗口完整验证都必须确认 `item_count == total_count`；如触发 `date window page truncated`，应先修正分页上限后重跑。
-- 如启用 `storage_inbound_detail`，完成后同步 `api_config`、刷新覆盖矩阵并运行编译、单测、dry-run、真实批次和 DB 复核。
+- 如启用 `storage_inbound_detail`，完成后同步 `api_config`、刷新覆盖矩阵并运行编译、单测、dry-run、真实 enabled 批次和 DB 复核。
 
 验收：
 

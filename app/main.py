@@ -96,11 +96,11 @@ def _requires_sync_lock(args: argparse.Namespace) -> bool:
 def _sync_task_lock(engine: Any):
     """用 MySQL named lock 防止两个同步任务同时写入。
 
-    锁连接必须在任务期间保持打开；释放前不等待、不抢占，拿不到锁就直接退出，
-    避免 cron 重叠时两个长同步任务同时写 raw 表。
+    锁连接必须在任务期间保持打开；释放前不等待、不抢占，拿不到锁就直接退出。
+    该连接只负责 named lock，使用 AUTOCOMMIT 避免留下隐式 InnoDB 事务。
     """
     logger = logging.getLogger(__name__)
-    connection = engine.connect()
+    connection = engine.connect().execution_options(isolation_level="AUTOCOMMIT")
     lock_acquired = False
     try:
         result = connection.execute(

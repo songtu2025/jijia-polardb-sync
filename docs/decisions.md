@@ -2816,3 +2816,10 @@
 - 阶段 15K 证据：`inventory_event_page` 小样本 raw 300 条，历史估算约 2669068 条；`inventory_age_page` 小样本 raw 30 条，历史估算约 6597161 条且响应慢，并有 1 条失败日志；二者继续 disabled。
 - 阶段 15K 证据：销售表现仍为 7 个拆分配置 disabled，空 `data_date` 合计 7728 条，最新单接口验证约 1323 秒，enabled 路径仍不支持 `commit_per_page` 短事务。
 - 阶段 15K 结论：剩余 disabled 接口不能批量启用；15L 建议在获得确认后优先实施同步任务互斥锁连接 `AUTOCOMMIT` 小改造，或实施 `storage_inbound_detail` enabled 最小变更，并在 15L 完成后做 15J-15L 三轮复盘。
+- 阶段 15L 决策：实施同步任务互斥锁连接 `AUTOCOMMIT` 最小改造；理由是 15F 曾暴露 `release sync task lock failed` 后 Sleep InnoDB 事务残留风险，而 named lock 连接只负责互斥，不应参与业务写入事务。
+- 阶段 15L 证据：TDD RED 先补 `tests/test_main_sync_lock.py` 断言，要求 `_sync_task_lock()` 使用 `isolation_level="AUTOCOMMIT"`；当前代码未设置时，锁测试按预期失败，失败信息为目标 isolation level 调用不存在。
+- 阶段 15L 证据：`app/main.py` 已将锁专用连接改为 `engine.connect().execution_options(isolation_level="AUTOCOMMIT")`，不改变 `SyncEngine` 的业务写入事务边界。
+- 阶段 15L 证据：`python -m unittest tests.test_main_sync_lock` 运行 4 个测试通过，覆盖拿不到锁退出、异常路径释放、释放失败不掩盖任务成功、以及锁连接 AUTOCOMMIT。
+- 阶段 15L 证据：真实 DB 锁烟测显示持锁期间 `IS_FREE_LOCK('jijia_polardb_sync_task')=0` 且外部 `information_schema.innodb_trx=0`，释放后 `IS_FREE_LOCK(...)=1` 且外部事务仍为 0。
+- 阶段 15L 证据：dry-run 仍为 45 个 enabled API，`compileall app tests` 通过，93 个 unittest 通过；本轮未启用 `storage_inbound_detail`，未修改 YAML 或 DB enabled 状态。
+- 阶段 15J-15L 复盘：15J 销售表现仍不能 enabled，15K 剩余 disabled 不能批量启用，15L 完成同步互斥锁连接稳定性小改造；下一阶段 15M 建议在明确确认后实施 `storage_inbound_detail` enabled 最小变更。

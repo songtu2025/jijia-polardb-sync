@@ -19,7 +19,12 @@ class FakeLockConnection:
         self.lock_result = lock_result
         self.statements = []
         self.params = []
+        self.execution_options_calls = []
         self.closed = False
+
+    def execution_options(self, **kwargs):
+        self.execution_options_calls.append(kwargs)
+        return self
 
     def execute(self, statement, params=None):
         self.statements.append(str(statement))
@@ -62,6 +67,7 @@ class SyncTaskLockTest(unittest.TestCase):
                     self.fail("task body must not run without the named lock")
 
         self.assertEqual(raised.exception.code, 1)
+        self.assertIn({"isolation_level": "AUTOCOMMIT"}, engine.connection.execution_options_calls)
         self.assertIn("GET_LOCK", engine.connection.statements[0])
         self.assertEqual(engine.connection.params[0]["lock_name"], "jijia_polardb_sync_task")
         self.assertTrue(engine.connection.closed)
@@ -75,6 +81,7 @@ class SyncTaskLockTest(unittest.TestCase):
                 raise RuntimeError("task failed")
 
         self.assertIn("GET_LOCK", engine.connection.statements[0])
+        self.assertIn({"isolation_level": "AUTOCOMMIT"}, engine.connection.execution_options_calls)
         self.assertTrue(any("RELEASE_LOCK" in statement for statement in engine.connection.statements))
         self.assertTrue(engine.connection.closed)
 
