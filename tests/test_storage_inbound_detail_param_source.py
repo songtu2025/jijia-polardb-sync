@@ -34,11 +34,11 @@ class StorageInboundDetailParamSourceTest(unittest.TestCase):
     def setUp(self):
         self.apis = {api["api_code"]: api for api in load_api_configs("config/api_config.example.yaml")}
 
-    def test_storage_inbound_detail_uses_missing_storage_inbound_codes_and_stays_disabled(self):
+    def test_storage_inbound_detail_uses_missing_storage_inbound_codes_and_is_enabled(self):
         self.assertIn("storage_inbound_detail", self.apis)
         api = self.apis["storage_inbound_detail"]
 
-        self.assertFalse(api["enabled"])
+        self.assertTrue(api["enabled"])
         self.assertEqual(api["method"], "GET")
         self.assertEqual(api["path"], "/purchase/inventory/storageInbound/detail")
         self.assertFalse(api["page"]["enabled"])

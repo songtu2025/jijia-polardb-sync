@@ -377,6 +377,26 @@
 - 依赖型接口只读梳理结论：`product_detail` 需要 `id`，可来自 `product_page` 已同步的 8258 个产品主键；`market_inventory_query` 需要 `sku` 和 `warehouseId`，可来自 `product_inventory_page` 已同步的 118653 行库存 raw 数据。
 - 下一阶段若将这两个大接口加入 enabled，批量同步会新增约 2930 次请求和约 292939 条 raw 写入，必须按长耗时任务验证。
 
+## Stage 15M Decisions
+
+- 阶段 15M 决策：按确认把 `storage_inbound_detail` 纳入 enabled；理由是该接口已完成 174334/174334 历史回填、空缺口验证和 enabled 主链路边界只读评估。
+- 阶段 15M 证据：TDD 先把 `storage_inbound_detail` 的测试期望改为 enabled 并观察失败，再将 YAML 中该接口 `enabled` 改为 `true` 后转绿。
+- 阶段 15M 证据：覆盖矩阵刷新后为公开文档 API 187、真实配置 API 51、configured enabled 46、configured disabled 5；DB `api_config` 同步后为 59 条、enabled 46 条，`storage_inbound_detail.enabled=1`。
+- 阶段 15M 证据：dry-run 加载 46 个 enabled API，且包含 `storage_inbound_detail`。
+- 阶段 15M 未完成项：真实 enabled 批次 `sync_20260713_095929_623027` 未成功；该批次前 22 个 API 成功，停在 `fba_inventory_v2_page` 之后、`inventory_adjustments_page` 之前，已按事实收尾为 failed。
+- 阶段 15M 风险决策：在找到 `inventory_adjustments_page` 单接口失败和 CLI 锁释放失败的真实异常前，不应提交 15M，也不应直接反复重跑完整 `--sync-enabled` 长批次。
+- 阶段 15M 收尾事实：失败命令曾留下 named lock 和 Sleep InnoDB 事务，已定位并清理；最终 `IS_FREE_LOCK('jijia_polardb_sync_task')=1`，外部 `information_schema.innodb_trx=0`。
+- 阶段 15M 可观测性决策：不修改同步业务和事务边界，只把 `--sync-api`、`--sync-enabled` 与锁释放失败的顶层日志改为 `logger.exception`，记录异常类型、message 和 traceback；该行为通过先失败后通过的测试约束。
+- 阶段 15M 诊断结论：旧失败的异常对象已被旧顶层日志丢弃，现有日志无法恢复其真实类型；不能在没有证据时把旧故障归因于 API、数据库或 named lock。
+- 阶段 15M 单接口证据：官方 CLI 批次 `sync_20260713_143641_005829` 成功，`inventory_adjustments_page` 为 583 次请求、58239 条成功计数、失败 0、耗时约 479 秒；58239 条 raw 的主键和 hash 均唯一，空主键与空 `data_date` 均为 0。
+- 阶段 15M 后续决策：单接口成功已满足“考虑完整 enabled”的前置条件，但本轮遵守不直接重跑长批次的约束；15M 仍需一次真实 46 API enabled 完整成功批次才能完成和提交。
+- 阶段 15M 测试一致性决策：enabled 范围从 45 变为 46 时，除专项目标测试外必须同步更新 enabled 集合回归；`tests/test_5v_low_risk_enabled_configs.py` 已改为期望 46 并包含 `storage_inbound_detail`，完整 95 个 unittest 通过。
+- 阶段 15M 完整批次证据：`sync_20260713_162236_372212` 跑完 46 个 API，42 success、4 failed，5939 次请求、561493 条成功计数、失败计数 4，耗时 9733 秒，最终 `status=partial_failed`。
+- 阶段 15M enabled 主链路结论：`storage_inbound_detail` 在同批次成功发现并同步 228 个新增 code，累计覆盖达到 174562/174562、缺口 0；因此该接口 enabled 主链路本身已被真实批次证明。
+- 阶段 15M 分页失败结论：`traffic_page`、`traffic_sku_page`、`storage_ledger_page`、`inventory_receipts_page` 分别只读取 1000/3611、200/1990、1500/5036、1000/1089，失败均为同步引擎主动抛出的 `date window page truncated`，不是 HTTP、数据库或 named lock 故障。
+- 阶段 15M checkpoint 决策：完整性校验行为正确，四个失败接口 checkpoint 均未推进；修复应只调整 YAML 分页容量并同步 DB，不应删除或放宽 `item_count == total_count` 校验。
+- 阶段 15M 待确认方案：用 TDD 将四个接口 `page.max_pages` 统一调到 20，逐个完成真实单日窗口验证后，再运行一次完整 46 API enabled 批次；在用户确认前不修改配置。
+
 ## Open Decisions
 
 - `raw_api_data.data_date` 取哪个业务时间字段，需要按每个 API 单独确认。
@@ -2823,3 +2843,15 @@
 - 阶段 15L 证据：真实 DB 锁烟测显示持锁期间 `IS_FREE_LOCK('jijia_polardb_sync_task')=0` 且外部 `information_schema.innodb_trx=0`，释放后 `IS_FREE_LOCK(...)=1` 且外部事务仍为 0。
 - 阶段 15L 证据：dry-run 仍为 45 个 enabled API，`compileall app tests` 通过，93 个 unittest 通过；本轮未启用 `storage_inbound_detail`，未修改 YAML 或 DB enabled 状态。
 - 阶段 15J-15L 复盘：15J 销售表现仍不能 enabled，15K 剩余 disabled 不能批量启用，15L 完成同步互斥锁连接稳定性小改造；下一阶段 15M 建议在明确确认后实施 `storage_inbound_detail` enabled 最小变更。
+- 阶段 15M 分页容量决策：保留 `item_count == total_count` 完整性校验，只把 `traffic_page`、`traffic_sku_page`、`storage_ledger_page`、`inventory_receipts_page` 的 `page.max_pages` 统一提高到 20；理由是完整 enabled 批次已经给出真实总量，原 2/1/3/10 上限会确定性截断。
+- 阶段 15M 分页容量证据：四个配置测试先 RED 后 GREEN；catalog 仍为 187/51/46/5，DB 仍为 59/46 且四个目标配置均为 `max_pages=20`，销售表现仍全部 disabled。
+- 阶段 15M 单接口证据：`traffic_page` 为 3611/3611、8 请求，`storage_ledger_page` 为 5036/5036、11 请求，`inventory_receipts_page` 为 1089/1089、11 请求；三者批次、日志和 checkpoint 均成功并推进到 `2026-07-08`。
+- 阶段 15M 新阻塞证据：`traffic_sku_page` 两次均在 `2026-07-07` 第 2 页失败，第 1 页写入 200 条后收到 HTTP 509；失败响应的非敏感业务码为 `90008`，消息为“接口调用次数已超过限制次数”，checkpoint 未推进。
+- 阶段 15M 后续决策：在 `traffic_sku_page` 单接口通过前不运行完整 `--sync-enabled`；建议获得确认后用 TDD 将其页间隔从 0.5 秒调整为与 `traffic_page` 相同的 65 秒，再同步 DB 并做单接口证明。
+- 阶段 15M 限流决策：根因已由两次 HTTP 509 的非敏感业务码 `90008` 证明为调用次数超限，因此只把 `traffic_sku_page.rate_limit.sleep_seconds` 从 0.5 调整为与同类 `traffic_page` 相同的 65 秒，不改页大小、重试次数和完整性校验。
+- 阶段 15M 限流证据：目标测试先 RED 后 GREEN；单接口批次 `sync_20260714_112649_287490` 成功完成 1990/1990、10 请求、0 失败，checkpoint 推进到 `2026-07-08`，`failed_request_log=0`。
+- 阶段 15M 最终验收：完整 enabled 批次 `sync_20260714_113841_049234` 为 `status=success`、46/46、0 失败，5645 次请求、568730 条成功计数、耗时 9605 秒；46 条接口日志全部 success，失败请求为 0。
+- 阶段 15M 完整性证据：最终批次中 `traffic_page=3655/3655`、`traffic_sku_page=1980/1980`、`storage_ledger_page=5052/5052`、`inventory_receipts_page=688/688`，四者 checkpoint 均推进到 `2026-07-09`。
+- 阶段 15M 详情覆盖证据：`storage_inbound_detail` 在最终批次同步 37/37；按真实上游 `raw_json.code` 口径统计为 174599/174599，缺口探针为空。批次结束后 named lock 空闲、外部事务 0、无同步进程残留，销售表现仍全部 disabled。
+- 阶段 15M 覆盖审计口径：不要用 `storage_inbound_page.source_primary_key` 代替真实参数源，也不要用全量 JSON CTE 做缺口联结；应复用同步引擎的 `raw_json.code` LEFT JOIN 目标主键并用 `LIMIT 1` 探测缺口。一次超时只读 CTE 已确认修改行 0、锁行 0并清理，最终外部事务为 0。
+- 阶段 15M 结论：本阶段完成，不需要再次运行完整长批次；当前工作区保持未提交，下一步先复核变更范围并等待用户决定是否提交。

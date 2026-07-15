@@ -907,7 +907,7 @@ apis:
       page_no_field: page
       page_size_field: pagesize
       page_size: 500
-      max_pages: 2
+      max_pages: 20
       list_field: data.rows
       total_field: data.total
     primary_key:
@@ -942,7 +942,7 @@ apis:
       page_no_field: page
       page_size_field: pagesize
       page_size: 200
-      max_pages: 1
+      max_pages: 20
       list_field: data.rows
       total_field: data.total
     primary_key:
@@ -956,7 +956,7 @@ apis:
       default_start: "2026-07-02"
       days: 1
     rate_limit:
-      sleep_seconds: 0.5
+      sleep_seconds: 65
     retry:
       retries: 3
       delay_seconds: 1
@@ -1283,7 +1283,7 @@ apis:
       page_no_field: page
       page_size_field: pagesize
       page_size: 500
-      max_pages: 3
+      max_pages: 20
       list_field: data.rows
       total_field: data.total
     primary_key:
@@ -1381,7 +1381,7 @@ apis:
       page_no_field: page
       page_size_field: pagesize
       page_size: 100
-      max_pages: 10
+      max_pages: 20
       list_field: data.rows
       total_field: data.total
     primary_key:
@@ -1490,7 +1490,7 @@ apis:
   # 第二十三个真实文档接口：出入库明细V2，文档 id=235，依赖 storage_inbound_page 的单据 code，按目标缺失扫描分批回填。
   - api_code: storage_inbound_detail
     name: 出入库明细V2
-    enabled: false
+    enabled: true
     method: GET
     path: /purchase/inventory/storageInbound/detail
     page:

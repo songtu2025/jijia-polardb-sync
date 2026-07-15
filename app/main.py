@@ -120,8 +120,13 @@ def _sync_task_lock(engine: Any):
                     text("SELECT RELEASE_LOCK(:lock_name)"),
                     {"lock_name": SYNC_TASK_LOCK_NAME},
                 )
-            except SQLAlchemyError:
-                logger.warning("release sync task lock failed: lock=%s", SYNC_TASK_LOCK_NAME)
+            except SQLAlchemyError as error:
+                logger.exception(
+                    "release sync task lock failed: lock=%s error_type=%s error=%s",
+                    SYNC_TASK_LOCK_NAME,
+                    type(error).__name__,
+                    error,
+                )
         connection.close()
 
 
@@ -194,10 +199,19 @@ def _sync_enabled(settings, api_configs) -> None:
             result = SyncEngine(api_configs, engine).sync_enabled_apis(JijiaApiClient(settings, auth_client=auth_client), token)
     except HTTPError as error:
         status_code = error.response.status_code if error.response is not None else "unknown"
-        logger.error("sync enabled failed: http_status=%s", status_code)
+        logger.exception(
+            "sync enabled failed: http_status=%s error_type=%s error=%s",
+            status_code,
+            type(error).__name__,
+            error,
+        )
         raise SystemExit(1)
-    except (RequestException, SQLAlchemyError, ValueError):
-        logger.error("sync enabled failed: check API config, token, database schema, and privileges")
+    except (RequestException, SQLAlchemyError, ValueError) as error:
+        logger.exception(
+            "sync enabled failed: error_type=%s error=%s",
+            type(error).__name__,
+            error,
+        )
         raise SystemExit(1)
 
     if result["failed_count"]:
@@ -227,10 +241,21 @@ def _run_single_api(settings, api_configs, api_code: str, action_label: str) -> 
             result = SyncEngine(api_configs, engine).test_api_once(api_code, JijiaApiClient(settings, auth_client=auth_client), token)
     except HTTPError as error:
         status_code = error.response.status_code if error.response is not None else "unknown"
-        logger.error("%s failed: http_status=%s", action_label, status_code)
+        logger.exception(
+            "%s failed: http_status=%s error_type=%s error=%s",
+            action_label,
+            status_code,
+            type(error).__name__,
+            error,
+        )
         raise SystemExit(1)
-    except (RequestException, SQLAlchemyError, ValueError):
-        logger.error("%s failed: check API config, token, database schema, and privileges", action_label)
+    except (RequestException, SQLAlchemyError, ValueError) as error:
+        logger.exception(
+            "%s failed: error_type=%s error=%s",
+            action_label,
+            type(error).__name__,
+            error,
+        )
         raise SystemExit(1)
 
     if result["failed_count"]:

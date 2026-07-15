@@ -96,6 +96,8 @@ class SyncTaskLockTest(unittest.TestCase):
         self.assertTrue(task_ran)
         self.assertTrue(engine.connection.closed)
         self.assertTrue(any("release sync task lock failed" in message for message in logs.output))
+        self.assertTrue(any("SQLAlchemyError" in message for message in logs.output))
+        self.assertTrue(any("release failed" in message for message in logs.output))
 
     def test_only_database_write_modes_require_sync_lock(self):
         args = argparse.Namespace(

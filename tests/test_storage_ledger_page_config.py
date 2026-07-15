@@ -21,7 +21,7 @@ class StorageLedgerPageConfigTest(unittest.TestCase):
         self.assertEqual(api["page"]["page_no_field"], "page")
         self.assertEqual(api["page"]["page_size_field"], "pagesize")
         self.assertEqual(api["page"]["page_size"], 500)
-        self.assertEqual(api["page"]["max_pages"], 3)
+        self.assertEqual(api["page"]["max_pages"], 20)
         self.assertEqual(api["page"]["list_field"], "data.rows")
         self.assertEqual(api["page"]["total_field"], "data.total")
         self.assertEqual(api["primary_key"]["field"], "")
