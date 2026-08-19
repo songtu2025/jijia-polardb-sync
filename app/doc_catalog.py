@@ -77,6 +77,15 @@ KNOWN_RISK_REVIEW_PATHS = {
     "/purchase/store/multiTypeWarehouse/page",
     "/purchase/srm/quickInbound/query",
 }
+REVIEW_TERMINAL_STATUSES = {
+    "framework_auth_only",
+    "defer_no_param_source",
+    "defer_sensitive_credentials",
+    "defer_runtime_rejected",
+    "defer_duplicate_or_obsolete",
+    "defer_unsupported_shape",
+}
+TERMINAL_EXECUTION_STAGES = REVIEW_TERMINAL_STATUSES | {"defer_write_or_mutation"}
 
 
 def classify_api_detail(detail: dict[str, Any]) -> dict[str, Any]:
@@ -121,7 +130,9 @@ def classify_api_detail(detail: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def execution_plan_for_api(item: dict[str, Any]) -> dict[str, str]:
+def execution_plan_for_api(
+    item: dict[str, Any], review_override: dict[str, str] | None = None
+) -> dict[str, str]:
     """给覆盖矩阵中的单个 API 标记下一步执行层级。
 
     `classification` 只说明公开文档形态；这里再结合是否已配置、是否启用、
@@ -140,6 +151,13 @@ def execution_plan_for_api(item: dict[str, Any]) -> dict[str, str]:
             "execution_bucket": "configured",
             "execution_stage": "configured_disabled",
             "execution_reason": "已配置但默认关闭，需按数据量、窗口和批量耗时评估后再启用。",
+        }
+
+    if review_override:
+        return {
+            "execution_bucket": "terminal_deferred",
+            "execution_stage": review_override["status"],
+            "execution_reason": review_override["reason"],
         }
 
     classification = item.get("classification")
@@ -187,9 +205,13 @@ def execution_plan_for_api(item: dict[str, Any]) -> dict[str, str]:
     }
 
 
-def build_catalog(api_config_path: str | Path = "config/api_config.example.yaml") -> dict[str, Any]:
+def build_catalog(
+    api_config_path: str | Path = "config/api_config.example.yaml",
+    review_config_path: str | Path = "config/api_review_overrides.yaml",
+) -> dict[str, Any]:
     """拉取公开文档目录和详情，生成当前 API 覆盖矩阵。"""
     configured_by_path = _load_configured_apis(api_config_path)
+    review_by_doc_id = load_review_overrides(review_config_path)
     tree = _get_json(DOC_TREE_URL).get("data") or []
     api_nodes = list(_walk_menu(tree))
     catalog = []
@@ -217,7 +239,7 @@ def build_catalog(api_config_path: str | Path = "config/api_config.example.yaml"
                 "configured_api_code": configured_api.get("api_code") if configured_api else "",
                 "configured_enabled": bool(configured_api.get("enabled")) if configured_api else False,
             }
-            item.update(execution_plan_for_api(item))
+            item.update(execution_plan_for_api(item, review_by_doc_id.get(doc_id)))
             catalog.append(item)
         except requests.RequestException as error:
             errors.append({"doc_id": doc_id, "error": str(error)})
@@ -237,11 +259,16 @@ def build_catalog(api_config_path: str | Path = "config/api_config.example.yaml"
 def main() -> None:
     parser = argparse.ArgumentParser(description="生成积加开放平台公开文档 API 覆盖矩阵")
     parser.add_argument("--api-config", default="config/api_config.example.yaml", help="本地 API YAML 配置路径")
+    parser.add_argument(
+        "--review-config",
+        default="config/api_review_overrides.yaml",
+        help="本地 API 审核终态 YAML 路径",
+    )
     parser.add_argument("--output", help="输出 JSON 文件路径；不传则只打印摘要")
     parser.add_argument("--summary", action="store_true", help="打印摘要")
     args = parser.parse_args()
 
-    catalog = build_catalog(args.api_config)
+    catalog = build_catalog(args.api_config, args.review_config)
     if args.output:
         output_path = Path(args.output)
         output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -258,6 +285,23 @@ def _summarize_catalog(
     execution_bucket_counts = Counter(item["execution_bucket"] for item in catalog)
     execution_stage_counts = Counter(item["execution_stage"] for item in catalog)
     menu_counts = Counter(item["menu_path"].split(" > ")[0] for item in catalog)
+    menu_progress = {}
+    for menu_name in sorted(menu_counts):
+        menu_items = [item for item in catalog if item["menu_path"].split(" > ")[0] == menu_name]
+        configured = sum(item["execution_stage"].startswith("configured_") for item in menu_items)
+        enabled = sum(item["execution_stage"] == "configured_enabled" for item in menu_items)
+        terminal_deferred = sum(
+            item["execution_stage"] in TERMINAL_EXECUTION_STAGES for item in menu_items
+        )
+        pending_review = len(menu_items) - configured - terminal_deferred
+        menu_progress[menu_name] = {
+            "total": len(menu_items),
+            "configured": configured,
+            "enabled": enabled,
+            "terminal_deferred": terminal_deferred,
+            "pending_review": pending_review,
+            "closed": pending_review == 0,
+        }
     return {
         "tree_api_count": len(catalog) + len(errors),
         "detail_success_count": len(catalog),
@@ -268,7 +312,34 @@ def _summarize_catalog(
         "execution_bucket_counts": dict(sorted(execution_bucket_counts.items())),
         "execution_stage_counts": dict(sorted(execution_stage_counts.items())),
         "menu_counts": dict(sorted(menu_counts.items())),
+        "menu_progress": menu_progress,
     }
+
+
+def load_review_overrides(review_config_path: str | Path) -> dict[int, dict[str, str]]:
+    """读取人工审核终态，并按公开文档 ID 建立稳定索引。
+
+    审核文件允许缺省，保证旧命令仍能生成 catalog；状态只接受白名单，
+    避免拼写错误把仍待审核的接口误计为板块已收口。
+    """
+    path = Path(review_config_path)
+    if not path.exists():
+        return {}
+
+    data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    reviews = data.get("reviews") or []
+    if not isinstance(reviews, list):
+        raise ValueError("API review config field 'reviews' must be a list")
+
+    review_by_doc_id = {}
+    for review in reviews:
+        doc_id = int(review.get("doc_id"))
+        status = str(review.get("status") or "")
+        reason = str(review.get("reason") or "")
+        if status not in REVIEW_TERMINAL_STATUSES:
+            raise ValueError(f"Unsupported API review status: {status}")
+        review_by_doc_id[doc_id] = {"status": status, "reason": reason}
+    return review_by_doc_id
 
 
 def _load_configured_apis(api_config_path: str | Path) -> dict[str, dict[str, Any]]:

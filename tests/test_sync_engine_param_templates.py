@@ -48,6 +48,34 @@ class TruncatedApiClient:
         return {"data": {"rows": [{"id": 1}], "total": 2}}
 
 
+class CapacityLimitedApiClient:
+    def __init__(self):
+        self.calls = []
+
+    def request(self, api, token, params):
+        self.calls.append((api, token, params))
+        page = int(params["page"])
+        start = (page - 1) * 20
+        rows = [{"id": item_id} for item_id in range(start, start + 20)]
+        return {"data": {"rows": rows, "total": 101}}
+
+
+class NoTotalApiClient:
+    def request(self, api, token, params):
+        return {"data": {"rows": [{"id": 1}]}}
+
+
+class GrowingTotalApiClient:
+    def __init__(self):
+        self.calls = []
+
+    def request(self, api, token, params):
+        self.calls.append((api, token, params))
+        page = int(params["page"])
+        total = 2 if page == 1 else 3
+        return {"data": {"rows": [{"id": page}], "total": total}}
+
+
 class SyncEngineParamTemplatesTest(unittest.TestCase):
     def test_resolves_date_param_templates_without_touching_unknown_values(self):
         engine = SyncEngine([])
@@ -214,7 +242,7 @@ class SyncEngineParamTemplatesTest(unittest.TestCase):
         self.assertIsNone(params)
         self.assertTrue(engine._date_window_caught_up(api, connection, today=date(2026, 7, 5)))
 
-    def test_date_window_truncated_page_marks_api_failed_without_checkpoint(self):
+    def test_date_window_capacity_fails_before_raw_write(self):
         engine = SyncEngine([])
         api_client = TruncatedApiClient()
         connection = FakeCheckpointConnection()
@@ -243,16 +271,258 @@ class SyncEngineParamTemplatesTest(unittest.TestCase):
 
         result = engine._sync_api_in_batch(connection, api, "batch-001", api_client, token="token")
 
-        self.assertEqual(result, {"item_count": 1, "request_count": 1, "failed_count": 1})
+        self.assertEqual(result, {"item_count": 0, "request_count": 1, "failed_count": 1})
+        raw_writes = [
+            call for call in connection.calls if "INSERT INTO raw_api_data" in call[0]
+        ]
         checkpoint_writes = [
             call
             for call in connection.calls
             if "INSERT INTO sync_checkpoint" in call[0]
         ]
         api_log_params = connection.calls[-1][1]
+        self.assertEqual(raw_writes, [])
         self.assertEqual(checkpoint_writes, [])
         self.assertEqual(api_log_params["status"], "failed")
-        self.assertIn("date window page truncated", api_log_params["error_message"])
+        self.assertIn("pagination capacity insufficient", api_log_params["error_message"])
+        self.assertIn("required_pages=2", api_log_params["error_message"])
+
+    def test_regular_pagination_capacity_fails_before_raw_write(self):
+        engine = SyncEngine([])
+        connection = FakeCheckpointConnection()
+        api = {
+            "api_code": "regular_report",
+            "params": {"page": 1, "pagesize": 20},
+            "page": {
+                "enabled": True,
+                "page_no_field": "page",
+                "page_size_field": "pagesize",
+                "page_size": 20,
+                "max_pages": 5,
+                "list_field": "data.rows",
+                "total_field": "data.total",
+            },
+            "primary_key": {"field": "id"},
+            "date_field": "",
+        }
+
+        client = CapacityLimitedApiClient()
+        result = engine._sync_api_in_batch(
+            connection,
+            api,
+            "batch-regular-truncated",
+            client,
+            token="token",
+        )
+
+        self.assertEqual(
+            result,
+            {"item_count": 0, "request_count": 1, "failed_count": 1},
+        )
+        self.assertEqual([call[2]["page"] for call in client.calls], [1])
+        raw_writes = [
+            call for call in connection.calls if "INSERT INTO raw_api_data" in call[0]
+        ]
+        checkpoint_writes = [
+            call
+            for call in connection.calls
+            if "INSERT INTO sync_checkpoint" in call[0]
+        ]
+        self.assertEqual(raw_writes, [])
+        self.assertEqual(checkpoint_writes, [])
+        api_log_params = connection.calls[-1][1]
+        self.assertEqual(api_log_params["status"], "failed")
+        self.assertIn("pagination capacity insufficient", api_log_params["error_message"])
+        self.assertIn("required_pages=6", api_log_params["error_message"])
+
+    def test_total_driven_pagination_follows_latest_total_without_fixed_cap(self):
+        engine = SyncEngine([])
+        connection = FakeCheckpointConnection()
+        api = {
+            "api_code": "growing_report",
+            "params": {"page": 1, "pagesize": 1},
+            "page": {
+                "enabled": True,
+                "page_no_field": "page",
+                "page_size_field": "pagesize",
+                "page_size": 1,
+                "list_field": "data.rows",
+                "total_field": "data.total",
+            },
+            "primary_key": {"field": "id"},
+            "date_field": "",
+        }
+        client = GrowingTotalApiClient()
+
+        result = engine._sync_api_in_batch(
+            connection,
+            api,
+            "batch-growing-total",
+            client,
+            token="token",
+        )
+
+        self.assertEqual(
+            result,
+            {"item_count": 3, "request_count": 3, "failed_count": 0},
+        )
+        self.assertEqual([call[2]["page"] for call in client.calls], [1, 2, 3])
+        checkpoint_params = next(
+            params
+            for statement, params in connection.calls
+            if "INSERT INTO sync_checkpoint" in statement
+        )
+        checkpoint_value = json.loads(checkpoint_params["checkpoint_value"])
+        self.assertEqual(checkpoint_value["last_page"], 3)
+        self.assertEqual(checkpoint_value["total_count"], 3)
+
+    def test_total_driven_pagination_requires_valid_total_before_raw_write(self):
+        engine = SyncEngine([])
+        connection = FakeCheckpointConnection()
+        api = {
+            "api_code": "missing_total_report",
+            "params": {"page": 1, "pagesize": 20},
+            "page": {
+                "enabled": True,
+                "page_no_field": "page",
+                "page_size_field": "pagesize",
+                "page_size": 20,
+                "list_field": "data.rows",
+                "total_field": "data.total",
+            },
+            "primary_key": {"field": "id"},
+            "date_field": "",
+        }
+
+        result = engine._sync_api_in_batch(
+            connection,
+            api,
+            "batch-missing-total",
+            NoTotalApiClient(),
+            token="token",
+        )
+
+        self.assertEqual(
+            result,
+            {"item_count": 0, "request_count": 1, "failed_count": 1},
+        )
+        raw_writes = [
+            call for call in connection.calls if "INSERT INTO raw_api_data" in call[0]
+        ]
+        self.assertEqual(raw_writes, [])
+        api_log_params = connection.calls[-1][1]
+        self.assertIn(
+            "total-driven pagination requires valid total",
+            api_log_params["error_message"],
+        )
+
+    def test_probe_api_reads_first_page_total_without_database_engine(self):
+        api = {
+            "api_code": "regular_report",
+            "params": {"page": 1, "pagesize": 20},
+            "page": {
+                "enabled": True,
+                "page_no_field": "page",
+                "page_size_field": "pagesize",
+                "page_size": 20,
+                "max_pages": 1,
+                "list_field": "data.rows",
+                "total_field": "data.total",
+            },
+        }
+        client = CapacityLimitedApiClient()
+
+        result = SyncEngine([api]).probe_api(
+            "regular_report",
+            client,
+            token="token",
+        )
+
+        self.assertEqual(
+            result,
+            {
+                "api_code": "regular_report",
+                "total_count": 101,
+                "page_size": 20,
+                "required_pages": 6,
+                "request_count": 1,
+            },
+        )
+        self.assertEqual([call[2]["page"] for call in client.calls], [1])
+
+    def test_non_paged_response_without_total_stays_successful(self):
+        engine = SyncEngine([])
+        connection = FakeCheckpointConnection()
+        api = {
+            "api_code": "non_paged_report",
+            "params": {},
+            "page": {
+                "enabled": False,
+                "list_field": "data.rows",
+            },
+            "primary_key": {"field": "id"},
+            "date_field": "",
+        }
+
+        result = engine._sync_api_in_batch(
+            connection,
+            api,
+            "batch-non-paged",
+            NoTotalApiClient(),
+            token="token",
+        )
+
+        self.assertEqual(
+            result,
+            {"item_count": 1, "request_count": 1, "failed_count": 0},
+        )
+        checkpoint_writes = [
+            call
+            for call in connection.calls
+            if "INSERT INTO sync_checkpoint" in call[0]
+        ]
+        self.assertEqual(len(checkpoint_writes), 1)
+        self.assertEqual(connection.calls[-1][1]["status"], "success")
+
+    def test_paged_payloads_write_nested_page_fields(self):
+        engine = SyncEngine([])
+        api = self._nested_page_api()
+        api_client = FakeApiClient()
+
+        list(engine._paged_payloads(api, api_client, token="token"))
+        params = api_client.calls[0][2]
+
+        self.assertEqual(params, {"pageInfo": {"page": 1, "pagesize": 100}})
+        self.assertNotIn("pageInfo.page", params)
+
+    def test_paged_payloads_from_params_write_nested_page_fields(self):
+        engine = SyncEngine([])
+        api = self._nested_page_api()
+        base_params = {"pageInfo": {"page": 1, "pagesize": 10}}
+        api_client = FakeApiClient()
+
+        list(engine._paged_payloads_from_params(api, api_client, token="token", base_params=base_params))
+        params = api_client.calls[0][2]
+
+        self.assertEqual(params, {"pageInfo": {"page": 1, "pagesize": 100}})
+        self.assertNotIn("pageInfo.pagesize", params)
+
+    @staticmethod
+    def _nested_page_api():
+        return {
+            "api_code": "nested_page",
+            "params": {"pageInfo": {"page": 1, "pagesize": 10}},
+            "page": {
+                "enabled": True,
+                "page_no_field": "pageInfo.page",
+                "page_size_field": "pageInfo.pagesize",
+                "page_size": 100,
+                "max_pages": 1,
+                "list_field": "data.rows",
+                "total_field": "data.total",
+            },
+            "retry": {"retries": 1, "delay_seconds": 1},
+        }
 
 
 if __name__ == "__main__":

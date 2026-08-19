@@ -2,7 +2,7 @@
 
 ## Current Stage
 
-阶段 15M 已完成。`storage_inbound_detail` 已在 YAML 和 DB 中启用，当前真实配置 API 为 51 个、enabled API 为 46 个、configured disabled 为 5 个；最终 enabled 批次 `sync_20260714_113841_049234` 完成 46/46 success、5645 次请求、568730 条成功计数、失败 0。四个日期窗口接口的分页容量与 `traffic_sku_page` 分钟级限流均已完成单接口和 enabled 主链路证明，`storage_inbound_detail` 累计覆盖 174599/174599、缺口 0。销售表现 7 个拆分配置继续全部 disabled。
+阶段 16O 已完成：20 个 `commit_per_page` disabled 配置已按当前 YAML、catalog 风险标签和历史真实单接口证据完成只读分层，结果为低风险 3 个、中风险 7 个、高风险或存在阻断 10 个。推荐下一轮只对 `financial_analysis_v2_page` 做启用前审核；本阶段没有修改代码、YAML、DB 或 enabled 数量。
 
 ## Completed
 
@@ -7463,24 +7463,168 @@
   - 按真实 `param_source.source_field=raw_json.code` 口径复核，`storage_inbound_page` 上游去重 code 为 174599、`storage_inbound_detail` 目标主键为 174599，缺口探针为空。
   - 覆盖审计曾误用上游 `source_primary_key`，随后一次全量 JSON CTE 又在客户端超时后留在服务端运行；已确认该查询修改行 0、锁行 0，仅终止本轮残留查询。最终改用同步引擎同口径的 `raw_json.code` LEFT JOIN + `LIMIT 1` 缺口探针完成复核，外部事务恢复为 0。
   - 最终批次结束后无同步进程残留，named lock 空闲、外部 `information_schema.innodb_trx=0`；YAML/DB 保持 59/46，销售表现 7 个配置仍全部 disabled。
+- 阶段 16A 已完成：
+  - 公开文档 `id=1017` 确认接口为 `POST /operation/sts/trafficSkuAnalysis/page`，必填参数为 `currency`、`beginDate`、`endDate`、`page`、`pagesize`、`viewType`，分页列表和总量为 `data.rows`、`data.total`，官方页大小上限为 100，默认限流为每分钟 1 次。
+  - TDD RED 先要求新增 `traffic_sku_analysis_page` 默认关闭配置；YAML 未配置时测试按预期失败，随后仅新增候选配置后转 GREEN。
+  - catalog 刷新为 187/52/46/6；`--sync-api-configs` 后 DB 为 60/46，候选 `enabled=0`。
+  - 第一次普通事务单接口尝试在已写入页面后遇到 MySQL 2006 / WinError 10054，业务连接和 named lock 连接同时被远端重置；事务完整回滚，因此未留下批次、raw、checkpoint、API log 或 failed request，最终锁空闲、事务和进程均为 0。
+  - MySQL `wait_timeout=86400`，本次失败不是三分钟空闲超时；现有 `_test_api_once_commit_per_page()` 正是为分钟级限流分页接口避免让 HTTP、sleep 和 raw 写入长期占用同一事务，因此用第二轮 TDD 为该候选增加 `commit_per_page=true`。
+  - 短事务单接口批次 `sync_20260715_150626_428012` 成功：19 次请求、1857/1857 条、失败 0，耗时 1263 秒；每页提交后的外部 InnoDB 事务均为 0。
+  - 本批次 raw 为 1857 条、1857 个不同 hash、空主键 1857、空 `data_date` 0，日期均为 `2026-07-02`；无稳定强制业务主键时按 `data_hash` 幂等符合当前设计。
+  - checkpoint 记录 `last_page=19`、`request_count=19`、`item_count=1857`、`total_count=1857`、`next_window_start=2026-07-03`；`failed_request_log=0`。
+  - 最终 named lock 空闲、外部 `information_schema.innodb_trx=0`、无同步进程残留；候选继续 disabled，未运行完整 `--sync-enabled`。
+- 阶段 16B 已完成：
+  - 公开文档 `id=131` 确认接口为 `POST /operation/sts/productAnalyzeMultiIndex/page`，必填参数为 `showCurrencyType`、`beginDate`、`endDate`、`page`、`pagesize`，分页列表和总量为 `data.rows`、`data.total`，官方页大小上限为 100，默认限流为每分钟 1 次。
+  - TDD RED 先要求新增 `product_analyze_multi_index_page` 默认关闭候选；配置缺失时测试按预期失败，随后新增 `enabled=false`、`commit_per_page=true`、单日窗口、`showCurrencyType=YUAN`、哈希幂等和 65 秒限流配置后转 GREEN。
+  - 第一次单接口批次 `sync_20260715_154048_587898` 按 20 页安全上限提交 2000 行后，被 `item_count < total_count` 完整性校验正确标记 failed；真实总量为 2891，checkpoint 未创建，`failed_request_log=0`，结束后锁和事务均清空。
+  - 第二轮 TDD 先把配置测试期望改为 `max_pages=30` 并得到 `20 != 30` 的 RED，再只调整该候选分页上限后转 GREEN；官方页大小已经是最大 100，2891 条实际需要 29 页，30 页仅保留 1 页余量。
+  - 成功批次 `sync_20260715_161132_797343` 完成 29 次请求、2891/2891 条、失败 0，耗时 1949 秒；分页等待期间持续核对，外部 InnoDB 事务始终为 0。
+  - 本批次 raw 为 2891 条、2891 个不同 hash、空主键 2891、空 `data_date` 0，日期均为 `2026-07-02`；checkpoint 记录 `last_page=29`、`total_count=2891`、`next_window_start=2026-07-03`。
+  - 最终 DB `api_config` 为 61/46，候选仍为 `enabled=0`、`max_pages=30`、`commit_per_page=true`；named lock 空闲、外部事务 0、数据库会话 0，未运行完整 `--sync-enabled`。
+- 阶段 16C 已完成：
+  - 公开文档 `id=132` 确认接口为 `POST /operation/sts/storeSalesPerformance/page`，必填参数为 `showCurrencyType`、`beginDate`、`endDate`、`page`、`pagesize`，`marketList` 可选，分页列表和总量为 `data.rows`、`data.total`，官方页大小上限 100，默认限流为每分钟 1 次。
+  - 文档字段表虽把行 `id` 和 `statisticsDate` 标为必填，但官方响应示例二者均为 `null`；因此配置不编造稳定主键，继续使用 `data_hash` 幂等，并以请求 `beginDate` 覆盖 `data_date`。
+  - TDD RED 先要求新增 `store_sales_performance_page`；配置缺失时测试按预期失败，随后新增 `enabled=false`、`commit_per_page=true`、单日窗口、`showCurrencyType=YUAN`、`pagesize=100`、`max_pages=20` 和 65 秒限流配置后转 GREEN。
+  - 单接口批次 `sync_20260715_165256_777600` 成功：1 次请求、25/25 条、失败 0，耗时约 12 秒；raw 为 25 条、25 个不同 hash、空主键 25、空 `data_date` 0，日期均为 `2026-07-02`。
+  - checkpoint 记录 `last_page=1`、`request_count=1`、`item_count=25`、`total_count=25`、`next_window_start=2026-07-03`；`failed_request_log=0`。
+  - 最终 DB `api_config` 为 62/46，候选仍为 `enabled=0`；named lock 空闲、外部事务 0、数据库会话 0，未运行完整 `--sync-enabled`。
+- 16A-16C 三轮综合复盘：
+  - 三轮均坚持 `default-disabled -> 配置测试 RED/GREEN -> catalog -> DB api_config -> 单接口 -> DB/锁事务审计`，没有扩大 enabled 范围，也没有重跑 15M 完整长批次。
+  - `traffic_sku_analysis_page` 和 `product_analyze_multi_index_page` 的分钟级多页任务证明 `commit_per_page` 能让 HTTP 与限流等待期间的外部 InnoDB 事务保持为 0；`store_sales_performance_page` 单页同样通过该路径。
+  - 完整性校验在 16B 正确拦截 `2000/2891`，证明不能为了完成候选而放宽 `item_count == total_count`；分页上限必须由官方页大小和真实总量共同决定。
+  - 三个新候选继续 disabled：enabled 主链尚未复用 `commit_per_page`，且 16A/16B 单日分别耗时约 21/32 分钟；单接口成功只证明可读取和可完整落库，不等于适合每日批量启用。
+- 阶段 16D 已完成：
+  - 公开文档 `id=133` 确认接口为 `POST /operation/sts/marketAnalyze/page`；必填参数为 `target`、`showCurrencyType`、`beginDate`、`endDate`、`viewType`，其中 `target` 支持 `unitsOrdered/orders`，`viewType` 支持 `day/week/month`，默认限流为每分钟 1 次。
+  - 尽管路径含 `/page`，官方请求体和示例都没有 `page/pagesize`，响应说明还把 `total/page/pagesize` 标为无效字段；因此配置明确使用 `page.enabled=false`、`data.rows`，不配置 `total_field`，也不发送分页参数。
+  - 行结构为 `marketId`、`marketName`、`subtotalAmount`、`amountVoMap`，没有独立日期字段；为避免同一店铺不同窗口或指标互相覆盖，不使用 `marketId` 唯一主键，而是按 `data_hash` 幂等，并用请求 `beginDate` 覆盖 `data_date`。
+  - TDD RED 先要求 `market_analyze_page` 使用文档化的非分页边界；配置缺失时测试按预期失败，新增 `enabled=false`、`target=unitsOrdered`、`viewType=day`、`showCurrencyType=YUAN`、单日窗口和短事务配置后转 GREEN。
+  - 单接口批次 `sync_20260715_170801_554088` 成功：1 次请求、25 行、失败 0；raw 为 25 条、25 个不同 hash、空主键 25、空 `data_date` 0，日期均为 `2026-07-02`。
+  - checkpoint 记录 `last_page=1`、`request_count=1`、`item_count=25`、`total_count=null`、`next_window_start=2026-07-03`；这里的 null 是对官方无效总数字段的真实表达，不伪造 25/25。
+  - 最终 DB `api_config` 为 63/46，候选仍为 `enabled=0`；`failed_request_log=0`、named lock 空闲、外部事务 0、数据库会话 0，未运行完整 `--sync-enabled`。
+- 阶段 16E 已完成：
+  - 公开文档 `id=130` 确认接口为 `POST /operation/sts/listingAnalyze/page`；必填 `groupByType`、`target`、`viewType`、`showCurrencyType`、`beginDate/endDate`、`page/pagesize`，官方页大小上限 100、默认限流每分钟 1 次，响应 `data.rows/data.total` 有效。
+  - TDD RED 先要求新增 `listing_analyze_page`；随后新增 `enabled=false`、MSKU 维度、`target=unitsOrdered`、单日窗口、哈希幂等、`commit_per_page=true` 和 65 秒限流配置后转 GREEN。
+  - 批次 `sync_20260715_172023_885288` 在 1700 条后遇到 API 连接与本机 DNS 同时中断，未留下 API log/checkpoint；恢复后只把精确批次如实收尾为 failed。批次 `sync_20260715_174526_930015` 在 30 页提交 3000 条后被完整性校验正确拦截，真实总量为 4305，checkpoint 未前移。
+  - TDD 将分页保护值从 30 最小提高到 45；下一批 `sync_20260715_182354_185521` 在 4100 条后被 Windows 终端进程结束，未留下 API log/checkpoint，命名锁和事务已释放后才把该精确批次收尾为 failed，没有伪造接口日志。
+  - 使用独立后台进程重跑同一单接口后，成功批次 `sync_20260716_112121_765692` 完成 44 次请求、4309/4309 条、0 失败；上游总量较前一日增加 4 条，因此以本批次 `item_count == total_count` 为准。
+  - 成功批次 raw 为 4309 条、4309 个不同 hash、null 主键 4309、空 `data_date` 0，日期均为 `2026-07-02`；checkpoint 记录 `last_page=44`、`total_count=4309`、`next_window_start=2026-07-03`，`failed_request_log=0`。
+  - 最终 named lock 空闲、外部事务 0、数据库活动会话 0；候选继续 disabled，未运行完整 `--sync-enabled`。
+- 阶段 16F 已完成：
+  - 公开文档 `id=140` 确认接口为 `POST /operation/sts/listingAnalyzeMultiIndex/page`；必填 `groupByType`、`showCurrencyType`、`beginDate/endDate`、`isShowTotal`、`page/pagesize`，官方页大小上限 100、默认限流每 5 秒 1 次，响应 `data.rows/data.total` 和行 `statisticsDate` 有效。
+  - TDD RED 先要求新增 `listing_analyze_multi_index_page`；随后新增 `enabled=false`、MSKU 维度、`isShowTotal=false`、单日窗口、哈希幂等、`commit_per_page=true`、`max_pages=45` 和 6 秒限流配置后转 GREEN。
+  - catalog 刷新为 187/57/46/11，DB/YAML 为 65/46；候选在 DB 中保持 `enabled=0`，完整 101 个测试、`compileall` 和无参数 dry-run 均通过，dry-run 仍只加载 46 个 enabled。
+  - 单接口批次 `sync_20260716_141834_366978` 成功完成 44 次请求、4309/4309 条、0 失败；raw 为 4309 条、4309 个不同 hash、null 主键 4309、空 `data_date` 0，日期均为 `2026-07-02`。
+  - checkpoint 记录 `last_page=44`、`request_count=44`、`item_count=4309`、`total_count=4309`、`next_window_start=2026-07-03`；`failed_request_log=0`，最终 named lock 空闲、外部事务 0、数据库活动会话 0。
+- 16D-16F 三轮综合复盘：
+  - 三轮继续执行 `default-disabled -> TDD RED/GREEN -> catalog -> DB api_config -> 单接口 -> raw/log/checkpoint/锁事务审计`，enabled 始终为 46，未运行完整 `--sync-enabled`。
+  - 16D 按官方无效 total 如实记录 `total_count=null`；16E 两次外部中断均保留已提交 raw 并只收尾精确 batch，不伪造 API log/checkpoint；16E/16F 最终都以 `4309 == 4309` 证明窗口完整。
+  - 分钟级接口使用独立后台进程避免终端单元生命周期中断，页级短事务保证限流等待期间外部事务为 0；该运行方式不改变接口配置或 enabled 边界。
+- 阶段 16G 已完成：
+  - 公开文档 `id=1016` 确认接口为 `POST /operation/sts/saleProfit/page`；必填 `showCurrencyType`、`page/pagesize`、`type`，日期维度使用 `beginDate/endDate`，`type` 支持 `PARENT/ASIN/MSKU/MARKET`，响应 `data.rows/data.total` 和行 `statisticsDate` 有效，默认限流每分钟 1 次。
+  - 为先证明接口可用性而不直接拉取数千 MSKU，候选使用 `type=MARKET`、`showCurrencyType=YUAN`、单日窗口、`pagesize=100`、`max_pages=5`、哈希幂等、`commit_per_page=true` 和 65 秒限流，并保持 `enabled=false`。
+  - TDD 测试先因缺少 `sale_profit_page` RED，新增唯一候选后 GREEN；catalog 刷新为 187/58/46/12，DB/YAML 为 66/46，完整 102 个测试、`compileall`、dry-run 和差异检查通过，dry-run 仍为 46 个 enabled。
+  - 单接口批次 `sync_20260716_143418_686778` 成功完成 1 次请求、24/24 条、0 失败；raw 为 24 条、24 个不同 hash、null 主键 24、空 `data_date` 0，日期均为 `2026-07-02`。
+  - checkpoint 记录 `last_page=1`、`request_count=1`、`item_count=24`、`total_count=24`、`next_window_start=2026-07-03`；`failed_request_log=0`，最终 named lock 空闲、外部事务 0、数据库活动会话 0。
+- 阶段 16H 已完成：
+  - 公开文档 `id=128` 确认接口为 `GET /finance/sts/allocationDetail/page`；只有 `page/pagesize` 必填，`marketDate` 可用 `YYYY-MM` 限定分摊月份，响应 `data.rows/data.total` 有效，行 `id` 是官方主键，默认限流每 2 秒 1 次。
+  - 候选固定 `marketDate=2026-06` 控制首次验证范围，使用官方最大 `pagesize=100`、`max_pages=20`、3 秒页间隔、`commit_per_page=true`，保持 `enabled=false`。`YYYY-MM` 不能直接写 MySQL DATE，因此不配置 `data_date_param`，改用响应 `createTime`；主键 `id.required=false` 以保留异常空 ID 行。
+  - TDD 测试先因缺少 `allocation_detail_page` RED，新增唯一候选后 GREEN；catalog 为 187/59/46/13，DB/YAML 为 67/46，完整 103 个测试、`compileall`、dry-run 和差异检查通过，enabled 仍为 46。
+  - 单接口批次 `sync_20260716_144111_386873` 成功完成 10 次请求、903/903 条、0 失败；raw 为 903 条、903 个不同主键、903 个不同 hash、空主键 0、空 `data_date` 0，日期均为 `2026-06-01`。
+  - checkpoint 记录 `last_page=10`、`request_count=10`、`item_count=903`、`total_count=903`；由于配置是固定单月而非滚动窗口，checkpoint 不写 `next_window_start`。`failed_request_log=0`，最终 named lock 空闲、外部事务 0、数据库活动会话 0。
+- 阶段 16I 已完成：
+  - 公开文档 `id=129` 确认接口为 `POST /finance/sts/profitCostAnalysis/page`；`beginDate/endDate`、`page/pagesize` 必填，响应 `data.rows/data.total` 有效，行 `id` 是官方主键，默认限流每 5 秒 1 次。
+  - TDD 先因缺少 `profit_cost_analysis_page` RED，再新增 `enabled=false`、`currency=YUAN`、`platformCodes=[AMAZON]`、`costValues=0`、单日窗口、`pagesize=100`、6 秒页间隔和 `commit_per_page=true` 的唯一候选后 GREEN。
+  - 首次批次 `sync_20260716_144820_882238` 在 20 页写入 2000 条后，被完整性校验正确标记为 `2000/18425` 截断；TDD 将该候选 `max_pages` 从 20 最小提高到 190，checkpoint 未前移。
+  - 第二次批次 `sync_20260716_145343_590447` 在第 94 页写库时发生 MySQL 2013 / WinError 10060，前 93 页 9300 条已按页提交；批次正确记为 failed，checkpoint 未创建，最终锁和事务清空。根因在连接取出后的 INSERT 边界，`pool_pre_ping` 无法提前发现。
+  - TDD 新增“首次页写入连接失效、第二次成功”用例；短事务页写入仅在 `DBAPIError.connection_invalidated=true` 时换新连接重试一次，其他数据库错误仍直接抛出。raw 使用幂等 upsert，首次提交结果不确定时重试也不会制造明显重复。
+  - 第三次受外部进程生命周期影响的批次 `sync_20260716_151848_575655` 只提交 300 条后进程退出，没有 API log/checkpoint；在再次确认进程不存在、named lock 空闲、外部事务和活动会话为 0 后，精确收尾为 failed，没有伪造接口日志。
+  - 最终前台受管批次 `sync_20260717_101830_525973` 成功完成 185 次请求、18425/18425 条、0 失败，耗时约 25 分钟；raw 为 18425 条、18425 个不同官方主键、18425 个不同 hash、空主键 0、空 `data_date` 0，日期均为 `2026-07-02`。
+  - checkpoint 记录 `last_page=185`、`request_count=185`、`item_count=18425`、`total_count=18425`、`next_window_start=2026-07-03`；`failed_request_log=0`，最终 named lock 空闲、外部事务 0、数据库活动会话 0。
+- 16G-16I 三轮综合复盘：
+  - 三轮新增候选均保持 disabled，enabled 始终为 46，未运行完整 `--sync-enabled`；16G 用低基数 MARKET 维度验证，16H 用固定月份验证，16I 用单日窗口完成大分页验证。
+  - 16I 的 `2000/18425` 截断再次证明完整性校验不能放宽；MySQL 中途断线则证明按页短事务还需要对“已取出后失效”的连接做一次幂等恢复，但不能把所有数据库错误都吞成重试。
+  - 长接口后续统一使用工具会话保持存活的前台受管进程，不再依赖父进程已退出的独立后台方式；结果仍必须由 batch、API log、raw、checkpoint、失败日志、锁和事务共同判定。
+- 阶段 16J 已完成：
+  - 公开文档 `id=309` 确认接口为 `POST /finance/sts/financialProfitAnalysis/page`；`page/pagesize/startDate/endDate/currency` 必填，响应 `data.rows/data.total` 有效，行 `id` 是官方主键，默认限流每 2 秒 1 次。
+  - TDD 先因缺少 `financial_profit_analysis_page` RED，再新增 `enabled=false`、`currency=YUAN`、`platformCodes=[AMAZON]`、单日窗口、官方最大 `pagesize=100`、3 秒页间隔和 `commit_per_page=true` 的唯一候选后 GREEN。
+  - 首批 `sync_20260717_105203_289692` 在 50 页写入 5000 条后，被完整性校验正确标记为 `5000/20978` 截断；checkpoint 未创建、失败请求 0、锁和事务全清。
+  - 官方页大小已经是 100，完整窗口需要 210 页；TDD 先得到 `50 != 220` 的 RED，再只把该候选 `max_pages` 最小提高到 220，保留 10 页余量且不放宽完整性校验。
+  - catalog 刷新为 187/61/46/15，DB/YAML 为 69/46；完整 106 个测试、`compileall`、dry-run 和差异检查通过，enabled 仍为 46。
+  - 最终前台受管批次 `sync_20260717_105845_443853` 成功完成 210 次请求、20978/20978 条、0 失败，耗时约 17 分钟；raw 为 20978 条、20978 个不同官方主键、20978 个不同 hash、空主键 0、空 `data_date` 0，日期均为 `2026-07-02`。
+  - checkpoint 记录 `last_page=210`、`request_count=210`、`item_count=20978`、`total_count=20978`、`next_window_start=2026-07-03`；`failed_request_log=0`，最终 named lock 空闲、外部事务 0、数据库活动会话 0。
+- 阶段 16K 已完成：
+  - 公开文档 `id=2256` 确认接口为 `POST /finance/sts/financialAnalysis/page/V2`；必填 `queryType/costValues/page/pagesize/currency/dateType`，`dateType=0` 时使用 `startDate/endDate`，响应 `data.rows/data.total` 有效，默认限流每 10 秒 1 次。
+  - TDD 先因缺少 `financial_analysis_v2_page` RED，再新增 `enabled=false`、`queryType=market`、`costValues=0`、`currency=YUAN`、`dateType=0`、单日窗口、`pagesize=100`、`max_pages=5`、11 秒页间隔和 `commit_per_page=true` 的唯一候选后 GREEN。
+  - 响应无通用稳定业务主键，不按维度字段强行覆盖跨日期记录；使用 `data_hash` 幂等，并以请求 `startDate` 覆盖 `data_date`。
+  - catalog 刷新为 187/62/46/16，DB/YAML 为 70/46；完整 107 个测试、`compileall`、dry-run 和差异检查通过，enabled 仍为 46。
+  - 单接口批次 `sync_20260717_112436_771393` 成功完成 1 次请求、23/23 条、0 失败；raw 为 23 条、23 个不同 hash、空主键 23、空 `data_date` 0，日期均为 `2026-07-02`。
+  - checkpoint 记录 `last_page=1`、`request_count=1`、`item_count=23`、`total_count=23`、`next_window_start=2026-07-03`；`failed_request_log=0`，最终 named lock 空闲、外部事务 0、数据库活动会话 0。
+- 阶段 16L 已完成：
+  - 公开文档 `id=2280` 确认接口为 `GET /finance/sts/colData/query`；`dimension` 必填，响应 `data` 是列配置数组，每项含 `colCode` 并可能嵌套 `detailCols`，默认限流每秒 3 次。
+  - TDD 先因缺少 `financial_analysis_columns_query` RED，再新增 `enabled=false`、`dimension=market`、非分页 `list_field=data`、`colCode` 主键、空日期、0.5 秒间隔和 `commit_per_page=true` 的唯一候选后 GREEN。
+  - 嵌套 `detailCols` 作为每个列配置原始 JSON 的一部分整体保留，不额外拆分或编造日期；接口没有有效 total，checkpoint 必须记录 `total_count=null`。
+  - catalog 刷新为 187/63/46/17，DB/YAML 为 71/46；完整 108 个测试、`compileall`、dry-run 和差异检查通过，enabled 仍为 46。
+  - 单接口批次 `sync_20260717_113058_412348` 成功完成 1 次请求、55 条、0 失败；raw 为 55 条、55 个不同 `colCode`、55 个不同 hash、空主键 0、空 `data_date` 55。
+  - checkpoint 记录 `last_page=1`、`request_count=1`、`item_count=55`、`total_count=null`；`failed_request_log=0`，最终 named lock 空闲、外部事务 0、数据库活动会话 0。
+- 16J-16L 三轮综合复盘：
+  - 三轮新增候选均保持 disabled，enabled 始终为 46，未运行完整 `--sync-enabled`；16J 用单日大分页验证结算明细，16K 用 MARKET 低基数验证 V2，16L 用 MARKET 维度读取列元数据。
+  - 16J 的 `5000/20978` 截断继续证明分页保护必须由真实总量校准；16K 无稳定主键时按 hash 保存快照；16L 无日期和 total 时保持 null，不能为统一格式伪造字段。
+  - 三轮都使用受管前台进程或短前台命令，并由 batch、API log、raw、checkpoint、失败日志、锁和事务共同验收。
+- 阶段 16M 已完成：
+  - 公开文档 `id=2284` 确认接口为 `POST /finance/sts/financialAnalysisMonth/query/V2`；必填 `costValues/startDate/endDate/currency`，响应 `data` 是同时包含月份轴和数据树的对象，默认限流每秒 1 次。
+  - TDD 先因缺少 `financial_analysis_month_v2_query` RED，再新增 `enabled=false`、固定 `2026-06-01` 至 `2026-06-30`、`costValues=0`、`currency=YUAN`、非分页 `response.item_field=data`、哈希幂等、2 秒间隔和 `commit_per_page=true` 的唯一候选后 GREEN。
+  - 固定单月只用于首次验证，不代表已有自动月份推进；必须把响应 `data` 整体保存，不能只提取内部 `data.data` 而丢失月份轴。
+  - catalog 刷新为 187/64/46/18，DB/YAML 为 72/46；完整 109 个测试、`compileall`、dry-run 和差异检查通过，enabled 仍为 46。
+  - 单接口批次 `sync_20260717_113608_001647` 成功完成 1 次请求、1 个整体对象、0 失败；raw 为 1 条、1 个 hash、空主键 1、空 `data_date` 0，日期为 `2026-06-01`。
+  - DB JSON 类型审核确认 raw 根对象的 `date` 为数组且长度 1，`data` 为数组且长度 7，证明月份轴和数据树均已保留；未输出业务内容。
+  - checkpoint 记录 `last_page=1`、`request_count=1`、`item_count=1`、`total_count=null`；`failed_request_log=0`，最终 named lock 空闲、外部事务 0、数据库活动会话 0。
+- 统计板块 17 API 最终审核：
+  - generated catalog 的统计菜单为 17 个文档，17 个均有 `configured_api_code`，enabled 文档 3 个、disabled 文档 14 个、缺失 0。
+  - YAML 与 DB 均为 72 个配置、enabled 46；API code 集合完全一致，`enabled/method/path` 差异为 0。
+  - 本轮 13 个新增候选的 checkpoint 均指向 success 批次；对应 API log 均 success，raw 数量与成功计数一致，成功批次 `failed_request_log` 均为 0。
+  - 最终 latest batch 为 `sync_20260717_113608_001647`、状态 success；named lock 空闲、外部 InnoDB 事务 0、数据库活动会话 0。未运行完整 `--sync-enabled`，未扩大 enabled 范围。
+- 阶段 16N 已完成：
+  - TDD RED 先用普通 API 与 `commit_per_page` API 混合批次证明 enabled 主链会错误地把两者都送入普通事务；实际 `item_count=2`，与期望 3 不一致。
+  - `sync_enabled_apis()` 现在只做最小分流：短事务配置调用 `_sync_api_with_page_transactions()`，普通配置继续在独立 `engine.begin()` 中调用 `_sync_api_in_batch()`。
+  - 4 个定向测试、完整 110 个 unittest、`compileall app tests`、YAML 配置加载和 `git diff --check` 均通过。
+  - YAML 仍为 72/46；20 个 `commit_per_page` 配置全部 disabled，与 `param_source` 冲突配置为 0。未修改 DB 配置、未请求真实 API、未运行完整 `--sync-enabled`。
+- 阶段 16O 已完成：
+  - 低风险 3 个：`financial_analysis_v2_page`、`financial_analysis_columns_query`、`market_analyze_page`。前两者分别为 1 请求 23/23 和 1 请求 55 条；`market_analyze_page` 为官方非分页接口，但没有有效 total，完整性置信度略低。
+  - 中风险 7 个：`store_sales_performance_page`、`sale_profit_page`、`listing_analyze_multi_index_page`、`sales_analysis_variation_asin_page`、`sales_analysis_spu_page`、`sales_analysis_country_page`、`sales_analysis_market_page`。主要风险是敏感响应标签、历史空日期或 44 页运行量。
+  - 高风险或阻断 10 个：`traffic_sku_analysis_page`、`product_analyze_multi_index_page`、`listing_analyze_page`、`allocation_detail_page`、`profit_cost_analysis_page`、`financial_profit_analysis_page`、`financial_analysis_month_v2_query`、`sales_analysis_seller_sku_page`、`sales_analysis_asin_page`、`sales_analysis_sku_page`。主要风险是 19–210 页长任务、历史连接中断、固定月份不推进或销售表现历史空 `data_date`。
+  - 推荐 `financial_analysis_v2_page` 作为首个启用前候选：真实验证 1 请求、23/23、0 失败，自动单日窗口、有效 total、catalog 无敏感响应标签，并且是实际财务统计数据而非仅列元数据。
+  - 本阶段只读分析，YAML 保持 72/46，20 个 `commit_per_page` 配置仍全部 disabled；未连接真实 API 或 DB，历史 DB 证据没有在本轮刷新。
+- 阶段 16P 已完成：
+  - 从剩余 95 个只读/审查候选中只选择文档 `id=113` 的“查询月结算” `POST /finance/asset/monthlyStatementAmount/query`，确认其为查询操作；必填 `typeCode/beginDate/endDate`，非分页返回 `data` 数组，默认限流每秒 1 次。
+  - TDD 先因缺少 `monthly_statement_amount_query` RED，再新增唯一默认关闭配置后 GREEN；使用 `typeCode=0`、`viewType=day`、`showCurrencyType=YUAN`、单日自动窗口、哈希幂等、请求 `beginDate` 覆盖 `data_date`、1.1 秒限流和 `commit_per_page=true`。
+  - catalog 刷新为 187/65/46/19，DB/YAML 为 73/46 且 code、enabled、method、path 差异为 0；完整 111 个测试、`compileall app tests`、dry-run 和差异检查通过。
+  - 单接口批次 `sync_20260717_153412_241025` 成功：1 次请求、5 条、0 失败；raw 为 5 条、5 个不同 hash、空主键 5、空 `data_date` 0，日期均为 `2026-07-02`。
+  - checkpoint 记录 `last_page=1`、`request_count=1`、`item_count=5`、`total_count=null`、`next_window_start=2026-07-03`；`failed_request_log=0`。
+  - 最终 named lock 空闲、外部 InnoDB 事务 0、数据库活动会话 0、同步进程 0；候选继续 disabled，未运行完整 `--sync-enabled`。
+  - 未配置文档降为 122 个；除 28 个写入/修改/确认操作外，剩余只读/审查候选为 94 个：`needs_param_source=51`、`needs_sensitive_review=22`、`risk_review_before_probe=19`、`known_risk_review=2`。
 - 当前工作区未提交变更：
-  - `app/main.py`
+  - `README.md`
+  - `app/sync_engine.py`
   - `config/api_config.example.yaml`
   - `config/jijia_api_catalog.generated.json`
   - `docs/progress.md`
   - `docs/decisions.md`
   - `docs/next_prompt.md`
-  - `tests/test_main_error_logging.py`
-  - `tests/test_main_sync_lock.py`
-  - `tests/test_storage_inbound_detail_param_source.py`
-  - `tests/test_5v_low_risk_enabled_configs.py`
-  - `tests/test_traffic_page_config.py`
-  - `tests/test_traffic_sku_page_config.py`
-  - `tests/test_storage_ledger_page_config.py`
-  - `tests/test_inventory_receipts_page_config.py`
-- 当前结论：
-  - 阶段 15M 已完成：`storage_inbound_detail` enabled 主链路、四个日期窗口完整性和 `traffic_sku_page` 65 秒限流均由最终 46/46 enabled 批次证明成功。
-  - 当前不需要再次运行完整长批次；工作区仍未提交，下一步先做变更范围复核并等待用户决定是否提交。
+  - `tests/test_traffic_sku_analysis_page_config.py`
+  - `tests/test_product_analyze_multi_index_page_config.py`
+  - `tests/test_store_sales_performance_page_config.py`
+  - `tests/test_market_analyze_page_config.py`
+  - `tests/test_listing_analyze_page_config.py`
+  - `tests/test_listing_analyze_multi_index_page_config.py`
+  - `tests/test_sale_profit_page_config.py`
+  - `tests/test_allocation_detail_page_config.py`
+  - `tests/test_profit_cost_analysis_page_config.py`
+  - `tests/test_financial_profit_analysis_page_config.py`
+  - `tests/test_financial_analysis_v2_page_config.py`
+  - `tests/test_financial_analysis_columns_query_config.py`
+  - `tests/test_financial_analysis_month_v2_query_config.py`
+  - `tests/test_monthly_statement_amount_query_config.py`
+  - `tests/test_sync_api_commit_per_page.py`
 
 ## Known Issues
 
@@ -7488,26 +7632,26 @@
 - 各业务 API 的具体路径、字段、分页和主键需要逐个阅读文档确认。
 - 新增后续业务接口前，仍需要逐个阅读积加文档确认路径、分页、主键和日期字段。
 - 当前 enabled API 已有 46 个：`amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`、`product_page`、`amazon_msku_page`、`parent_product_page`、`kb_product_page`、`fba_warehouse_page`、`store_location_page`、`multi_shop_query`、`platform_msku_page`、`crm_tags_page`、`inventory_team_query`、`fba_inventory_page`、`fba_inventory_v2_page`、`inventory_adjustments_page`、`product_inventory_page`、`storage_inbound_page`、`transfer_page`、`lot_no_page`、`procure_detail`、`storage_return_page`、`strategy_template_page`、`traffic_analysis_page`、`traffic_page`、`traffic_sku_page`、`shipment_data_page`、`storage_ledger_page`、`storage_ledger_detail_page`、`storage_ledger_month_page`、`inventory_receipts_page`、`purchase_sale_storage_fba_page`、`purchase_plan_page`、`product_detail`、`storage_inbound_detail`、`country_province_query`、`transfer_detail`、`lot_no_detail`、`base_currency_query`。
-- 当前已配置真实 API 为 51 个，其中 46 个已加入 enabled；`storage_inbound_detail` 已进入 enabled，并在最终 46/46 批次同步 37 个新增详情，累计覆盖 174599/174599、缺口 0。其余 `market_inventory_query`、`delivery_fee_query`、`inventory_event_page`、`inventory_age_page` 和销售表现 `/operation/sts/salesAnalysis/page` 继续保持 disabled；`delivery_fee_query` 当前约 142288 个 OROutbound 参数未纳入生产级调度，`market_inventory_query` 当前约 111307 个库存参数对但仍缺稳定主键和日期字段决策。
+- 当前已配置真实 API 为 65 个，其中 46 个已加入 enabled；统计菜单 17 个文档接口已全部配置并验证，其中 3 个 enabled、14 个 disabled。全平台新增的 `monthly_statement_amount_query` 已完成单日真实验证并保持 disabled；其余 `market_inventory_query`、`delivery_fee_query`、`inventory_event_page`、`inventory_age_page` 和销售表现拆分配置继续保持 disabled。所有 disabled 候选在启用前仍需单独评估运行时长、日期推进和业务风险。
 - 当前依赖参数来源机制支持从 `raw_api_data.source_primary_key` 取单个参数，也支持从 `raw_json` 点路径提取多个参数、从单层数组路径如 `raw_json.marketListVos[].marketId` 展开一个参数，并可用 `param_source.filters` 做固定等值过滤、用 `param_source.auto_advance` 基于 checkpoint 推进窗口；`source_primary_key` 和 `raw_json` 点路径参数源均已支持 `exclude_existing_target=true` 按目标表缺失主键做增量拾取；参数型详情接口还支持用 `primary_key.param_field` 把请求参数写入 raw 主键但不污染 `raw_json`；响应提取机制已支持列表、单对象和标量包装；`product_detail`、`transfer_detail`、`lot_no_detail` 和 `procure_detail` 已通过该机制进入 enabled；另有 111307 个库存参数对或 142281 个发货单号尚未纳入生产级调度。
 - `primary_key.required=true` 会过滤缺少必填主键的响应对象，避免详情接口返回全空对象时写入 `source_primary_key="None"` 的 raw。
 - 覆盖矩阵是公开文档视角，不等同于当前账号真实授权可调用结果；真实可访问性仍需单接口运行验证。
 - 当前 46 个 enabled API 的最终真实批量同步为 5645 次请求、568730 条成功计数、46/46 success，15M 实测耗时 9605 秒，必须按至少 3 小时的长耗时任务安排 cron 窗口。四个日期窗口接口 checkpoint 已推进到 `2026-07-09`；`storage_inbound_detail` 累计覆盖 174599/174599、缺口 0。其余各接口历史规模与验证细节见对应阶段记录。
 - `--sync-enabled` 已在 5W 改为批次头、单 API、最终汇总分事务提交，已完成 API 的 raw、log 和 checkpoint 可随 API 完成后提交；但总运行时长仍由接口请求量和数据库写入量决定。
-- 请求参数已支持 `{{ today }}`、`{{ yesterday }}`、`{{ days_ago:N }}` 三类日期模板；`date_window` 已通过 `traffic_analysis_page`、`traffic_page`、`traffic_sku_page`、`shipment_data_page`、`storage_ledger_page`、`storage_ledger_detail_page` 和 `inventory_receipts_page` 真实验证，可用 checkpoint 中的 `next_window_start` 推进历史窗口，支持嵌套字段，并已支持追平当前日期后的自动跳过；日期窗口接口如果 `item_count < total_count` 会记为 failed 且不推进 checkpoint。
+- 请求参数已支持 `{{ today }}`、`{{ yesterday }}`、`{{ days_ago:N }}` 三类日期模板；`date_window` 已通过 `traffic_analysis_page`、`traffic_sku_analysis_page`、`product_analyze_multi_index_page`、`store_sales_performance_page`、`market_analyze_page`、`listing_analyze_page`、`listing_analyze_multi_index_page`、`sale_profit_page`、`traffic_page`、`traffic_sku_page`、`shipment_data_page`、`storage_ledger_page`、`storage_ledger_detail_page` 和 `inventory_receipts_page` 真实验证，可用 checkpoint 中的 `next_window_start` 推进历史窗口，支持嵌套字段，并已支持追平当前日期后的自动跳过；日期窗口接口如果配置了有效 `total_field` 且 `item_count < total_count` 会记为 failed 且不推进 checkpoint。
 - 后续如果继续增加大分页接口或依赖型批量接口，需要关注运行时长、数据库写入耗时和 cron 窗口。
 - 远程 PolarDB 如出现遗留睡眠未提交事务，可能导致 raw 写入锁等待超时，需要先查 `information_schema.processlist` 和 `information_schema.innodb_trx`；同步任务互斥锁专用连接已在 15L 改为 `AUTOCOMMIT`，但业务写入连接仍需按事务边界正常排查。
 - 覆盖矩阵已增加执行分层；当前未配置且可直接普通探测的候选为 0 个，剩余接口应按 `needs_param_source`、`needs_sensitive_review`、`risk_review_before_probe`、`known_risk_review` 和 `defer_write_or_mutation` 分别推进。
 
 ## Next Stage
 
-阶段 15N：复核并整理 15M 未提交变更，等待用户决定是否提交；不要再次运行完整长批次。销售表现仍不满足 enabled 条件。
+阶段 16P 已按全平台覆盖主线完成 `monthly_statement_amount_query` 接入和真实验证。下一阶段继续从剩余 94 个只读/审查候选中只选 1 个，先只读证明真实参数来源、读取性质、分页限流、幂等、`data_date` 和敏感字段边界，再向用户提交最小方案；不要批量新增，也不要直接运行完整 `--sync-enabled`。
 
 建议目标：
 
-- 阶段 15M 已由批次 `sync_20260714_113841_049234` 完成 46/46 success 验收；不要为重复证明再次运行完整 `--sync-enabled`。
-- 先只读复核 Git diff、测试文件、YAML、catalog、DB 59/46、最终批次、锁和事务，再等待用户决定是否提交当前 15M 变更。
-- 如后续继续扩展 API，仍按 default-disabled、单接口验证、enabled 回归和文档交接闭环推进。
+- 阶段 16P 已由批次 `sync_20260717_153412_241025` 完成“查询月结算”验收；不要为重复证明重跑 16A-16P，也不要运行完整 `--sync-enabled`。
+- 最终统计菜单 17/17 配置且真实验证完成；3 个 enabled、14 个 disabled，新增候选没有改变每日批量范围。
+- enabled 主链已尊重 `commit_per_page`；后续启用评估仍必须重新核算分钟级限流接口、固定月份接口和大分页接口的 cron 时长及日期推进语义。
 - `delivery_fee_query`、`market_inventory_query`、`inventory_event_page`、`inventory_age_page` 和销售表现继续保持只读观察，不要直接 enabled。
 - 15J 已完成销售表现前置复核，15K 已完成剩余 disabled 风险分层，15L 已完成同步互斥锁连接 `AUTOCOMMIT` 改造和 15J-15L 三轮复盘；15M 已完成 `storage_inbound_detail` enabled 及 46/46 enabled 批次验收。
 - 13T-13V 三轮复盘已完成；13W-13Y 三轮复盘已完成；13Z-14B 三轮复盘已完成；14C-14E 三轮复盘已完成；14F-14H 三轮复盘已完成；14I-14K 三轮复盘已完成；14L-14N 三轮复盘已完成；14O-14Q 三轮复盘已完成；14R-14T 三轮复盘已完成；14U-14W 三轮复盘已完成；14X-14Z 三轮复盘已完成；15A-15C 三轮复盘已完成；15D-15F 三轮复盘已完成；15G-15I 三轮复盘已完成；15J 已完成销售表现 enabled 前置条件只读复核，结论是仍不能 enabled。
@@ -7519,6 +7663,388 @@
 - 新接口、完整窗口或 enabled 评估必须由公开文档、覆盖矩阵、真实请求、数据库只读查询或测试证明，不靠猜测字段。
 - 如启用接口，必须证明 `api_config.enabled=1`、dry-run enabled 数量变化正确，并用真实同步批次证明成功；涉及缺失扫描时必须先证明不会重复拉取全部历史，也不会漏扫新增来源参数。
 - 如调整参数型详情接口的幂等或缺失扫描逻辑，必须先证明旧数据不丢、新数据可发现，并用测试覆盖关键逻辑；如推进日期窗口，必须证明 `item_count == total_count` 或者明确说明接口返回总量为 0。
-- `api_config` 与覆盖矩阵显示真实配置 API 或 enabled 数量符合本轮目标；当前基线是真实配置 API 51 个、enabled 46 个、configured disabled 5 个，`storage_inbound_detail` 覆盖 174599/174599。
+- `api_config` 与覆盖矩阵显示真实配置 API 或 enabled 数量符合本轮目标；当前基线是 DB/YAML 73/46，catalog 为真实配置 API 65 个、enabled 46 个、configured disabled 19 个。
 - `compileall` 和 `unittest discover` 通过。
 - 继续保持 `.env`、token 缓存、日志和真实凭证不提交。
+
+## 2026-07-17 阶段 16Q：按板块审核终态机制
+
+- 已把按板块接入计划落盘到 `docs/superpowers/plans/2026-07-17-section-based-api-integration.md`，保持未暂存、未提交、未推送。
+- 新增 `config/api_review_overrides.yaml`，用独立文件持久化未配置接口的人工审核终态；当前登记文档 596 为 `framework_auth_only`、文档 3095 为 `defer_sensitive_credentials`，两者均未请求真实业务接口。
+- catalog 状态优先级固定为：已配置状态 > 审核覆盖表 > 自动分类；审核文件缺失时继续兼容旧生成命令，未知状态会直接报错，避免误收口。
+- catalog CLI 新增 `--review-config`；summary 新增 `menu_progress`，按板块输出 `total/configured/enabled/terminal_deferred/pending_review/closed`。
+- 公开文档 catalog 已重新生成：187 个详情全部成功；真实配置 65、enabled 46、configured disabled 19，新增 2 个审核终态后待审分层为 `needs_param_source=50`、`needs_sensitive_review=21`、`risk_review_before_probe=19`、`known_risk_review=2`。
+- 基础数据板块当前为 `total=16`、`configured=9`、`enabled=9`、`terminal_deferred=3`、`pending_review=4`、`closed=false`；三个终态分别是写操作文档 61、鉴权专用文档 596、敏感凭证阻断文档 3095。
+- 统计和报表板块均为 `pending_review=0`、`closed=true`；这里表示板块终态收口，不表示所有接口都已配置或 enabled。
+- 写入前只读刷新确认 DB/YAML 仍为 73/46、code/enabled/method/path 差异 0；latest batch 仍为 `sync_20260717_153412_241025` success，named lock 空闲，外部事务、数据库会话和同步进程均为 0。
+- 验证通过：117 个 unittest、`compileall app tests`、无参数 dry-run 加载 46 个 enabled、`git diff --check`；未运行完整 `--sync-enabled`，未修改 DB 配置。
+- 下一步只进入阶段 16R 的独立确认门：`GET /middle/base/marketNames/query`（文档 1177），确认后才做数组包装 TDD、disabled 配置和单接口真实验证。
+
+## 2026-07-17 阶段 16R：店铺 ID 查询店铺名称终态暂缓
+
+- 公开文档确认文档 1177 为 `GET /middle/base/marketNames/query` 查询接口，必填参数 `markerIds` 为 `array<int>`，响应 `data` 为字符串，默认限流每秒 10 次。
+- 上游来源已由 DB 汇总证明：`amazon_shop_page` 有 92 条 raw、91 条包含站点数组，展开 273 条站点记录、39 个不同 market ID；审核过程未输出任何 ID 值。
+- TDD 先证明 `wrap_in_list`、单元素数组主键规范化和候选配置缺失，再做最小实现；未设置包装的旧数组来源继续返回标量参数。
+- 临时 disabled 配置同步后 DB/YAML 为 74/46，code/enabled/method/path 差异 0；写入前 named lock、事务、会话和同步进程均为空。
+- 真实批次 `sync_20260717_223116_798898` 只发起 1 次请求即返回 HTTP 400：batch/API log 均为 failed，失败请求 1、raw 0、checkpoint 0。
+- 按确认方案未重试、未猜测其他数组编码，也没有读取或输出失败请求参数和响应正文。
+- 文档 1177 已写入审核覆盖表为 `defer_runtime_rejected`；失败候选的 YAML 配置和刚创建的单条 DB `api_config` 已精确清理，失败 batch、API log、failed request 证据完整保留。
+- 清理后 DB/YAML 回到 73/46；catalog 仍为 187/65/46/19，基础数据变为 `configured=9`、`terminal_deferred=4`、`pending_review=3`、`closed=false`。
+- 通用 `wrap_in_list` 与单元素主键规范化能力保留，供后续文档 1179 使用；121 个 unittest、`compileall app tests`、dry-run 和差异检查通过。
+- 最终 named lock 空闲、外部事务 0、数据库会话 0、同步进程 0；未运行完整 `--sync-enabled`，未暂存、提交或推送。
+- 下一步进入阶段 16S 独立确认门，只处理 `GET /middle/base/warehouseIds/query`（文档 1179）。
+
+## 2026-07-18 阶段 16S：店铺 ID 查询仓库信息终态暂缓
+
+- 公开文档确认文档 1179 为 `GET /middle/base/warehouseIds/query` 查询接口，必填 `marketIdList` 为 `array<int>`，响应 `data` 为对象数组，默认限流每秒 1 次。
+- 上游参数仍来自 `amazon_shop_page.raw_json.marketListVos[].marketId`；DB 只读汇总为 92 条来源 raw、39 个不同 market ID，审核过程未输出标识值。
+- 配置测试先因 `warehouse_ids_query` 缺失按预期 RED；临时配置保持 `enabled=false`、最多 3 个参数、单元素数组、1.1 秒限流、单次尝试、非分页 `list_field=data`、完整对象 `data_hash` 幂等和 `data_date=null`，随后转 GREEN。
+- 临时配置同步后 YAML/DB 为 74/46，code、enabled、method、path 差异 0；真实运行前 named lock、外部事务、数据库会话和同步进程均为空。
+- 批次 `sync_20260718_105341_073837` 首个且唯一请求返回 HTTP 400：batch/API log 均为 failed，请求 1、成功 0、失败 1，失败日志 1、raw 0、checkpoint 0。
+- 按确认方案未重试、未尝试其他数组编码，也未读取或输出失败请求参数和响应正文。
+- 文档 1179 已写入审核覆盖表为 `defer_runtime_rejected`；临时 YAML 配置和本轮创建的单条 DB `api_config` 已精确清理，失败 batch、API log 和 failed request 证据完整保留。
+- 清理后 YAML/DB 回到 73/46；catalog 为 187 个公开文档、65 个真实配置、46 个 enabled、19 个 configured disabled。
+- 基础数据变为 `total=16`、`configured=9`、`enabled=9`、`terminal_deferred=5`、`pending_review=2`、`closed=false`；剩余仅文档 25 和文档 694。
+- 122 个 unittest、`compileall app tests`、dry-run 和 `git diff --check` 通过；最终 named lock 空闲、外部事务、数据库会话和同步进程均为 0。
+- 未运行完整 `--sync-enabled`，未暂存、提交或推送。
+- 下一步只对阶段 16T 文档 25 `/middle/base/allUser/list` 做只读审核并等待独立确认。
+
+## 2026-07-20 阶段 16T：查询所有用户列表真实验证完成
+
+- 公开文档确认文档 25 为 `GET /middle/base/allUser/list` 读取接口，无请求参数、无分页、响应 `data` 为数组，官方默认限流每秒 1 次。
+- 配置测试先因 `all_user_list` 缺失按预期 RED；新增配置保持 `enabled=false`、非分页 `list_field=data`、必填主键 `id`、`date_field=createdTime`、1.1 秒限流和单次请求。
+- 人员字段只保存到 `raw_api_data.raw_json`；新增 `sensitive_response=true`，失败时 `sync_api_log` 使用通用错误、`failed_request_log.response_body` 置空且不保存原始错误详情，普通接口行为不变。
+- 13 位毫秒时间戳按 `Asia/Shanghai` 转换为 `data_date`，原有 ISO 日期路径保持不变；Windows 运行环境补充 `tzdata>=2024.1` 依赖。
+- `--sync-api-configs` 后 YAML/DB 均为 74/46，code、enabled、method、path 差异为 0；目标配置在 YAML 和 DB 中均保持 disabled。
+- 单接口批次 `sync_20260720_104305_848823` 成功：1 次请求、35 条、0 失败；API log 与 batch 状态一致，`failed_request_log=0`。
+- raw 聚合为 35 条、35 个不同主键、35 个不同 hash、缺失主键 0、空 `data_date` 0；`createdTime` 真实 JSON 类型为 `UNSIGNED INTEGER`，35 条均为 13 位，审核未输出任何人员字段值。
+- checkpoint 唯一行指向本成功批次，记录 `last_page=1`、`request_count=1`、`item_count=35`；named lock 空闲，外部事务、数据库会话和同步进程均为 0。
+- catalog 187 个详情全部刷新成功：真实配置 66、enabled 46、configured disabled 20；基础数据为 `total=16`、`configured=10`、`enabled=9`、`terminal_deferred=5`、`pending_review=1`、`closed=false`。
+- 127 个 unittest、`compileall app tests`、dry-run 和 `git diff --check` 通过；未运行完整 `--sync-enabled`，未暂存、提交或推送。
+- 下一步只对阶段 16U 文档 694 `/middle/base/fileFileUrl/query` 做只读参数来源审核；不输出附件 ID 或链接值，未确认前不新增配置或请求真实接口。
+
+## 2026-07-20 阶段 16U：附件接口只读审核完成，等待确认
+
+- 官方文档确认文档 694 为 `GET /middle/base/fileFileUrl/query` 读取接口，必填请求字段为 `id:int`，非分页，响应 `data` 为 `string`，默认限流为每秒 2 次。
+- catalog 当前把文档 694 保持为 `needs_param_source`；本阶段没有新增 YAML、DB `api_config` 或审核终态，也没有请求该接口。
+- 服务器端 raw 字段名聚合只返回结构信息：发现 `attachmentVOList`、`planAttachmentVOList`、`customizeFiledData` 三个附件语义顶层容器；没有输出任何附件 ID、文件名或链接值。
+- `attachmentVOList[].id` 只在已配置的 `procure_detail` 和 `transfer_detail` 来源中出现，JSON 类型均为 `INTEGER`；`procure_detail` 1 条、`transfer_detail` 999 条，缺失和空值均为 0，999 个 transfer ID 全部不同。
+- 因此形成的最小候选方案（尚未实施）是从 `transfer_detail.raw_json.attachmentVOList[].id` 取前 3 个参数，目标字段 `id`，非分页标量 `data` 包装入 raw，使用请求 `id` 作为 `source_primary_key`，`data_date=null`，0.6 秒限流，单次尝试并保持 disabled；成功后再评估 `auto_advance` 的持续推进。
+- 该候选只在用户确认 16U 方案后进入 TDD、配置同步和单接口验证；确认前不得使用文档示例 ID、猜测字段或硬编码值。
+
+## 2026-07-20 阶段 16U：附件接口已完成默认关闭验证与基础数据收口
+
+- 用户确认后新增唯一 `file_file_url_query` 配置和 3 个定向测试；配置为 `enabled=false`、首轮 `limit=3`、`auto_advance=false`、请求 `id` 作为 raw 主键、标量 `data` 包装为 `fileUrl`、`data_date=null`、0.6 秒间隔、单次尝试、`sensitive_response=true`。
+- `--sync-api-configs` 后 YAML/DB 均为 75/46；仅运行 `--sync-api file_file_url_query`。终端回显被运行器超时截断，但数据库批次 `sync_20260720_112016_182107` 已证明 success：3 次请求、3 条成功、0 失败；没有重试、没有运行完整 `--sync-enabled`。
+- raw 只做聚合核验：3 条、3 个不同请求主键、3 个不同 hash、缺失主键 0、空 `data_date` 3；3 条均存在 `fileUrl` 字段且没有请求 `id` 字段，未读取或输出附件 ID、文件名或链接。checkpoint 指向该批次，`last_page=3`、`total_count=3`、`item_count=3`、`param_offset=0`、`param_limit=3`、`next_param_offset=3`；失败请求为 0。
+- catalog 187 个详情全部刷新成功：真实配置 67、enabled 46、configured disabled 21。基础数据为 `total=16`、`configured=11`、`enabled=9`、`terminal_deferred=5`、`pending_review=0`、`closed=true`；这是“已配置或有明确终态”的审核收口，不表示 16 个接口均已配置。
+- 130 个 unittest、`compileall app tests`、dry-run 和 `git diff --check` 通过。最终 named lock 空闲、外部 InnoDB 事务 0、本地同步进程 0、数据库同步相关活动会话 0；另有 9 个非同步活动会话和 12 个睡眠会话，未占用同步锁。
+- 下一步仅做产品板块整板只读预审：先生成待审清单和单接口候选证据，再另行等待确认；不要在同一阶段新增产品接口或执行真实产品同步。
+
+## 2026-07-20 产品板块：审核终态收口
+
+- 产品菜单 18 个公开文档接口完成整板只读预审：8 个已配置且 enabled，9 个写入/修改/创建接口继续 `defer_write_or_mutation`，唯一待审为文档 5070「查询变体属性」。
+- 文档 5070 为读取型 `GET /purchase/goods/attribute/detail`，必填 `attributeName`、非分页、默认每秒 3 次、无日期字段；现有 36,820 条相关产品 raw 的字段名聚合没有发现 `attributeName` 或属性项字段，`product_page.variantProperty` 也全部为 null。审核未读取或输出任何产品、SKU 或属性值。
+- 用户确认后仅在 `config/api_review_overrides.yaml` 增加文档 5070 的 `defer_no_param_source`；没有新增业务 YAML 配置、没有执行 `--sync-api-configs`、没有请求真实 API 或运行完整 `--sync-enabled`。
+- catalog 187 个文档详情全部刷新成功：真实配置 67、enabled 46、configured disabled 21；产品板块为 `total=18`、`configured=8`、`enabled=8`、`terminal_deferred=10`、`pending_review=0`、`closed=true`。这表示审核终态收口，不表示 18 个接口均已配置。
+- YAML/DB 仍为 75/46，最新业务批次保持 success；写入前实际同步 named lock 空闲、外部 InnoDB 事务 0、同步相关活动会话和本地同步进程均为 0。
+- 130 个 unittest、`compileall app tests` 和无参数 dry-run 通过；未暂存、提交或推送。
+- 下一步仅做仓库板块整板只读预审，先形成清单和单接口候选方案，再等待确认。
+
+## 2026-07-20 阶段 16V：供应商仓接口已完成默认关闭验证
+
+- 文档 64 `POST /purchase/inventory/supplierWarehouse/page` 已新增为 `supplier_warehouse_page`，不依赖上游业务参数；使用 `data.rows`/`data.total` 分页、`id` 主键、`createDate` 日期、0.5 秒间隔、最多 20 页和 `sensitive_response=true`，始终保持 `enabled=false`。
+- TDD 先新增配置测试并确认缺少接口时失败，补齐 YAML 后转绿；完整验证为 131 个 unittest、`compileall app tests`、dry-run 与 `git diff --check` 通过。
+- `--sync-api-configs` 后 YAML/DB 均为 76/46，code、enabled、method、path 差异为 0；仅运行 `--sync-api supplier_warehouse_page`，未运行完整 `--sync-enabled`。
+- 成功批次 `sync_20260720_152244_506820`：1 次请求、0 条、0 失败；batch/API log 均为 success，checkpoint 记录 `last_page=1`、`request_count=1`、`item_count=0`、`total_count=0`，raw 与失败请求均为 0。这是上游空列表，不是运行时拒绝。
+- catalog 187 个详情全部刷新成功：真实配置 68、enabled 46、configured disabled 22；仓库板块为 `total=6`、`configured=3`、`enabled=2`、`terminal_deferred=0`、`pending_review=3`、`closed=false`。最终 named lock 空闲、外部 InnoDB 事务 0、同步相关活动会话与本地同步进程均为 0。
+- 下一步仍只做仓库板块：从余下 3 个待审接口中只选择 1 个候选，先提交最小方案等待确认。
+
+## 2026-07-20 阶段 16W：自营仓接口已完成默认关闭验证
+
+- 文档 212 `POST /purchase/inventory/selfWarehouse/page` 已新增为 `self_warehouse_page`，无上游业务参数；使用 `data.rows`/`data.total` 分页、`id` 必填主键、`data_date=null`、0.5 秒间隔、最多 20 页和 `sensitive_response=true`，保持 `enabled=false`。
+- TDD 先新增配置测试并确认缺少接口时失败，补齐 YAML 后转绿；完整验证为 132 个 unittest、`compileall app tests`、dry-run 与 `git diff --check` 通过。
+- `--sync-api-configs` 后 YAML/DB 均为 77/46，code、enabled、method、path 差异为 0；仅运行 `--sync-api self_warehouse_page`，未运行完整 `--sync-enabled`。
+- 成功批次 `sync_20260720_155429_491510`：1 次请求、27 条、0 失败；batch/API log 均为 success，checkpoint 记录 `last_page=1`、`request_count=1`、`item_count=27`、`total_count=27`，失败请求为 0。
+- raw 只做聚合核验：27 条、27 个不同主键、27 个不同 hash、缺失主键 0、空 `data_date` 27；不读取或输出邮箱、电话、手机号、联系人或地址值。
+- catalog 187 个详情全部刷新成功：真实配置 69、enabled 46、configured disabled 23；仓库板块为 `total=6`、`configured=4`、`enabled=2`、`terminal_deferred=0`、`pending_review=2`、`closed=false`。最终 named lock 空闲、外部 InnoDB 事务 0、同步相关活动会话与本地同步进程均为 0。
+- 下一步仍只做仓库板块：仅对文档 1035 或 1449 之一做只读预审并等待确认。
+
+## 2026-07-20 阶段 16X：仓库板块审核终态收口
+
+- 文档 1035 `POST /purchase/store/multiTypeWarehouse/page` 为分页读取接口，但公开响应结构含服务商凭证字段；登记 `defer_sensitive_credentials`，不创建业务 YAML、不请求真实 API。
+- 文档 1449 `POST /fulfillment/store/selfInboundListAndDetail/page` 为分页读取接口，必填 `rnType` 的公开枚举未在现有自营仓 27 条和 FBA 仓 36 条 raw 类型字段中找到可证明映射；登记 `defer_no_param_source`，不猜测参数或请求真实 API。
+- TDD 新增终态收口测试：登记前因缺少 1035 覆盖而 RED，补齐覆盖后 GREEN；测试同时约束仓库板块为 4 个 configured、2 个 enabled、2 个 terminal、0 个 pending、`closed=true`。
+- 批量公开文档刷新因上游单条详情无超时阻塞而在写文件前超时；现有 catalog 保持完整有效的 187 个详情记录，已基于同一份详情和当前审核覆盖离线重分类，不伪称重新拉取成功。
+- YAML/DB 仍为 77/46，code、enabled、method、path 差异 0；未运行 `--sync-api-configs`、`--sync-api` 或完整 `--sync-enabled`，最新业务批次保持 success。
+- 下一步按固定顺序进入库存板块，仅做整板只读预审并提交一个候选最小方案等待确认。
+
+## 2026-07-20 阶段 16Y：库存板块审核终态收口
+
+- 库存板块 14 个公开文档接口已完成整板只读预审：9 个已配置（8 个 enabled），4 个创建出入库单接口继续 `defer_write_or_mutation`，唯一待审为文档 1022。
+- 文档 1022 `POST /purchase/inventory/purchaseSaleStorageSelf/page` 是非敏感分页读取接口，公开结构有 `data.rows/data.total`，但无稳定 `id` 或日期字段；只能依赖 `data_hash`，没有可验证的 `data_date` 来源。
+- 历史真实证据显示 `dateType=DAY` 配合 `beginDate/endDate` 返回 400/50099；公开文档未给出限流值。本轮不重跑旧探测，登记 `defer_runtime_rejected`。
+- TDD 新增库存终态收口测试：登记前因缺少 1022 覆盖而 RED，补齐覆盖后 GREEN；测试约束库存板块为 9 个 configured、8 个 enabled、5 个 terminal、0 个 pending、`closed=true`。
+- catalog 保留有效的 187 条公开详情并按当前审核覆盖离线重分类；库存板块为 `total=14`、`configured=9`、`enabled=8`、`terminal_deferred=5`、`pending_review=0`、`closed=true`。这是审核收口，不表示所有接口均已配置。
+- YAML/DB 仍为 77/46，未运行 `--sync-api-configs`、`--sync-api` 或完整 `--sync-enabled`；下一步按固定顺序进入采购板块，只做整板只读预审并等待确认。
+## 2026-07-20 阶段 16Z：采购订单列表完成默认关闭验证
+
+- 文档 86 `POST /purchase/srm/procure/page` 已新增为 `procure_page`，保持 `enabled=false`；公开契约只要求嵌套分页对象 `pageInfo.page`、`pageInfo.pagesize`，没有业务筛选参数，因此不依赖猜测的上游参数来源。
+- 同步引擎的两个分页路径均改为通过既有点路径读写器设置分页字段；TDD 覆盖普通分页和参数来源分页的嵌套字段，旧扁平分页接口行为不变。
+- 配置固定为每页 100、首次最多 1 页、`data.rows`/`data.total`、`id` 必填主键、`updateTime` 为 `data_date`、1 秒间隔、单次尝试；公开响应未标记敏感字段，审核过程未输出任何采购订单字段值。
+- `--sync-api-configs` 后 YAML/DB 均为 78/46，code/enabled/method/path 差异 0；仅运行 `--sync-api procure_page`，未运行完整 `--sync-enabled`。
+- 成功批次 `sync_20260720_171204_853350`：1 次请求、100 条成功、0 失败；raw 为 100 个不同主键、100 个不同 hash、空日期 0；checkpoint 指向同批次，失败请求为 0。
+- catalog 保留完整的 187 个公开详情并按当前 YAML/审核覆盖离线重分类：真实配置 70、enabled 46；采购板块为 `total=23`、`configured=6`、`enabled=5`、`terminal_deferred=11`、`pending_review=6`、`closed=false`。这不表示采购板块已收口。
+- 最终 named lock 空闲、外部 InnoDB 事务 0、同步相关活动会话 0、本地同步进程 0；未暂存、提交或推送。
+
+## 2026-07-20 阶段 16AA：关联采购订单信息终态暂缓
+
+- 文档 90 `GET /purchase/srm/relevancePoInfo/query` 是读取接口，必填参数 `code` 的官方语义为采购计划单号；接口非分页、公开文档未给出限流值、响应不含敏感字段。
+- 只读来源审核确认：`procure_page.raw_json.purchasePlanCode` 在 100 条 raw 中字段存在，但非空值为 0；`purchase_plan_page` 没有可用 raw。未读取或输出任何采购单号、计划号、SKU 或产品字段值。
+- 因没有语义正确且非空的真实参数来源，用户确认后仅登记文档 90 为 `defer_no_param_source`；不新增 YAML、DB `api_config`、batch、raw、checkpoint 或失败日志，不调用真实业务接口。
+- TDD 新增采购板块终态计数测试：登记前因缺少文档 90 覆盖而 RED，登记后 GREEN；catalog 保留 187 条有效公开详情并离线重分类为采购 `total=23`、`configured=6`、`enabled=5`、`terminal_deferred=12`、`pending_review=5`、`closed=false`。
+- YAML/DB 保持 78/46、配置差异 0，最新业务批次仍为 `sync_20260720_171204_853350` success；未运行 `--sync-api-configs`、`--sync-api` 或完整 `--sync-enabled`。
+
+## 2026-07-20 阶段 16AB：供应商信息列表完成默认关闭验证
+
+- 文档 43 `POST /purchase/srm/supplier/page` 已新增为 `supplier_page`，保持 `enabled=false`；所有业务筛选字段均可选，首轮仅第 1 页、每页 100，使用 `data.rows`/`data.total`。
+- 公开响应包含联系人、电话、邮箱和地址字段；配置 `sensitive_response=true`，成功数据只进入 `raw_api_data.raw_json`，失败时不保存响应正文或原始错误详情，审核未输出任何敏感字段值。
+- 响应的供应商编号 `code` 未在运行前证明全局唯一，首轮不设置业务主键，使用完整对象 `data_hash` 幂等；`createdAt` 生成 `data_date`。
+- `--sync-api-configs` 后 YAML/DB 均为 79/46，code/enabled/method/path 差异 0；仅运行 `--sync-api supplier_page`，未运行完整 `--sync-enabled`。
+- 成功批次 `sync_20260720_182049_479213`：1 次请求、27 条成功、0 失败；raw 为 27 个不同 hash、空日期 0、业务主键为空，checkpoint 指向同批次，失败请求为 0。
+- catalog 保留 187 条有效公开详情并离线重分类：真实配置 71、enabled 46；采购板块为 `total=23`、`configured=7`、`enabled=5`、`terminal_deferred=12`、`pending_review=4`、`closed=false`。
+- 最终 named lock 空闲、外部 InnoDB 事务 0、同步相关活动会话 0、本地同步进程 0；未暂存、提交或推送。
+
+## 2026-07-21 阶段 16AC：采购计划明细终态暂缓
+
+- 文档 88 `POST /purchase/srm/plan/detail` 是读取型详情接口，必须提供采购计划 `id` 或 `code` 二选一；非分页、公开文档未给出限流值，响应含人员姓名和账号等敏感字段。
+- 只读来源审核确认：`purchase_plan_page` 没有 raw；`procure_page` 没有采购计划 ID，计划编号字段为空；交货单 `fid` 经公开文档确认是采购订单 ID，不得误用为采购计划 ID。审核未读取或输出任何真实计划、订单、人员或账号值。
+- 因没有语义正确且非空的真实参数来源，用户确认后仅登记文档 88 为 `defer_no_param_source`；不新增 YAML、DB `api_config`、batch、raw、checkpoint 或失败日志，不调用真实业务接口。
+- TDD 新增采购计划明细终态计数测试：登记前因缺少文档 88 覆盖而 RED，登记后 GREEN；catalog 保留 187 条有效公开详情并离线重分类为采购 `total=23`、`configured=7`、`enabled=5`、`terminal_deferred=13`、`pending_review=3`、`closed=false`。
+- YAML/DB 保持 79/46、配置差异 0，最新业务批次仍为 `sync_20260720_182049_479213` success；未运行 `--sync-api-configs`、`--sync-api` 或完整 `--sync-enabled`。
+
+## 2026-07-29 阶段 16AD：供应商产品列表完成受保护的一页验证
+
+- 文档 91 `POST /purchase/srm/supplierSkuQuote/page` 已新增为 `supplier_sku_quote_page`，保持 `enabled=false`；无业务必填参数，使用 `data.rows`/`data.total` 分页，`id` 为必填主键，`createdAt` 生成 `data_date`，人员标识只做 raw 备份。
+- TDD 新增唯一配置测试：新增配置前 RED，补齐后 GREEN；目标配置固定每页 100、最多 1 页、1 秒间隔、单次重试和 `sensitive_response=true`。
+- `--sync-api-configs` 后 YAML/DB 均为 80/46，code/enabled/method/path 差异 0；仅运行 `--sync-api supplier_sku_quote_page`，未运行完整 `--sync-enabled`。
+- 批次 `sync_20260729_120154_588297` 为 failed：1 次请求、100 条成功计数、失败计数 1；raw 为 100 个不同主键和 hash、空日期 0，失败请求为 0，未写 checkpoint。
+- 失败由分页完整性保护触发：单页上限小于上游有效总量，禁止把截断结果写为成功 checkpoint；这不是上游拒绝，不登记 `defer_runtime_rejected`，也不将接口表述为已真实验证完成。
+- 最终 named lock 空闲、外部 InnoDB 事务 0、同步相关活动会话 0、本地同步进程 0；catalog 离线重分类为 187 个有效公开详情、72 个真实配置、46 个 enabled，采购板块为 `total=23`、`configured=8`、`enabled=5`、`terminal_deferred=13`、`pending_review=2`、`closed=false`。
+
+## 2026-07-29 阶段 16AE：供应商产品列表两页受限验证仍未覆盖完整总量
+
+- 用户确认后，仅将 `supplier_sku_quote_page.max_pages` 从 1 调整为 2；TDD 先修改唯一配置测试至 RED，再更新 YAML 转 GREEN。接口继续 `enabled=false`，其他接口未改动。
+- 写入前两次只读核验均确认 named lock 空闲、外部 InnoDB 事务 0、同步相关活动会话 0、本地同步进程 0；`--sync-api-configs` 后 YAML/DB 均为 80/46，code/enabled/method/path 差异 0。
+- 仅运行 `--sync-api supplier_sku_quote_page`，批次 `sync_20260729_121333_642328` 为 failed：2 次请求、200 条成功计数、失败计数 1；raw 为 200 个不同主键和 hash、空日期 0，checkpoint 和失败请求均为 0。
+- 两页均由上游正常返回；失败仍是本地分页完整性保护，因为有效总量超过 200。不得将其登记为上游拒绝或已验证成功，也不执行第三页或完整 `--sync-enabled`。
+- 最终 named lock 空闲、外部 InnoDB 事务 0、同步相关活动会话 0、本地同步进程 0；catalog 和采购板块计数保持 187/72/46 与 `configured=8`、`enabled=5`、`terminal_deferred=13`、`pending_review=2`。
+
+## 2026-07-29 阶段 16AF：分页预检与写前容量保护完成
+
+- 新增 `--probe-api <api_code>`：只请求普通分页接口首页，输出总数、页大小、所需页数和请求次数；不创建数据库引擎，也不写入同步表。
+- 普通事务和 `commit_per_page` 均在首页 raw 写入前核验 `max_pages` 是否覆盖 `required_pages`；不足时立即失败且 raw 数为 0。完整回归 160 个 unittest、编译、dry-run 和 `git diff --check` 通过。
+- `supplier_sku_quote_page` 预检总量 9,727、每页 100、所需 98 页、请求 1 次；预检后 batch/raw/checkpoint/API log/失败请求均保持原值。YAML/DB 为 80/46、差异 0，锁、事务、会话和进程均为 0。
+
+## 2026-07-29 阶段 16AG：供应商产品列表改为实时 total 驱动分页
+
+- 再次读取官方文档 91：`POST /purchase/srm/supplierSkuQuote/page`，必填分页字段为 `page/pagesize`，官方单页最大 100；响应分页字段为 `data.rows/data.total`，默认每 1 秒 1 次。官方没有给出固定总页数上限。
+- 写前只读核验确认 YAML/DB 均为 80/46、code/enabled/method/path 差异 0，latest batch 仍为 `sync_20260729_121333_642328` failed；named lock 空闲、外部 InnoDB 事务 0、活动数据库会话 0、本地积加同步进程 0。
+- TDD 先得到 4 个预期失败，再实现可选 `max_pages`：省略时每页读取最新 `total` 并自动继续；运行中 `total` 增长也会继续请求新增页；缺失或非法 `total` 会在首页 raw 写入前失败。已有固定 `max_pages` 的接口保持原容量保护。
+- `supplier_sku_quote_page` 已从 YAML 删除固定两页上限，增加 `commit_per_page=true`，继续保持 `enabled=false`；按页短事务避免全量分页期间长期占用同一 InnoDB 事务。
+- 完整验证为 162 个 unittest 通过，`compileall app tests`、无参数 dry-run 和 `git diff --check` 通过。
+- 只读 `--probe-api supplier_sku_quote_page` 返回 `total_count=9727`、`page_size=100`、`required_pages=98`、请求 1 次，耗时 2.502 秒。
+- 预检后 DB 没有新增写入：latest batch 不变，目标 raw 200、checkpoint 0、API log 2、failed request 0；named lock 空闲、外部事务和活动会话均为 0。
+- 当前没有执行 `--sync-api-configs`，所以 DB `config_json` 仍为旧的 `max_pages=2` 且没有 `commit_per_page`；也没有运行真实 `--sync-api` 或完整 `--sync-enabled`。catalog 状态保持 187 个有效详情、72 个已配置、46 个 enabled，采购板块仍有 2 个待审。
+
+## 2026-07-29 阶段 16AH：供应商产品列表完成 total 驱动真实验证
+
+- 正式写入前重新核对 Git、YAML、catalog、DB、latest batch、named lock、外部 InnoDB 事务、活动数据库会话和本地同步进程；YAML/DB 均为 80/46、code/enabled/method/path 差异 0，锁、事务、会话和进程均为空。
+- 再次读取官方文档 91，确认 `POST /purchase/srm/supplierSkuQuote/page` 必填 `page/pagesize`、单页最大 100、响应为 `data.rows/data.total`，默认每 1 秒 1 次；没有人为补充固定总页数上限。
+- 执行 `--sync-api-configs` 后，DB 配置与 YAML 一致：目标接口没有 `max_pages`、`commit_per_page=true`，并继续保持 `enabled=false`。
+- 仅运行 `--sync-api supplier_sku_quote_page`。批次 `sync_20260729_151815_934165` 为 success：运行时 total 为 9,727，共 98 次请求、9,727 条成功、0 失败，耗时约 5 分 30 秒。
+- 目标 raw 共 9,727 条，业务主键、data hash 均为 9,727 个，空主键和空 `data_date` 均为 0；9,727 条均指向本批次。checkpoint 为 `last_page=98`、`request_count=98`、`item_count=9727`、`total_count=9727`。
+- 当前批次和目标接口累计 `failed_request_log` 均为 0；最终 named lock 空闲、外部 InnoDB 事务 0、活动数据库会话 0、本地同步进程 0。
+- 完整回归 162 个 unittest 通过；未运行完整 `--sync-enabled`，未暂存、提交或推送。catalog 状态仍为 187 个有效详情、72 个已配置、46 个 enabled；采购板块仍有 2 个待审，尚未收口。
+
+## 2026-07-30 阶段 16AI：采购快捷入库查询运行拒绝终态
+
+- 正式写入前重新核对 Git、YAML、catalog、DB、latest batch、named lock、外部 InnoDB 事务、活动数据库会话和本地同步进程；YAML/DB 均为 80/46、code/enabled/method/path 差异 0，锁、事务、会话和进程均为空。
+- 官方文档 1080 明确 `POST /purchase/srm/quickInbound/query` 为读取接口，请求体 `data` 是可选 `array<string>`，最多 100 个采购单号，响应 `data` 为对象数组，默认每秒 1 次；响应包含 `poId`，没有可用于 `data_date` 的日期字段。
+- 真实参数来源为已验证的 `procure_page.raw_json.code`。只读聚合核验确认现有 100 行均有非空采购单号且去重后仍为 100；审核和日志均未输出任何采购单号值。
+- TDD 增加顶层 param source 字段的显式 `wrap_in_list=true` 支持：目标参数生成单元素 Python 列表；未配置数组包装的旧顶层字段继续生成标量。临时接口配置保持 `enabled=false`、非分页、`list_field=data`、主键 `poId`、`data_date=null`，首次参数来源上限为 3。
+- 执行 `--sync-api-configs` 后仅运行 `--sync-api quick_inbound_query`。批次 `sync_20260730_100043_263810` 在第 1 次官方格式请求收到 HTTP 400 后失败，未重试、未尝试其他数组编码；API log 为 1 次请求、0 条成功、1 条失败，raw 和 checkpoint 均为 0。
+- `failed_request_log` 保留 HTTP 400 和脱敏错误摘要，`request_params`、`response_body` 均为空。随后将文档 1080 登记为 `defer_runtime_rejected`，删除临时 YAML 配置和精确匹配的 disabled DB 配置行，保留 batch、API log 和失败日志证据。
+- 收尾核验恢复 YAML/DB 80/46，code/enabled/method/path 差异 0；目标配置在 YAML/DB 均不存在，named lock 空闲、外部事务 0、活动会话 0、本地同步进程 0。
+- 实时刷新官方 catalog 得到 189 个有效详情、72 个已配置、46 个 enabled；相较上一快照新增的 2 个文档均落在物流板块。采购板块当前为 `configured=8`、`enabled=5`、`terminal_deferred=14`、`pending_review=1`、`closed=false`。
+- 本阶段未运行完整 `--sync-enabled`，未暂存、提交或推送；采购板块只剩文档 5262 的敏感响应终态审核。
+- 最终完整回归 166 个 unittest 通过；`compileall app tests`、无参数 dry-run 和 `git diff --check` 通过。
+
+## 2026-07-30 阶段 16AJ：采购主体敏感终态与采购板块收口
+
+- 写前只读门禁确认 Git 无 staged 文件，YAML/DB 均为 80/46、code/enabled/method/path 差异 0；latest batch 仍为 `sync_20260730_100043_263810` failed，named lock 空闲、外部 InnoDB 事务 0、活动数据库会话 0、本地同步进程 0。
+- 实时官方文档 5262 确认 `POST /purchase/srm/purchaseSubject/list`、`opType=list`、审核通过且公开；请求体为空、响应 `data` 为对象数组、非分页，默认每秒 1 次。
+- 官方响应包含联系人、邮箱、电话、税号、地址、银行账户和公章图片链接等高敏感字段。即使存在主键 `id` 和日期字段 `createTime`，也禁止将该接口接入通用业务 raw 备份。
+- TDD 先因审核覆盖表缺少文档 5262 得到 `KeyError: 5262`，再增加唯一一条 `defer_sensitive_credentials` 终态；采购板块关闭测试和审核终态测试转绿。
+- 实时刷新 catalog 成功读取 189/189 个详情、错误 0；全平台仍为 72 个已配置、46 个 enabled。采购板块变为 `configured=8`、`enabled=5`、`terminal_deferred=15`、`pending_review=0`、`closed=true`。
+- 本阶段没有新增业务 YAML 配置，没有执行 `--sync-api-configs`，没有调用文档 5262 或其他真实业务 API，也没有写数据库；YAML/DB 仍为 80/46。
+- 未运行完整 `--sync-enabled`，未暂存、提交或推送。采购板块现已完成审核终态收口，但不能表述为 23 个接口均已配置。
+- 最终完整回归 167 个 unittest 通过；`compileall app tests`、无参数 dry-run 和 `git diff --check` 通过。
+
+## 2026-07-30 阶段 16AK-A：物流方式官方契约修正与只读分页预检
+
+- 启动前只读门禁确认：Git 无 staged 文件；YAML/DB 均为 80 个配置、46 个 enabled，code/enabled/method/path 差异为 0；latest batch 为 `sync_20260730_100043_263810` failed；named lock 空闲，外部 InnoDB 事务、活动数据库会话和本地同步进程均为 0。
+- 实时官方文档 3059 与公开 apiMap 均确认 `GET /fulfillment/ship/transport/list`；必填分页参数为 `page/pagesize`，`pagesize` 最大 100，响应为 `data.rows/data.total`，默认限流为每秒 1 次。当前官方契约优先于历史 POST 配置和历史成功批次。
+- TDD 新增唯一配置测试：旧配置因 `enabled=true` 先 RED；随后仅把本地 YAML 改为 `enabled=false`、`method=GET`、1 秒限流，删除猜测的 `max_pages=10`，按实时有效 `total` 动态分页后转 GREEN。既有 enabled 总数测试同步改为 45，并明确排除该接口。
+- 只执行一次 `--probe-api ship_transport_list`：返回 `total_count=292`、`page_size=100`、`required_pages=3`、`request_count=1`，总耗时 1.613 秒；预检不创建数据库引擎，不写 batch、API log、raw、checkpoint 或失败日志。
+- catalog 使用现有 189 条实时官方详情重新核对本地配置状态：72 个已配置、45 个 enabled；物流板块为 `configured=3`、`enabled=1`、`terminal_deferred=2`、`pending_review=16`、`closed=false`。
+- 本阶段没有运行 `--sync-api-configs`、`--sync-api` 或完整 `--sync-enabled`。本地 YAML 为 80/45 且目标方法为 GET；DB 仍为上一快照 80/46 且目标方法为 POST，这是等待二次确认的预期差异。
+- 完整回归 168 个 unittest、`compileall app tests`、无参数 dry-run 和 `git diff --check` 通过；未暂存、提交或推送。
+
+## 2026-07-30 阶段 16AK-B：物流方式 GET 单接口真实验证
+
+- 实时官方 detail 再次确认文档 3059 为审核通过且公开的 `GET /fulfillment/ship/transport/list` 读取接口；`page/pagesize` 必填、单页最大 100、响应 `data.rows/data.total`，默认每秒 1 次。
+- 写前门禁确认 Git 无 staged 文件；YAML/catalog 为 80/45 和 189/72/45，DB 为 80/46；唯一 enabled/method 差异是待修正的 `ship_transport_list`。latest batch 仍为 `sync_20260730_100043_263810` failed，named lock 空闲，外部事务、活动会话和同步进程均为 0。
+- `--sync-api-configs` 成功同步 80 条配置；复核后 YAML/DB 均为 80/45，目标配置为 GET、disabled、无固定 max_pages、每页 100、`data.total` 驱动、1 秒限流，code/enabled/method/path 差异均为 0。
+- 仅运行 `--sync-api ship_transport_list`，未运行完整 `--sync-enabled`。批次 `sync_20260730_112541_515611` 为 success：运行时 total 292、3 次请求、292 条成功、0 失败，CLI 总耗时 14.378 秒。
+- 当前批次 raw 为 292 条，业务主键和 data hash 各 292 个，空主键 0；官方无日期字段，292 条 `data_date` 均为 null。raw 总表为 293 条，其中 1 条历史记录本次上游未返回，按原始备份原则保留而不删除。
+- checkpoint 与本批次一致：`last_page=3`、`request_count=3`、`item_count=292`、`total_count=292`；本批次及目标接口累计失败请求均为 0。
+- 收尾 named lock 空闲，外部 InnoDB 事务、活动数据库会话和本地同步进程均为 0；接口继续保持 disabled，恢复 daily enabled 需下一次单独确认。
+- 完整回归 168 个 unittest、`compileall app tests`、无参数 dry-run 和 `git diff --check` 通过；未暂存、提交或推送。
+
+## 2026-07-30 阶段 16AK-C：恢复物流方式 daily enabled
+
+- 用户确认后，写前重新核对 Git、YAML/catalog、DB、latest batch、named lock、外部 InnoDB 事务、活动数据库会话和本地同步进程；YAML/DB 起点均为 80/45、差异 0，latest batch 为 16AK-B 成功批次，锁、事务、会话和进程均为空。
+- TDD 先把 `ship_transport_list` 和 enabled 总数期望改为 true/46，得到 2 个预期失败；随后只将目标 YAML 的 `enabled` 改为 true，并同步 catalog 计数，定向测试转绿。GET、分页、主键、日期、限流和重试配置均未改动。
+- catalog 离线汇总自检通过：189 个有效详情、72 个已配置、46 个 enabled；物流板块为 `configured=3`、`enabled=2`、`terminal_deferred=2`、`pending_review=16`、`closed=false`。
+- 完整回归 168 个 unittest、`compileall app tests`、无参数 dry-run 和 `git diff --check` 通过；dry-run 明确加载 46 个 enabled 并包含 `ship_transport_list`。
+- 再次确认唯一 YAML/DB 差异是目标 enabled、named lock 空闲且事务/会话/进程均为 0 后，只运行 `--sync-api-configs`，成功同步 80 条配置。
+- 收尾 YAML/DB 均为 80/46，code/enabled/method/path 差异 0；目标 DB 配置为 enabled、GET、无固定 max_pages、每页 100、`data.total` 驱动、1 秒限流。
+- 本阶段没有调用任何真实业务 API，没有运行 `--sync-api` 或完整 `--sync-enabled`；latest batch、293 条 raw、51 条目标 API log、checkpoint 和失败请求计数均保持 16AK-B 结果不变。
+- 最终 named lock 空闲，外部 InnoDB 事务、活动会话和本地同步进程均为 0；无 staged 文件，未提交或推送。
+
+## 2026-07-30 阶段 16AL-A：发货单列表配置与只读分页预检
+
+- 实时官方文档 1027 确认 `POST /fulfillment/ship/delivery/page` 是审核通过且公开的读取接口；只有 `page/pagesize` 必填，单页最大 100，响应为 `data.rows/data.total`，默认每秒 2 次，所有业务筛选条件均为可选。
+- 新增本地 `delivery_page` 配置并保持 `enabled=false`：不设置 `max_pages`、不设置日期窗口或参数来源，按实时有效 total 动态分页；限流间隔 0.5 秒，单页只尝试 1 次。
+- 幂等优先使用响应 `id`，但官方未把该字段标为必填，因此配置 `required=false`，缺失时使用完整对象 `data_hash`；`updateTime` 生成 `data_date`。
+- 官方响应包含店铺账号标识、人员标识及姓名、金额与币种、订单/采购/物流/货件/供应商/仓库编号和备注等业务敏感字段，配置 `sensitive_response=true`，仅允许 raw 备份，日志和交接文档不输出字段值。
+- TDD 聚焦测试先因配置不存在得到预期失败，再加入最小配置转 GREEN；catalog 使用项目自身汇总函数校验，存储汇总与计算结果一致。
+- 严格只执行一次 `--probe-api delivery_page`：实时 `total_count=18162`、`page_size=100`、`required_pages=182`、`request_count=1`，CLI 总耗时 5.065 秒。
+- 按当前 total，正常完整同步基线为 182 次请求、181 次页间等待，固定限流等待共 90.5 秒；182 页不是长期上限，实际同步仍按运行时 total 自动计算。
+- probe 没有创建数据库引擎或写同步表。复核显示本地 YAML 为 81/46、DB 为 80/46，唯一差异是未同步的 `delivery_page`；目标在 DB 配置、API log、raw、checkpoint 和失败日志中的计数均为 0，latest batch 仍为 `sync_20260730_112541_515611` success。
+- named lock 空闲，外部 InnoDB 事务、活动数据库会话和本地同步进程均为 0；未运行 `--sync-api-configs`、`--sync-api` 或完整 `--sync-enabled`。
+- catalog 为 189 个有效详情、73 个已配置、46 个 enabled；物流板块为 `configured=4`、`enabled=2`、`terminal_deferred=2`、`pending_review=15`、`closed=false`。
+
+## 2026-07-30 阶段 16AL-B：发货单列表真实单接口验证
+
+- 写入前再次读取官方文档 1027 和 apiMap：两者一致确认 `POST /fulfillment/ship/delivery/page`；仅 `page/pagesize` 必填，单页最大 100，响应为 `data.rows/data.total`，默认每秒 2 次，接口公开且审核通过。
+- Git 保持 `master@51a6484`、无 staged；起点 YAML 为 81/46、DB 为 80/46，唯一差异是尚未同步的 `delivery_page`。latest batch 为 `sync_20260730_112541_515611` success，锁、事务、活动会话和同步进程均为空。
+- TDD 先将目标配置测试改为要求 `commit_per_page=true`，因 YAML 缺少该字段得到预期 `KeyError`；只增加按页短事务配置后转 GREEN，没有增加固定页数、业务筛选或其他非官方限制。
+- 配置写入前完整回归 169 个 unittest 通过；`compileall app tests`、无参数 dry-run 和 `git diff --check` 通过，dry-run 仍只加载 46 个 enabled API。
+- 只执行 `--sync-api-configs`，成功同步 81 条配置；随后 YAML/DB 均为 81/46，code/enabled/method/path 差异为 0，目标为 disabled、POST、每页 100、无 `max_pages`、`commit_per_page=true`、`sensitive_response=true`。
+- 真实同步前再次确认 named lock 空闲、外部 InnoDB 事务 0、活动数据库会话 0、本地同步进程 0；仅运行 `--sync-api delivery_page`，没有运行完整 `--sync-enabled`。
+- 批次 `sync_20260730_143314_977605` 为 success：运行时 `total=18168`、182 次请求、18168 条成功、0 失败；DB 批次耗时 1110 秒，CLI 总耗时 1116.106 秒。
+- 16AL-A 预检 total 为 18162，真实同步时增加 6 条但仍按最新 total 完整覆盖 182 页；182 页没有写入配置，后续业务增长继续由运行时 total 动态处理。
+- 本批次 raw 为 18168 条，业务主键、data hash 均为 18168 个；空主键、缺失 JSON id、主键映射不一致均为 0。
+- `data_date` 全部来自 `updateTime`：空日期、缺失 updateTime、日期映射不一致均为 0；日期范围为 2022-10-29 至 2026-07-30。
+- checkpoint 与批次一致：`last_page=182`、`request_count=182`、`item_count=18168`、`total_count=18168`；本批次及目标累计失败请求均为 0。
+- 收尾 YAML/DB 仍为 81/46 且差异 0；named lock 空闲、外部事务、活动会话和同步进程均为 0。
+
+## 2026-07-30 阶段 16AL-C：发货单列表加入 daily enabled
+
+- 启用前再次读取官方 detail 与 apiMap，确认文档 1027 仍为公开且审核通过的 `POST /fulfillment/ship/delivery/page`；分页、单页最大 100、`data.rows/data.total` 和默认每秒 2 次均未变化。
+- 写前门禁确认 Git 为 `master@51a6484`、无 staged；YAML/DB 均为 81/46 且差异 0，目标 disabled；latest batch、18168 条 raw、1 条 API log、checkpoint 和 0 条失败记录保持 16AL-B 证据，锁、事务、会话和同步进程均为空。
+- TDD 只将目标 enabled 期望改为 true、全局 enabled 总数改为 47并加入目标断言；旧 YAML 产生 2 个预期失败。
+- 只将 `delivery_page.enabled` 改为 true，并同步 catalog 的 enabled 汇总、物流板块计数和文档 1027 状态；聚焦测试转 GREEN，catalog 项目内汇总函数自检一致。
+- catalog 本地状态为 189 个有效详情、73 个已配置、47 个 enabled；物流板块为 `configured=4`、`enabled=3`、`terminal_deferred=2`、`pending_review=15`、`closed=false`。
+- 完整回归 169 个 unittest、`compileall app tests`、无参数 dry-run 和 `git diff --check` 通过；dry-run 明确加载 47 个 enabled 并包含 `delivery_page`。
+- 配置写入前再次确认唯一 YAML/DB 差异为 `delivery_page.enabled`，named lock 空闲、外部 InnoDB 事务 0、活动会话 0、本地同步进程 0。
+- 只执行 `--sync-api-configs`，成功同步 81 条配置；没有运行 `--sync-api` 或完整 `--sync-enabled`，没有调用任何业务 API。
+- 收尾 YAML/DB 均为 81/47，code/enabled/method/path 差异 0；目标 DB 配置继续为 POST、无固定 `max_pages`、每页 100、`commit_per_page=true`、`sensitive_response=true`。
+- latest batch 仍为 `sync_20260730_143314_977605` success；raw 18168、不同主键 18168、不同 hash 18168、空日期 0，API log 1、失败请求 0，checkpoint 仍为第 182 页、182 次请求、18168 条和 total 18168。
+- 最终 named lock 空闲，外部事务、活动会话和同步进程均为 0；未暂存、提交或推送。
+- 下一候选审核发现文档 256 虽被 catalog 归为无业务必填参数，但官方明确“分页查询必须带一个条件，只传分页参数不返回数据”，因此不能直接无条件探测，也不能擅自用约 1.8 万个发货单号逐单请求。
+- 只读比较其余候选后选择文档 1778 `POST /fulfillment/ship/cost/page`：读取接口公开且审核通过，业务筛选均可选，分页最大 100、`data.rows/data.total`、默认每秒 2 次。
+- 文档 1778 响应顶层存在非必填 `id` 和 `updateAt`；费用、金额、币种、组织、付款条件及物流单号等字段必须 `sensitive_response=true` 且仅 raw 备份。
+- 下一阶段 16AM-A 只允许增加默认关闭配置并执行一次首页 total 预检，不同步 DB、不运行真实数据同步或完整 enabled；取得 total 后再提交请求量、事务和运行时间方案。
+
+## 2026-07-30 阶段 16AM-A：物流费用金额明细配置与失败预检收口
+
+- 实时官方 detail 和 apiMap 一致确认文档 1778 为公开且审核通过的 `POST /fulfillment/ship/cost/page`，名称为“查询物流费用金额明细”，`opType=page`，属于读取接口。
+- 官方业务筛选 `codes/feeTypes/expenseTypes/updateTimeStart/updateTimeEnd/createTimeStart/createTimeEnd`、分页字段 `page/pagesize` 均为可选；单页最大 100，响应为 `data.rows/data.total`，默认每秒 2 次。
+- 响应顶层 `id` 和 `updateAt` 均非必填，因此使用 `id required=false` 并在缺失时回退 data hash，`updateAt` 生成 `data_date`；金额、币种、费用、付款和组织字段按敏感 raw-only 处理。
+- 写前门禁确认 Git 为 `master@51a6484`、无 staged；YAML/DB 均为 81/47 且差异 0，catalog 为 189/73/47，latest batch 为 16AL-B 成功批次，目标五张表计数均为 0，锁、事务、会话和同步进程为空。
+- TDD 新增独立配置测试，先因 `logistics_cost_page` 不存在得到预期失败；随后加入唯一默认关闭配置并转 GREEN。
+- 配置不含 `max_pages`、`commit_per_page`、`date_window` 或 `param_source`；只传官方分页字段 `page=1/pagesize=100`，限流 0.5 秒、单次尝试。
+- catalog 项目内汇总函数自检一致：189 个有效详情、74 个已配置、47 个 enabled；物流板块为 `configured=5`、`enabled=3`、`terminal_deferred=2`、`pending_review=14`、`closed=false`。
+- 完整回归 170 个 unittest、`compileall app tests`、无参数 dry-run 和 `git diff --check` 通过；dry-run 仍只加载 47 个 enabled。
+- 严格只执行一次 `--probe-api logistics_cost_page`，1.213 秒后返回 `ApiRequestError`，未取得 total 或所需页数。
+- 没有重试，没有增加官方未要求的筛选条件，没有尝试其他请求编码，也没有运行配置同步、真实单接口同步或完整 enabled。
+- 当前 probe 对包装后的 `ApiRequestError` 只记录异常类型，没有安全 HTTP 状态；现有非 token 日志中也没有额外状态证据，因此不能把结果猜成 HTTP 400/500 或登记上游拒绝终态。
+- probe 后数据库仍为 81/47，本地 YAML 为 82/47，唯一差异是未同步的 `logistics_cost_page`；目标在 DB 配置、API log、raw、checkpoint 和失败日志中的计数均为 0。
+- latest batch 仍为 `sync_20260730_143314_977605` success；named lock 空闲，外部 InnoDB 事务、活动会话和本地同步进程均为 0。
+- 接口继续保持 configured disabled，catalog 原因更新为“等待安全错误分类”；当前不具备提交真实同步方案所需的 total、请求量和运行时间证据。
+- 本阶段未暂存、提交或推送，也未修改或清理其他未提交内容。
+
+## 2026-07-30 阶段 16AM-B：probe 安全错误分类与官方条件纠正
+
+- 实时 detail 与 apiMap 再次确认文档 1778 为公开且审核通过的 `POST /fulfillment/ship/cost/page` 读取分页接口。
+- 本次完整读取到接口说明“发货单集合、时间必传一项”；字段级 `must=false` 不能覆盖接口级约束，16AM-A 的“允许无筛选请求”结论作废。
+- 启动门禁确认 Git 为 `master@51a6484`、无 staged；YAML 为 82/47、DB 为 81/47，唯一差异是未同步目标；latest batch 未变，目标五张表计数均为 0，锁、事务、会话和同步进程为空。
+- TDD 新增包装 HTTP 异常和无 response 异常测试，先因日志只有 `ApiRequestError` 得到两个预期失败，再做最小实现并转 GREEN。
+- `_probe_single_api` 现在仅记录包装内原始异常类型和 HTTP 状态；不记录异常正文、URL、请求参数、响应正文或敏感字段。
+- 完整回归 172 个 unittest、`compileall app tests`、无参数 dry-run 和 `git diff --check` 通过；dry-run 仍只加载 47 个 enabled。
+- 因官方要求真实业务条件，本阶段取消原定的无筛选复检，没有再次调用文档 1778；旧 `ApiRequestError` 继续保持未分类，不登记 `defer_runtime_rejected`。
+- 没有运行 `--sync-api-configs`、`--sync-api` 或完整 `--sync-enabled`，没有创建 batch 或写入 raw、checkpoint、API log、失败日志。
+- 本地 YAML 与 catalog 仍为 82/47 和 189/74/47；物流板块仍为 configured=5、enabled=3、terminal=2、pending=14，目标保持 configured disabled。
+- 收尾数据库仍为 81/47，latest batch 仍为 `sync_20260730_143314_977605` success；named lock 空闲，外部事务、活动会话和同步进程均为 0。
+- 下一阶段只读审核 `codes` 或时间条件的真实来源与官方边界；在形成并确认新的最小方案前不得再次探测或同步。
+
+## 2026-07-31 阶段 16AM-C：物流费用条件来源审核与暂缓
+
+- 官方文档 1027 的 data.rows.code 明确为发货单号，现有 delivery_page 共有 18,168 条非空且唯一的真实 code，与文档 1778 的发货单集合 codes 语义一致。
+- 官方文档 1778 没有给出 codes 数组数量上限，也没有给出时间筛选跨度；不得自行猜测分组大小、请求上限或历史窗口。
+- 用户确认暂缓文档 1778；logistics_cost_page 继续 configured disabled，不再探测或同步。后续只有取得官方边界后才重新提交方案。
+- 下一个候选只读审核选择文档 1028 POST /fulfillment/ship/delivery/query，不与文档 1778 混合实施。
+
+## 2026-07-31 阶段 16AN-A：查询发货单明细单源验证
+
+- 实时官方 detail 与 apiMap 确认文档 1028 为公开、审核通过的读取接口；deliveryCodes 为可选字符串数组，needItem 为布尔值，响应 data 为对象数组，默认每秒 5 次。
+- 真实参数来源是 delivery_page.raw_json.code；写前聚合复核为 18,168/18,168 条可用且唯一，审核未输出任何发货单号值。
+- TDD 新增独立配置测试，先因配置不存在得到预期 RED；最小新增 delivery_detail_query 后转 GREEN。
+- 配置保持 enabled=false、非分页、response.item_field=data、deliveryCode required=false、updateTime 日期、sensitive_response=true、0.2 秒限流、单次尝试。
+- param_source 使用 raw_json.code -> deliveryCodes、wrap_in_list=true、limit=1、auto_advance=true 和 exclude_existing_target=true；固定参数只有 needItem=true。
+- 写前门禁确认 Git 为 master@51a6484、无 staged；named lock 空闲、外部事务 0、同步会话 0、本地同步进程 0。
+- --sync-api-configs 成功同步 83 条配置；YAML/DB 均为 83/47，code/enabled/method/path 差异为 0，新接口和 logistics_cost_page 均为 disabled。
+- 仅运行一次 --sync-api delivery_detail_query，批次 sync_20260731_105320_767996 为 success：1 次请求、1 条成功、0 失败，批次耗时 5 秒。
+- 本批次 raw 为 1 条、唯一 hash 1 个；响应 deliveryCode 是空字符串，因此 source_primary_key 为空并按 data_hash 回退幂等。updateTime 存在且与 data_date 一致，明细数组存在。
+- checkpoint 指向本批次，记录 last_page=1、request_count=1、item_count=1、total_count=1、param_offset=0、param_limit=1、next_param_offset=1；失败请求为 0。
+- logistics_cost_page 的 API log、raw、checkpoint 和失败请求仍全部为 0，证明配置同步没有调用文档 1778。
+- 完整回归 173 个 unittest、compileall app tests、47 个 enabled dry-run 和 git diff --check 通过。
+- 收尾 named lock 空闲、外部事务 0、同步会话 0、本项目虚拟环境 Python 进程 0；未运行 probe、完整 --sync-enabled，未暂存、提交或推送。
+
+## 2026-08-03 阶段 16AO-A：退货订单列表首页预检与运行终态
+
+- 实时官方 detail 与 apiMap 确认文档 9 为公开、审核通过的 `POST /operation/sale/returnOrder/page` 读取分页接口；必填参数只有 `page/pagesize`，单页最大 100，响应为 `data.rows/data.total`，默认每秒 5 次。
+- 幂等预案为非必填 `id` 优先、缺失时回退完整对象 `data_hash`；`returnDateTime` 作为 `data_date`，订单、退货原因、买家备注和商品字段按敏感 raw-only 处理。
+- 写前门禁确认 Git 为 master@51a6484、无 staged；YAML/DB 为 83/47 且差异为 0，目标五张表为 0，latest batch 成功，named lock、外部事务、活动会话和项目进程为空。
+- TDD 独立配置测试先因目标缺失得到预期 RED；最小新增 disabled 临时配置和 catalog 后转 GREEN，没有固定 `max_pages`、`commit_per_page`、日期窗口或参数来源。
+- 完整回归通过 174 个 unittest、`compileall app tests`、47 个 enabled dry-run 和 `git diff --check`。
+- 预检前再次确认 YAML 84/47、DB 83/47，唯一差异为未同步目标；严格只执行一次 `--probe-api sale_return_order_page`，1.154 秒后得到 HTTP 400，没有取得 total 或所需页数。
+- 没有重试、猜测筛选条件、改换请求编码、输出响应内容、同步配置、执行单接口数据库同步或运行完整 `--sync-enabled`。
+- 文档 9 登记为 `defer_runtime_rejected`；临时 YAML 配置已清理，接口专用测试改为验证“无业务配置 + 审核终态”。
+- 收口后 YAML/DB 均为 83/47，catalog 为 189/75/47；销售板块 configured=0、enabled=0、terminal=2、pending=13、closed=false。
+- 收尾 DB latest batch 仍为 `sync_20260731_105320_767996` success，目标在 api_config、API log、raw、checkpoint 和失败日志均为 0；锁、事务、会话和项目进程为空。
+- 本阶段未暂存、提交或推送，没有清理或覆盖其他未提交修改。
+
+## 2026-08-11 阶段 16AO-B：退货订单独立完整分页验证
+
+- 上游错误响应补充证明接口运行时要求至少一个日期查询条件，且日期跨度不能超过 31 天；该要求来自真实业务响应，不再把此前 HTTP 400 归因于请求方法、路径或 JSON 格式。
+- 新增独立脚本 `request_sale_return_order_page.py`，复用项目鉴权，仅请求 `POST /operation/sale/returnOrder/page`，不写数据库，不输出 accessToken 或订单明细。
+- 脚本新增 `--all-pages` 模式：第一页读取实时 `data.total`，按 `ceil(total/pagesize)` 动态分页，不配置猜测性固定页数上限；官方默认每秒 5 次，页间隔 0.2 秒。
+- 真实验证窗口为 `2026-08-04` 至 `2026-08-10`，不包含当天，不传 `marketIds`，覆盖当前账号可访问的全部店铺站点。
+- 完整验证返回 HTTP 200、业务码 200、`total=11007`；动态计算并实际请求 111 页，累计读取 11007 条，完整性校验通过，执行耗时约 113 秒。
+- 新增 `tests/test_request_sale_return_order_page.py`，离线证明 `total=250` 时只请求 3 页、累计 250 条，汇总结果不包含 `rows`；完整回归为 175 个 unittest 通过。
+- 本阶段没有新增 YAML 业务配置，没有运行 `--sync-api-configs`、`--sync-api` 或完整 `--sync-enabled`；DB 仍为 83/47，目标配置、API log、raw、checkpoint 和失败日志均为 0。
+- 文档 9 的 `defer_runtime_rejected` 已失效并从审核覆盖表移除；接口回到待正式接入审核，不把独立只读测试表述为已经完成数据库同步接入。

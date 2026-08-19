@@ -1,4 +1,6 @@
 import unittest
+from datetime import datetime
+
 
 from app.config import load_api_configs
 from app.sync_engine import SyncEngine
@@ -134,6 +136,39 @@ class TransferDetailParamSourceTest(unittest.TestCase):
 
         self.assertEqual(offset, 0)
         self.assertEqual(connection.calls, [])
+
+    def test_raw_json_refresh_includes_missing_and_stale_targets(self):
+        engine = SyncEngine([])
+        connection = FakeConnection([{"source_0": "TF20230616000099"}])
+        api = {
+            "api_code": "transfer_detail",
+            "param_source": {
+                "source_api_code": "storage_inbound_page",
+                "limit": 200,
+                "fields": [
+                    {"source_field": "raw_json.fcode", "target_field": "code"}
+                ],
+                "filters": [
+                    {"source_field": "raw_json.opType", "equals": "TFOutbound"}
+                ],
+                "exclude_existing_target": True,
+                "refresh_after_days": 7,
+            },
+        }
+
+        params = engine._source_param_sets(connection, api)
+
+        self.assertEqual(params, [{"code": "TF20230616000099"}])
+        query = str(connection.calls[0][0])
+        query_params = connection.calls[0][1]
+        self.assertIn(
+            "target_data.id IS NULL OR target_data.updated_at < :refresh_before",
+            query,
+        )
+        self.assertIn("ORDER BY MIN(target_data.updated_at), source_0", query)
+        self.assertIn("LIMIT :limit", query)
+        self.assertIsInstance(query_params["refresh_before"], datetime)
+        self.assertEqual(query_params["limit"], 200)
 
 
 if __name__ == "__main__":

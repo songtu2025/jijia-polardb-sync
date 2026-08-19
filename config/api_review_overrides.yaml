@@ -1,0 +1,48 @@
+reviews:
+  - doc_id: 596
+    status: framework_auth_only
+    reason: 获取 accessToken 已由鉴权模块处理，不属于业务 raw 备份接口。
+
+  - doc_id: 3095
+    status: defer_sensitive_credentials
+    reason: 公开文档响应包含凭证字段，禁止作为业务 raw 数据同步。
+
+  - doc_id: 1177
+    status: defer_runtime_rejected
+    reason: 使用已证明的上游站点 ID 单元素数组调用，真实请求返回 HTTP 400；保留失败批次证据，在有新官方证据前不重试。
+
+  - doc_id: 1179
+    status: defer_runtime_rejected
+    reason: 使用已证明的上游站点 ID 单元素数组调用，真实请求返回 HTTP 400；保留失败批次证据，在有新官方证据前不重试。
+
+  - doc_id: 5070
+    status: defer_no_param_source
+    reason: 产品相关已入库 raw 未发现语义明确的 attributeName 或属性项字段来源，禁止猜测参数、使用示例值或请求真实接口。
+
+  - doc_id: 1035
+    status: defer_sensitive_credentials
+    reason: 公开文档响应结构包含服务商凭证字段，禁止作为业务 raw 数据同步。
+
+  - doc_id: 1449
+    status: defer_no_param_source
+    reason: 必填 rnType 未找到可映射到公开枚举的真实上游字段，禁止猜测参数或请求真实接口。
+
+  - doc_id: 1022
+    status: defer_runtime_rejected
+    reason: 历史真实请求在已文档化的日窗口参数下返回 400/50099；未获得新官方证据前禁止重复探测。
+
+  - doc_id: 90
+    status: defer_no_param_source
+    reason: 必填 code 是采购计划单号；采购订单 raw 的 purchasePlanCode 虽字段存在但均为空，采购计划列表也没有可用 raw，禁止猜测参数或请求真实接口。
+
+  - doc_id: 88
+    status: defer_no_param_source
+    reason: 接口要求采购计划 id 或 code；采购计划列表无 raw，采购订单没有计划 ID且计划编号为空，交货单 fid 为采购订单 ID，禁止猜测参数或请求真实接口。
+
+  - doc_id: 1080
+    status: defer_runtime_rejected
+    reason: 使用已证明的真实采购单号按官方单元素字符串数组调用，真实请求返回 HTTP 400；保留失败批次证据，在有新官方证据前不重试或猜测其他编码。
+
+  - doc_id: 5262
+    status: defer_sensitive_credentials
+    reason: 公开文档响应包含联系人、邮箱、电话、税号、地址、银行账户和公章图片链接等高敏感字段，禁止作为业务 raw 数据同步。

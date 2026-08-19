@@ -1,5 +1,7 @@
 import unittest
 
+from sqlalchemy.exc import OperationalError
+
 from app.sync_engine import SyncEngine
 
 
@@ -33,6 +35,39 @@ class FakeEngine:
         return FakeTransaction(self, f"tx-{len(self.connections) + 1}")
 
 
+class InvalidatedOnceConnection(FakeConnection):
+    def __init__(self, name, engine):
+        super().__init__(name)
+        self.engine = engine
+
+    def execute(self, statement, params=None):
+        super().execute(statement, params)
+        if self.engine.invalidated_writes_remaining > 0 and "INSERT INTO raw_api_data" in str(statement):
+            self.engine.invalidated_writes_remaining -= 1
+            raise OperationalError(
+                str(statement),
+                params,
+                OSError("lost connection"),
+                connection_invalidated=True,
+            )
+
+
+class InvalidatedOnceTransaction(FakeTransaction):
+    def __enter__(self):
+        self.connection = InvalidatedOnceConnection(self.connection.name, self.engine)
+        self.engine.connections.append(self.connection)
+        return self.connection
+
+
+class InvalidatedOnceEngine(FakeEngine):
+    def __init__(self):
+        super().__init__()
+        self.invalidated_writes_remaining = 1
+
+    def begin(self):
+        return InvalidatedOnceTransaction(self, f"tx-{len(self.connections) + 1}")
+
+
 class CommitPerPageSyncEngine(SyncEngine):
     def __init__(self, api_configs, engine):
         super().__init__(api_configs, engine)
@@ -47,8 +82,17 @@ class CommitPerPageSyncEngine(SyncEngine):
         return {"data": {"rows": [{"id": page_no}], "total": 3}}, 1
 
 
+class TruncatedCommitPerPageSyncEngine(CommitPerPageSyncEngine):
+    def _request_with_retry(self, api, api_client, token, params):
+        page_no = int(params["page"])
+        self.request_pages.append(page_no)
+        start = (page_no - 1) * 20
+        rows = [{"id": item_id} for item_id in range(start, start + 20)]
+        return {"data": {"rows": rows, "total": 101}}, 1
+
+
 class SyncApiCommitPerPageTest(unittest.TestCase):
-    def test_single_api_commit_per_page_writes_each_page_in_short_transaction(self):
+    def test_single_api_total_driven_pagination_writes_each_page_in_short_transaction(self):
         fake_engine = FakeEngine()
         sync_engine = CommitPerPageSyncEngine(
             [
@@ -62,7 +106,6 @@ class SyncApiCommitPerPageTest(unittest.TestCase):
                         "page_no_field": "page",
                         "page_size_field": "pagesize",
                         "page_size": 1,
-                        "max_pages": 3,
                         "list_field": "data.rows",
                         "total_field": "data.total",
                     },
@@ -86,6 +129,86 @@ class SyncApiCommitPerPageTest(unittest.TestCase):
             if any("INSERT INTO raw_api_data" in statement for statement, _ in connection.calls)
         ]
         self.assertEqual(raw_write_transactions, ["tx-2", "tx-3", "tx-4"])
+
+    def test_page_write_retries_once_when_checked_out_connection_is_invalidated(self):
+        fake_engine = InvalidatedOnceEngine()
+        sync_engine = SyncEngine([], fake_engine)
+
+        with self.assertLogs("app.sync_engine", level="WARNING") as logs:
+            sync_engine._insert_raw_items_in_page_transaction(
+                {"api_code": "wide_report", "primary_key": {"field": "id"}, "date_field": ""},
+                [{"id": 1}],
+                "sync_test_invalidated_once",
+            )
+
+        self.assertEqual(fake_engine.invalidated_writes_remaining, 0)
+        self.assertEqual(len(fake_engine.connections), 2)
+        self.assertIn("connection invalidated", logs.output[0])
+        self.assertTrue(
+            any(
+                "INSERT INTO raw_api_data" in statement
+                for statement, _ in fake_engine.connections[-1].calls
+            )
+        )
+
+    def test_commit_per_page_capacity_fails_before_raw_write(self):
+        fake_engine = FakeEngine()
+        sync_engine = TruncatedCommitPerPageSyncEngine(
+            [
+                {
+                    "api_code": "wide_report",
+                    "enabled": False,
+                    "commit_per_page": True,
+                    "params": {"page": 1, "pagesize": 20},
+                    "page": {
+                        "enabled": True,
+                        "page_no_field": "page",
+                        "page_size_field": "pagesize",
+                        "page_size": 20,
+                        "max_pages": 5,
+                        "list_field": "data.rows",
+                        "total_field": "data.total",
+                    },
+                    "primary_key": {"field": "id"},
+                    "date_field": "",
+                }
+            ],
+            fake_engine,
+        )
+
+        result = sync_engine.test_api_once(
+            "wide_report",
+            api_client=object(),
+            token=object(),
+        )
+
+        self.assertEqual(result["item_count"], 0)
+        self.assertEqual(result["request_count"], 1)
+        self.assertEqual(result["failed_count"], 1)
+        self.assertEqual(sync_engine.request_pages, [1])
+        raw_writes = [
+            params
+            for connection in fake_engine.connections
+            for statement, params in connection.calls
+            if "INSERT INTO raw_api_data" in statement
+        ]
+        checkpoint_writes = [
+            params
+            for connection in fake_engine.connections
+            for statement, params in connection.calls
+            if "INSERT INTO sync_checkpoint" in statement
+        ]
+        self.assertEqual(raw_writes, [])
+        self.assertEqual(checkpoint_writes, [])
+        failed_logs = [
+            params
+            for connection in fake_engine.connections
+            for statement, params in connection.calls
+            if "INSERT INTO sync_api_log" in statement and params.get("status") == "failed"
+        ]
+        self.assertEqual(len(failed_logs), 1)
+        self.assertIn("pagination capacity insufficient", failed_logs[0]["error_message"])
+        self.assertIn("required_pages=6", failed_logs[0]["error_message"])
 
 
 if __name__ == "__main__":

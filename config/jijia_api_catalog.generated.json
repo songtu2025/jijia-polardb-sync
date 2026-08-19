@@ -4,31 +4,35 @@
     "detail_url_template": "https://open.gerpgo.com/api/openAdmin/doc/detail?id={doc_id}"
   },
   "summary": {
-    "tree_api_count": 187,
-    "detail_success_count": 187,
+    "tree_api_count": 189,
+    "detail_success_count": 189,
     "detail_error_count": 0,
-    "configured_real_api_count": 51,
-    "configured_enabled_real_api_count": 46,
+    "configured_real_api_count": 75,
+    "configured_enabled_real_api_count": 47,
     "classification_counts": {
-      "direct_read_candidate": 57,
-      "requires_upstream_params": 79,
+      "direct_read_candidate": 58,
+      "requires_upstream_params": 80,
       "sensitive_review": 23,
       "write_or_mutation": 28
     },
     "execution_bucket_counts": {
-      "configured": 51,
-      "defer_or_review": 50,
-      "needs_sensitive_review": 22,
-      "needs_upstream_params": 64
+      "configured": 75,
+      "defer_or_review": 45,
+      "needs_sensitive_review": 14,
+      "needs_upstream_params": 43,
+      "terminal_deferred": 12
     },
     "execution_stage_counts": {
-      "configured_disabled": 5,
-      "configured_enabled": 46,
+      "configured_disabled": 28,
+      "configured_enabled": 47,
+      "defer_no_param_source": 4,
+      "defer_runtime_rejected": 4,
+      "defer_sensitive_credentials": 3,
       "defer_write_or_mutation": 28,
-      "known_risk_review": 2,
-      "needs_param_source": 64,
-      "needs_sensitive_review": 22,
-      "risk_review_before_probe": 20
+      "framework_auth_only": 1,
+      "needs_param_source": 43,
+      "needs_sensitive_review": 14,
+      "risk_review_before_probe": 17
     },
     "menu_counts": {
       "产品": 18,
@@ -39,12 +43,126 @@
       "广告": 25,
       "库存": 14,
       "报表": 8,
-      "物流": 19,
+      "物流": 21,
       "统计": 17,
       "订单": 3,
       "财务": 13,
       "采购": 23,
       "销售": 15
+    },
+    "menu_progress": {
+      "产品": {
+        "total": 18,
+        "configured": 8,
+        "enabled": 8,
+        "terminal_deferred": 10,
+        "pending_review": 0,
+        "closed": true
+      },
+      "仓库": {
+        "total": 6,
+        "configured": 4,
+        "enabled": 2,
+        "terminal_deferred": 2,
+        "pending_review": 0,
+        "closed": true
+      },
+      "基础数据": {
+        "total": 16,
+        "configured": 11,
+        "enabled": 9,
+        "terminal_deferred": 5,
+        "pending_review": 0,
+        "closed": true
+      },
+      "多平台": {
+        "total": 6,
+        "configured": 1,
+        "enabled": 1,
+        "terminal_deferred": 0,
+        "pending_review": 5,
+        "closed": false
+      },
+      "客服": {
+        "total": 4,
+        "configured": 1,
+        "enabled": 1,
+        "terminal_deferred": 0,
+        "pending_review": 3,
+        "closed": false
+      },
+      "广告": {
+        "total": 25,
+        "configured": 1,
+        "enabled": 1,
+        "terminal_deferred": 0,
+        "pending_review": 24,
+        "closed": false
+      },
+      "库存": {
+        "total": 14,
+        "configured": 9,
+        "enabled": 8,
+        "terminal_deferred": 5,
+        "pending_review": 0,
+        "closed": true
+      },
+      "报表": {
+        "total": 8,
+        "configured": 8,
+        "enabled": 6,
+        "terminal_deferred": 0,
+        "pending_review": 0,
+        "closed": true
+      },
+      "物流": {
+        "total": 21,
+        "configured": 6,
+        "enabled": 3,
+        "terminal_deferred": 2,
+        "pending_review": 13,
+        "closed": false
+      },
+      "统计": {
+        "total": 17,
+        "configured": 17,
+        "enabled": 3,
+        "terminal_deferred": 0,
+        "pending_review": 0,
+        "closed": true
+      },
+      "订单": {
+        "total": 3,
+        "configured": 0,
+        "enabled": 0,
+        "terminal_deferred": 0,
+        "pending_review": 3,
+        "closed": false
+      },
+      "财务": {
+        "total": 13,
+        "configured": 1,
+        "enabled": 0,
+        "terminal_deferred": 0,
+        "pending_review": 12,
+        "closed": false
+      },
+      "采购": {
+        "total": 23,
+        "configured": 8,
+        "enabled": 5,
+        "terminal_deferred": 15,
+        "pending_review": 0,
+        "closed": true
+      },
+      "销售": {
+        "total": 15,
+        "configured": 0,
+        "enabled": 0,
+        "terminal_deferred": 1,
+        "pending_review": 14,
+        "closed": false
+      }
     }
   },
   "apis": [
@@ -440,9 +558,9 @@
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
       "configured_enabled": false,
-      "execution_bucket": "needs_upstream_params",
-      "execution_stage": "needs_param_source",
-      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
+      "execution_bucket": "terminal_deferred",
+      "execution_stage": "defer_no_param_source",
+      "execution_reason": "产品相关已入库 raw 未发现语义明确的 attributeName 或属性项字段来源，禁止猜测参数、使用示例值或请求真实接口。"
     },
     {
       "doc_id": 5071,
@@ -505,11 +623,11 @@
       "has_page_response": true,
       "has_list_response": false,
       "has_sensitive_response_fields": true,
-      "configured_api_code": "",
+      "configured_api_code": "supplier_warehouse_page",
       "configured_enabled": false,
-      "execution_bucket": "needs_sensitive_review",
-      "execution_stage": "needs_sensitive_review",
-      "execution_reason": "公开文档响应或接口域可能包含敏感信息，需先做字段审查和脱敏边界确认。"
+      "execution_bucket": "configured",
+      "execution_stage": "configured_disabled",
+      "execution_reason": "已配置但默认关闭，需按数据量、窗口和批量耗时评估后再启用。"
     },
     {
       "doc_id": 141,
@@ -549,11 +667,11 @@
       "has_page_response": true,
       "has_list_response": false,
       "has_sensitive_response_fields": true,
-      "configured_api_code": "",
+      "configured_api_code": "self_warehouse_page",
       "configured_enabled": false,
-      "execution_bucket": "needs_sensitive_review",
-      "execution_stage": "needs_sensitive_review",
-      "execution_reason": "公开文档响应或接口域可能包含敏感信息，需先做字段审查和脱敏边界确认。"
+      "execution_bucket": "configured",
+      "execution_stage": "configured_disabled",
+      "execution_reason": "已配置但默认关闭，需按数据量、窗口和批量耗时评估后再启用。"
     },
     {
       "doc_id": 1035,
@@ -576,9 +694,9 @@
       "has_sensitive_response_fields": true,
       "configured_api_code": "",
       "configured_enabled": false,
-      "execution_bucket": "needs_upstream_params",
-      "execution_stage": "needs_param_source",
-      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
+      "execution_bucket": "terminal_deferred",
+      "execution_stage": "defer_sensitive_credentials",
+      "execution_reason": "公开文档响应结构包含服务商凭证字段，禁止作为业务 raw 数据同步。"
     },
     {
       "doc_id": 1449,
@@ -601,9 +719,9 @@
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
       "configured_enabled": false,
-      "execution_bucket": "needs_upstream_params",
-      "execution_stage": "needs_param_source",
-      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
+      "execution_bucket": "terminal_deferred",
+      "execution_stage": "defer_no_param_source",
+      "execution_reason": "必填 rnType 未找到可映射到公开枚举的真实上游字段，禁止猜测参数或请求真实接口。"
     },
     {
       "doc_id": 25,
@@ -618,11 +736,11 @@
       "has_page_response": false,
       "has_list_response": true,
       "has_sensitive_response_fields": true,
-      "configured_api_code": "",
+      "configured_api_code": "all_user_list",
       "configured_enabled": false,
-      "execution_bucket": "needs_sensitive_review",
-      "execution_stage": "needs_sensitive_review",
-      "execution_reason": "公开文档响应或接口域可能包含敏感信息，需先做字段审查和脱敏边界确认。"
+      "execution_bucket": "configured",
+      "execution_stage": "configured_disabled",
+      "execution_reason": "已配置但默认关闭，需按数据量、窗口和批量耗时评估后再启用。"
     },
     {
       "doc_id": 61,
@@ -736,9 +854,9 @@
       "has_sensitive_response_fields": true,
       "configured_api_code": "",
       "configured_enabled": false,
-      "execution_bucket": "needs_upstream_params",
-      "execution_stage": "needs_param_source",
-      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
+      "execution_bucket": "terminal_deferred",
+      "execution_stage": "framework_auth_only",
+      "execution_reason": "获取 accessToken 已由鉴权模块处理，不属于业务 raw 备份接口。"
     },
     {
       "doc_id": 694,
@@ -757,11 +875,11 @@
       "has_page_response": false,
       "has_list_response": false,
       "has_sensitive_response_fields": false,
-      "configured_api_code": "",
+      "configured_api_code": "file_file_url_query",
       "configured_enabled": false,
-      "execution_bucket": "needs_upstream_params",
-      "execution_stage": "needs_param_source",
-      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
+      "execution_bucket": "configured",
+      "execution_stage": "configured_disabled",
+      "execution_reason": "已配置但默认关闭，需按数据量、窗口和批量耗时评估后再启用。"
     },
     {
       "doc_id": 1177,
@@ -782,9 +900,9 @@
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
       "configured_enabled": false,
-      "execution_bucket": "needs_upstream_params",
-      "execution_stage": "needs_param_source",
-      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
+      "execution_bucket": "terminal_deferred",
+      "execution_stage": "defer_runtime_rejected",
+      "execution_reason": "使用已证明的上游站点 ID 单元素数组调用，真实请求返回 HTTP 400；保留失败批次证据，在有新官方证据前不重试。"
     },
     {
       "doc_id": 1179,
@@ -805,9 +923,9 @@
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
       "configured_enabled": false,
-      "execution_bucket": "needs_upstream_params",
-      "execution_stage": "needs_param_source",
-      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
+      "execution_bucket": "terminal_deferred",
+      "execution_stage": "defer_runtime_rejected",
+      "execution_reason": "使用已证明的上游站点 ID 单元素数组调用，真实请求返回 HTTP 400；保留失败批次证据，在有新官方证据前不重试。"
     },
     {
       "doc_id": 2537,
@@ -881,9 +999,9 @@
       "has_sensitive_response_fields": true,
       "configured_api_code": "",
       "configured_enabled": false,
-      "execution_bucket": "needs_sensitive_review",
-      "execution_stage": "needs_sensitive_review",
-      "execution_reason": "公开文档响应或接口域可能包含敏感信息，需先做字段审查和脱敏边界确认。"
+      "execution_bucket": "terminal_deferred",
+      "execution_stage": "defer_sensitive_credentials",
+      "execution_reason": "公开文档响应包含凭证字段，禁止作为业务 raw 数据同步。"
     },
     {
       "doc_id": 4563,
@@ -2030,9 +2148,9 @@
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
       "configured_enabled": false,
-      "execution_bucket": "defer_or_review",
-      "execution_stage": "known_risk_review",
-      "execution_reason": "该接口已有真实探测风险记录，需有新证据后再重新评估。"
+      "execution_bucket": "terminal_deferred",
+      "execution_stage": "defer_runtime_rejected",
+      "execution_reason": "历史真实请求在已文档化的日窗口参数下返回 400/50099；未获得新官方证据前禁止重复探测。"
     },
     {
       "doc_id": 1557,
@@ -2374,11 +2492,11 @@
       "has_page_response": true,
       "has_list_response": false,
       "has_sensitive_response_fields": false,
-      "configured_api_code": "",
-      "configured_enabled": false,
-      "execution_bucket": "defer_or_review",
-      "execution_stage": "risk_review_before_probe",
-      "execution_reason": "接口位于订单、财务、客服、物流或销售等高风险域，需先人工确认字段和调用边界。"
+      "configured_api_code": "delivery_page",
+      "configured_enabled": true,
+      "execution_bucket": "configured",
+      "execution_stage": "configured_enabled",
+      "execution_reason": "已进入 enabled 批量同步。"
     },
     {
       "doc_id": 1028,
@@ -2393,11 +2511,11 @@
       "has_page_response": false,
       "has_list_response": true,
       "has_sensitive_response_fields": false,
-      "configured_api_code": "",
+      "configured_api_code": "delivery_detail_query",
       "configured_enabled": false,
-      "execution_bucket": "defer_or_review",
-      "execution_stage": "risk_review_before_probe",
-      "execution_reason": "接口位于订单、财务、客服、物流或销售等高风险域，需先人工确认字段和调用边界。"
+      "execution_bucket": "configured",
+      "execution_stage": "configured_disabled",
+      "execution_reason": "已配置但默认关闭，需按数据量、窗口和批量耗时评估后再启用。"
     },
     {
       "doc_id": 1029,
@@ -2525,11 +2643,11 @@
       "has_page_response": true,
       "has_list_response": false,
       "has_sensitive_response_fields": false,
-      "configured_api_code": "",
+      "configured_api_code": "logistics_cost_page",
       "configured_enabled": false,
-      "execution_bucket": "defer_or_review",
-      "execution_stage": "risk_review_before_probe",
-      "execution_reason": "接口位于订单、财务、客服、物流或销售等高风险域，需先人工确认字段和调用边界。"
+      "execution_bucket": "configured",
+      "execution_stage": "configured_disabled",
+      "execution_reason": "已配置但默认关闭，需按数据量、窗口和批量耗时评估后再启用。"
     },
     {
       "doc_id": 1779,
@@ -2704,6 +2822,51 @@
       "execution_reason": "接口位于订单、财务、客服、物流或销售等高风险域，需先人工确认字段和调用边界。"
     },
     {
+      "doc_id": 7610,
+      "menu_path": "物流",
+      "api_name": "报关资料列表",
+      "api_url": "/fulfillment/ship/declaration/list",
+      "method": "POST",
+      "op_type": "list",
+      "classification": "direct_read_candidate",
+      "required_body_fields": [
+        "page",
+        "pagesize"
+      ],
+      "business_required_fields": [],
+      "has_page_response": true,
+      "has_list_response": false,
+      "has_sensitive_response_fields": false,
+      "configured_api_code": "",
+      "configured_enabled": false,
+      "execution_bucket": "defer_or_review",
+      "execution_stage": "risk_review_before_probe",
+      "execution_reason": "接口位于订单、财务、客服、物流或销售等高风险域，需先人工确认字段和调用边界。"
+    },
+    {
+      "doc_id": 7611,
+      "menu_path": "物流",
+      "api_name": "报关资料详情",
+      "api_url": "/fulfillment/ship/declaration/detail",
+      "method": "POSTPARAM",
+      "op_type": "detail",
+      "classification": "requires_upstream_params",
+      "required_body_fields": [
+        "cdCode"
+      ],
+      "business_required_fields": [
+        "cdCode"
+      ],
+      "has_page_response": false,
+      "has_list_response": false,
+      "has_sensitive_response_fields": true,
+      "configured_api_code": "",
+      "configured_enabled": false,
+      "execution_bucket": "needs_upstream_params",
+      "execution_stage": "needs_param_source",
+      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
+    },
+    {
       "doc_id": 4443,
       "menu_path": "物流 > STA货件",
       "api_name": "查询STA货件装箱清单",
@@ -2804,11 +2967,11 @@
       "has_page_response": true,
       "has_list_response": false,
       "has_sensitive_response_fields": false,
-      "configured_api_code": "",
+      "configured_api_code": "allocation_detail_page",
       "configured_enabled": false,
-      "execution_bucket": "defer_or_review",
-      "execution_stage": "risk_review_before_probe",
-      "execution_reason": "接口位于订单、财务、客服、物流或销售等高风险域，需先人工确认字段和调用边界。"
+      "execution_bucket": "configured",
+      "execution_stage": "configured_disabled",
+      "execution_reason": "已配置但默认关闭，需按数据量、窗口和批量耗时评估后再启用。"
     },
     {
       "doc_id": 129,
@@ -2831,11 +2994,11 @@
       "has_page_response": true,
       "has_list_response": false,
       "has_sensitive_response_fields": false,
-      "configured_api_code": "",
+      "configured_api_code": "profit_cost_analysis_page",
       "configured_enabled": false,
-      "execution_bucket": "needs_upstream_params",
-      "execution_stage": "needs_param_source",
-      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
+      "execution_bucket": "configured",
+      "execution_stage": "configured_disabled",
+      "execution_reason": "已配置但默认关闭，需按数据量、窗口和批量耗时评估后再启用。"
     },
     {
       "doc_id": 130,
@@ -2866,11 +3029,11 @@
       "has_page_response": true,
       "has_list_response": false,
       "has_sensitive_response_fields": true,
-      "configured_api_code": "",
+      "configured_api_code": "listing_analyze_page",
       "configured_enabled": false,
-      "execution_bucket": "needs_upstream_params",
-      "execution_stage": "needs_param_source",
-      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
+      "execution_bucket": "configured",
+      "execution_stage": "configured_disabled",
+      "execution_reason": "已配置但默认关闭，需按数据量、窗口和批量耗时评估后再启用。"
     },
     {
       "doc_id": 131,
@@ -2895,11 +3058,11 @@
       "has_page_response": true,
       "has_list_response": false,
       "has_sensitive_response_fields": true,
-      "configured_api_code": "",
+      "configured_api_code": "product_analyze_multi_index_page",
       "configured_enabled": false,
-      "execution_bucket": "needs_upstream_params",
-      "execution_stage": "needs_param_source",
-      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
+      "execution_bucket": "configured",
+      "execution_stage": "configured_disabled",
+      "execution_reason": "已配置但默认关闭，需按数据量、窗口和批量耗时评估后再启用。"
     },
     {
       "doc_id": 132,
@@ -2924,11 +3087,11 @@
       "has_page_response": true,
       "has_list_response": false,
       "has_sensitive_response_fields": true,
-      "configured_api_code": "",
+      "configured_api_code": "store_sales_performance_page",
       "configured_enabled": false,
-      "execution_bucket": "needs_upstream_params",
-      "execution_stage": "needs_param_source",
-      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
+      "execution_bucket": "configured",
+      "execution_stage": "configured_disabled",
+      "execution_reason": "已配置但默认关闭，需按数据量、窗口和批量耗时评估后再启用。"
     },
     {
       "doc_id": 133,
@@ -2955,11 +3118,11 @@
       "has_page_response": true,
       "has_list_response": false,
       "has_sensitive_response_fields": false,
-      "configured_api_code": "",
+      "configured_api_code": "market_analyze_page",
       "configured_enabled": false,
-      "execution_bucket": "needs_upstream_params",
-      "execution_stage": "needs_param_source",
-      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
+      "execution_bucket": "configured",
+      "execution_stage": "configured_disabled",
+      "execution_reason": "已配置但默认关闭，需按数据量、窗口和批量耗时评估后再启用。"
     },
     {
       "doc_id": 140,
@@ -2988,11 +3151,11 @@
       "has_page_response": true,
       "has_list_response": false,
       "has_sensitive_response_fields": true,
-      "configured_api_code": "",
+      "configured_api_code": "listing_analyze_multi_index_page",
       "configured_enabled": false,
-      "execution_bucket": "needs_upstream_params",
-      "execution_stage": "needs_param_source",
-      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
+      "execution_bucket": "configured",
+      "execution_stage": "configured_disabled",
+      "execution_reason": "已配置但默认关闭，需按数据量、窗口和批量耗时评估后再启用。"
     },
     {
       "doc_id": 309,
@@ -3017,11 +3180,11 @@
       "has_page_response": true,
       "has_list_response": false,
       "has_sensitive_response_fields": false,
-      "configured_api_code": "",
+      "configured_api_code": "financial_profit_analysis_page",
       "configured_enabled": false,
-      "execution_bucket": "needs_upstream_params",
-      "execution_stage": "needs_param_source",
-      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
+      "execution_bucket": "configured",
+      "execution_stage": "configured_disabled",
+      "execution_reason": "已配置但默认关闭，需按数据量、窗口和批量耗时评估后再启用。"
     },
     {
       "doc_id": 1016,
@@ -3044,11 +3207,11 @@
       "has_page_response": true,
       "has_list_response": false,
       "has_sensitive_response_fields": true,
-      "configured_api_code": "",
+      "configured_api_code": "sale_profit_page",
       "configured_enabled": false,
-      "execution_bucket": "needs_upstream_params",
-      "execution_stage": "needs_param_source",
-      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
+      "execution_bucket": "configured",
+      "execution_stage": "configured_disabled",
+      "execution_reason": "已配置但默认关闭，需按数据量、窗口和批量耗时评估后再启用。"
     },
     {
       "doc_id": 1017,
@@ -3075,11 +3238,11 @@
       "has_page_response": true,
       "has_list_response": false,
       "has_sensitive_response_fields": true,
-      "configured_api_code": "",
+      "configured_api_code": "traffic_sku_analysis_page",
       "configured_enabled": false,
-      "execution_bucket": "needs_upstream_params",
-      "execution_stage": "needs_param_source",
-      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
+      "execution_bucket": "configured",
+      "execution_stage": "configured_disabled",
+      "execution_reason": "已配置但默认关闭，需按数据量、窗口和批量耗时评估后再启用。"
     },
     {
       "doc_id": 1018,
@@ -3135,11 +3298,11 @@
       "has_page_response": true,
       "has_list_response": false,
       "has_sensitive_response_fields": false,
-      "configured_api_code": "",
+      "configured_api_code": "financial_analysis_v2_page",
       "configured_enabled": false,
-      "execution_bucket": "needs_upstream_params",
-      "execution_stage": "needs_param_source",
-      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
+      "execution_bucket": "configured",
+      "execution_stage": "configured_disabled",
+      "execution_reason": "已配置但默认关闭，需按数据量、窗口和批量耗时评估后再启用。"
     },
     {
       "doc_id": 2280,
@@ -3158,11 +3321,11 @@
       "has_page_response": false,
       "has_list_response": true,
       "has_sensitive_response_fields": false,
-      "configured_api_code": "",
+      "configured_api_code": "financial_analysis_columns_query",
       "configured_enabled": false,
-      "execution_bucket": "needs_upstream_params",
-      "execution_stage": "needs_param_source",
-      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
+      "execution_bucket": "configured",
+      "execution_stage": "configured_disabled",
+      "execution_reason": "已配置但默认关闭，需按数据量、窗口和批量耗时评估后再启用。"
     },
     {
       "doc_id": 2284,
@@ -3187,11 +3350,11 @@
       "has_page_response": false,
       "has_list_response": false,
       "has_sensitive_response_fields": false,
-      "configured_api_code": "",
+      "configured_api_code": "financial_analysis_month_v2_query",
       "configured_enabled": false,
-      "execution_bucket": "needs_upstream_params",
-      "execution_stage": "needs_param_source",
-      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
+      "execution_bucket": "configured",
+      "execution_stage": "configured_disabled",
+      "execution_reason": "已配置但默认关闭，需按数据量、窗口和批量耗时评估后再启用。"
     },
     {
       "doc_id": 3375,
@@ -3443,11 +3606,11 @@
       "has_page_response": false,
       "has_list_response": true,
       "has_sensitive_response_fields": false,
-      "configured_api_code": "",
+      "configured_api_code": "monthly_statement_amount_query",
       "configured_enabled": false,
-      "execution_bucket": "needs_upstream_params",
-      "execution_stage": "needs_param_source",
-      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
+      "execution_bucket": "configured",
+      "execution_stage": "configured_disabled",
+      "execution_reason": "已配置但默认关闭，需按数据量、窗口和批量耗时评估后再启用。"
     },
     {
       "doc_id": 301,
@@ -3615,11 +3778,11 @@
       "has_page_response": true,
       "has_list_response": false,
       "has_sensitive_response_fields": true,
-      "configured_api_code": "",
+      "configured_api_code": "supplier_page",
       "configured_enabled": false,
-      "execution_bucket": "needs_sensitive_review",
-      "execution_stage": "needs_sensitive_review",
-      "execution_reason": "公开文档响应或接口域可能包含敏感信息，需先做字段审查和脱敏边界确认。"
+      "execution_bucket": "configured",
+      "execution_stage": "configured_disabled",
+      "execution_reason": "已配置但默认关闭，需按数据量、窗口和批量耗时评估后再启用。"
     },
     {
       "doc_id": 86,
@@ -3638,11 +3801,11 @@
       "has_page_response": true,
       "has_list_response": false,
       "has_sensitive_response_fields": false,
-      "configured_api_code": "",
+      "configured_api_code": "procure_page",
       "configured_enabled": false,
-      "execution_bucket": "needs_upstream_params",
-      "execution_stage": "needs_param_source",
-      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
+      "execution_bucket": "configured",
+      "execution_stage": "configured_disabled",
+      "execution_reason": "已配置但默认关闭，需按数据量、窗口和批量耗时评估后再启用。"
     },
     {
       "doc_id": 87,
@@ -3681,9 +3844,9 @@
       "has_sensitive_response_fields": true,
       "configured_api_code": "",
       "configured_enabled": false,
-      "execution_bucket": "needs_sensitive_review",
-      "execution_stage": "needs_sensitive_review",
-      "execution_reason": "公开文档响应或接口域可能包含敏感信息，需先做字段审查和脱敏边界确认。"
+      "execution_bucket": "terminal_deferred",
+      "execution_stage": "defer_no_param_source",
+      "execution_reason": "接口要求采购计划 id 或 code；采购计划列表无 raw，采购订单没有计划 ID且计划编号为空，交货单 fid 为采购订单 ID，禁止猜测参数或请求真实接口。"
     },
     {
       "doc_id": 90,
@@ -3704,9 +3867,9 @@
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
       "configured_enabled": false,
-      "execution_bucket": "needs_upstream_params",
-      "execution_stage": "needs_param_source",
-      "execution_reason": "公开文档显示存在业务必填参数，需先证明真实上游参数来源。"
+      "execution_bucket": "terminal_deferred",
+      "execution_stage": "defer_no_param_source",
+      "execution_reason": "必填 code 是采购计划单号；采购订单 raw 的 purchasePlanCode 虽字段存在但均为空，采购计划列表也没有可用 raw，禁止猜测参数或请求真实接口。"
     },
     {
       "doc_id": 91,
@@ -3724,11 +3887,11 @@
       "has_page_response": true,
       "has_list_response": false,
       "has_sensitive_response_fields": true,
-      "configured_api_code": "",
+      "configured_api_code": "supplier_sku_quote_page",
       "configured_enabled": false,
-      "execution_bucket": "needs_sensitive_review",
-      "execution_stage": "needs_sensitive_review",
-      "execution_reason": "公开文档响应或接口域可能包含敏感信息，需先做字段审查和脱敏边界确认。"
+      "execution_bucket": "configured",
+      "execution_stage": "configured_disabled",
+      "execution_reason": "已配置但默认关闭，需按数据量、窗口和批量耗时评估后再启用。"
     },
     {
       "doc_id": 92,
@@ -4057,9 +4220,9 @@
       "has_sensitive_response_fields": false,
       "configured_api_code": "",
       "configured_enabled": false,
-      "execution_bucket": "defer_or_review",
-      "execution_stage": "known_risk_review",
-      "execution_reason": "该接口已有真实探测风险记录，需有新证据后再重新评估。"
+      "execution_bucket": "terminal_deferred",
+      "execution_stage": "defer_runtime_rejected",
+      "execution_reason": "使用已证明的真实采购单号按官方单元素字符串数组调用，真实请求返回 HTTP 400；保留失败批次证据，在有新官方证据前不重试或猜测其他编码。"
     },
     {
       "doc_id": 1082,
@@ -4203,9 +4366,9 @@
       "has_sensitive_response_fields": true,
       "configured_api_code": "",
       "configured_enabled": false,
-      "execution_bucket": "needs_sensitive_review",
-      "execution_stage": "needs_sensitive_review",
-      "execution_reason": "公开文档响应或接口域可能包含敏感信息，需先做字段审查和脱敏边界确认。"
+      "execution_bucket": "terminal_deferred",
+      "execution_stage": "defer_sensitive_credentials",
+      "execution_reason": "公开文档响应包含联系人、邮箱、电话、税号、地址、银行账户和公章图片链接等高敏感字段，禁止作为业务 raw 数据同步。"
     },
     {
       "doc_id": 8,

@@ -1,4 +1,6 @@
 import unittest
+from datetime import datetime
+
 
 from app.config import load_api_configs
 from app.sync_engine import SyncEngine
@@ -141,6 +143,38 @@ class ProductDetailParamSourceTest(unittest.TestCase):
         self.assertEqual(connection.calls[0][1]["api_code"], "bad_detail")
         self.assertEqual(connection.calls[0][1]["status"], "failed")
         self.assertIn("unsupported param source field", connection.calls[0][1]["error_message"])
+
+    def test_source_primary_key_refresh_includes_missing_and_stale_targets(self):
+        engine = SyncEngine([])
+        connection = FakeConnection([{"source_value": "8460"}])
+        api = {
+            "api_code": "product_detail",
+            "param_source": {
+                "source_api_code": "product_page",
+                "source_field": "source_primary_key",
+                "target_field": "id",
+                "limit": 3,
+                "exclude_existing_target": True,
+                "refresh_after_days": 7,
+            },
+        }
+
+        params = engine._source_param_sets(connection, api)
+
+        self.assertEqual(params, [{"id": "8460"}])
+        query = str(connection.calls[0][0])
+        query_params = connection.calls[0][1]
+        self.assertIn(
+            "target_data.id IS NULL OR target_data.updated_at < :refresh_before",
+            query,
+        )
+        self.assertIn(
+            "ORDER BY target_data.updated_at, source_data.source_primary_key",
+            query,
+        )
+        self.assertIn("LIMIT :limit", query)
+        self.assertIsInstance(query_params["refresh_before"], datetime)
+        self.assertEqual(query_params["limit"], 3)
 
 
 if __name__ == "__main__":

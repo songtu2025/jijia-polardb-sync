@@ -4,6 +4,7 @@ from typing import Any
 import yaml
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from sqlalchemy import URL
 
 
 class AppSettings(BaseSettings):
@@ -36,15 +37,20 @@ class AppSettings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
     @property
-    def database_url(self) -> str:
+    def database_url(self) -> URL:
         """生成 SQLAlchemy 使用的 MySQL 连接串。
 
         这里不在日志中输出连接串，因为其中包含数据库用户名和密码。
         `charset=utf8mb4` 用于保证中文、表情和其他 4 字节字符能完整写入。
         """
-        return (
-            f"mysql+pymysql://{self.db_user}:{self.db_password}"
-            f"@{self.db_host}:{self.db_port}/{self.db_name}?charset=utf8mb4"
+        return URL.create(
+            "mysql+pymysql",
+            username=self.db_user,
+            password=self.db_password,
+            host=self.db_host,
+            port=self.db_port,
+            database=self.db_name,
+            query={"charset": "utf8mb4"},
         )
 
 
@@ -60,8 +66,8 @@ def load_settings() -> AppSettings:
 def load_api_configs(path: str | Path) -> list[dict[str, Any]]:
     """读取 YAML 中的接口同步配置。
 
-    YAML 顶层必须包含 `apis` 列表。这里仅做最基础的结构校验，具体字段
-    如 path、page、primary_key 等交给同步引擎在执行时使用。
+    YAML 顶层必须包含 `apis` 列表，每项显式声明唯一 api_code、path 和布尔
+    enabled，避免缺失或字符串值被同步引擎误判为启用。
     """
     config_path = Path(path)
     if not config_path.exists():
@@ -73,4 +79,23 @@ def load_api_configs(path: str | Path) -> list[dict[str, Any]]:
     apis = data.get("apis", [])
     if not isinstance(apis, list):
         raise ValueError("API config field 'apis' must be a list")
+
+    seen_api_codes = set()
+    for index, api in enumerate(apis):
+        if not isinstance(api, dict):
+            raise ValueError(f"API config item at index {index} must be a mapping")
+
+        api_code = api.get("api_code")
+        if not isinstance(api_code, str) or not api_code.strip():
+            raise ValueError(f"API config item at index {index} must define api_code")
+        if api_code in seen_api_codes:
+            raise ValueError(f"Duplicate API config api_code: {api_code}")
+        seen_api_codes.add(api_code)
+
+        path_value = api.get("path")
+        if not isinstance(path_value, str) or not path_value.strip():
+            raise ValueError(f"API config {api_code} must define path")
+        if "enabled" not in api or type(api["enabled"]) is not bool:
+            raise ValueError(f"API config {api_code} enabled must be a boolean")
+
     return apis

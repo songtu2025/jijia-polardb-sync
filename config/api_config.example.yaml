@@ -182,18 +182,17 @@ apis:
       delay_seconds: 1
     params: {}
 
-  # 第七个真实文档接口：物流方式基础配置，已通过单接口验证并加入 enabled 批量同步。
+  # 文档 id=3059：已按当前官方 GET 契约完成单接口验证并恢复 daily enabled。
   - api_code: ship_transport_list
     name: 查询物流方式列表
     enabled: true
-    method: POST
+    method: GET
     path: /fulfillment/ship/transport/list
     page:
       enabled: true
       page_no_field: page
       page_size_field: pagesize
       page_size: 100
-      max_pages: 10
       list_field: data.rows
       total_field: data.total
     primary_key:
@@ -201,9 +200,96 @@ apis:
       required: false
     date_field: ""
     rate_limit:
-      sleep_seconds: 0.2
+      sleep_seconds: 1
     retry:
       retries: 3
+      delay_seconds: 1
+    params:
+      page: 1
+      pagesize: 100
+
+  # 文档 id=1027：已按官方实时 total 和按页短事务完成单接口验证，并加入 daily enabled。
+  - api_code: delivery_page
+    name: 查询发货单列表
+    enabled: true
+    method: POST
+    path: /fulfillment/ship/delivery/page
+    page:
+      enabled: true
+      page_no_field: page
+      page_size_field: pagesize
+      page_size: 100
+      list_field: data.rows
+      total_field: data.total
+    commit_per_page: true
+    primary_key:
+      field: id
+      required: false
+    date_field: updateTime
+    sensitive_response: true
+    rate_limit:
+      sleep_seconds: 0.5
+    retry:
+      retries: 1
+      delay_seconds: 1
+    params:
+      page: 1
+      pagesize: 100
+
+  # 文档 id=1028：首次仅使用 1 个真实发货单号验证明细响应，保持默认关闭。
+  - api_code: delivery_detail_query
+    name: 查询发货单明细
+    enabled: false
+    method: POST
+    path: /fulfillment/ship/delivery/query
+    page:
+      enabled: false
+    response:
+      item_field: data
+    primary_key:
+      field: deliveryCode
+      required: false
+    date_field: updateTime
+    sensitive_response: true
+    rate_limit:
+      sleep_seconds: 0.2
+    retry:
+      retries: 1
+      delay_seconds: 1
+    param_source:
+      source_api_code: delivery_page
+      limit: 1
+      auto_advance: true
+      exclude_existing_target: true
+      fields:
+        - source_field: raw_json.code
+          target_field: deliveryCodes
+          wrap_in_list: true
+    params:
+      needItem: true
+
+  # 文档 id=1778：官方要求发货单集合或时间至少一项；保持关闭并等待真实条件来源审核。
+  - api_code: logistics_cost_page
+    name: 查询物流费用金额明细
+    enabled: false
+    method: POST
+    path: /fulfillment/ship/cost/page
+    page:
+      enabled: true
+      page_no_field: page
+      page_size_field: pagesize
+      page_size: 100
+      list_field: data.rows
+      total_field: data.total
+    primary_key:
+      field: id
+      required: false
+    date_field: updateAt
+    sensitive_response: true
+    rate_limit:
+      sleep_seconds: 0.5
+    retry:
+      retries: 1
       delay_seconds: 1
     params:
       page: 1
@@ -411,6 +497,62 @@ apis:
     date_field: createDate
     rate_limit:
       sleep_seconds: 0.2
+    retry:
+      retries: 3
+      delay_seconds: 1
+    params:
+      page: 1
+      pagesize: 100
+
+  # 仓库板块：供应商仓资料，文档 id=64。公开文档标记为敏感审查，默认禁用并仅作 raw 备份。
+  - api_code: supplier_warehouse_page
+    name: 查询仓库-供应商仓
+    enabled: false
+    method: POST
+    path: /purchase/inventory/supplierWarehouse/page
+    page:
+      enabled: true
+      page_no_field: page
+      page_size_field: pagesize
+      page_size: 100
+      max_pages: 20
+      list_field: data.rows
+      total_field: data.total
+    primary_key:
+      field: id
+      required: true
+    date_field: createDate
+    sensitive_response: true
+    rate_limit:
+      sleep_seconds: 0.5
+    retry:
+      retries: 3
+      delay_seconds: 1
+    params:
+      page: 1
+      pagesize: 100
+
+  # 仓库板块：自营仓资料，文档 id=212。联系人信息只作 raw 备份，失败详情必须脱敏。
+  - api_code: self_warehouse_page
+    name: 查询仓库-自营仓
+    enabled: false
+    method: POST
+    path: /purchase/inventory/selfWarehouse/page
+    page:
+      enabled: true
+      page_no_field: page
+      page_size_field: pagesize
+      page_size: 100
+      max_pages: 20
+      list_field: data.rows
+      total_field: data.total
+    primary_key:
+      field: id
+      required: true
+    date_field: ""
+    sensitive_response: true
+    rate_limit:
+      sleep_seconds: 0.5
     retry:
       retries: 3
       delay_seconds: 1
@@ -895,6 +1037,495 @@ apis:
       currency: CNY
       page: 1
       pagesize: 500
+
+  # 第五十二个真实文档接口：流量数据-msku，文档 id=1017，先保持关闭并用单接口验证分页与数据量。
+  - api_code: traffic_sku_analysis_page
+    name: 流量数据-msku
+    enabled: false
+    method: POST
+    path: /operation/sts/trafficSkuAnalysis/page
+    page:
+      enabled: true
+      page_no_field: page
+      page_size_field: pagesize
+      page_size: 100
+      max_pages: 20
+      list_field: data.rows
+      total_field: data.total
+    commit_per_page: true
+    primary_key:
+      field: ""
+      required: false
+    date_field: recordDate
+    date_window:
+      enabled: true
+      start_field: beginDate
+      end_field: endDate
+      default_start: "2026-07-02"
+      days: 1
+      lag_days: 1
+    rate_limit:
+      sleep_seconds: 65
+    retry:
+      retries: 1
+      delay_seconds: 1
+    params:
+      currency: CNY
+      viewType: day
+      page: 1
+      pagesize: 100
+
+  # 第五十三个真实文档接口：产品表现，文档 id=131，先保持关闭并用单接口短事务验证。
+  - api_code: product_analyze_multi_index_page
+    name: 产品表现
+    enabled: false
+    method: POST
+    path: /operation/sts/productAnalyzeMultiIndex/page
+    page:
+      enabled: true
+      page_no_field: page
+      page_size_field: pagesize
+      page_size: 100
+      max_pages: 30
+      list_field: data.rows
+      total_field: data.total
+    commit_per_page: true
+    data_date_param: beginDate
+    primary_key:
+      field: ""
+      required: false
+    date_field: statisticsDate
+    date_window:
+      enabled: true
+      start_field: beginDate
+      end_field: endDate
+      default_start: "2026-07-02"
+      days: 1
+      lag_days: 1
+    rate_limit:
+      sleep_seconds: 65
+    retry:
+      retries: 1
+      delay_seconds: 1
+    params:
+      showCurrencyType: YUAN
+      page: 1
+      pagesize: 100
+
+  # 第五十四个真实文档接口：店铺表现，文档 id=132，先保持关闭并用单接口短事务验证。
+  - api_code: store_sales_performance_page
+    name: 店铺表现
+    enabled: false
+    method: POST
+    path: /operation/sts/storeSalesPerformance/page
+    page:
+      enabled: true
+      page_no_field: page
+      page_size_field: pagesize
+      page_size: 100
+      max_pages: 20
+      list_field: data.rows
+      total_field: data.total
+    commit_per_page: true
+    data_date_param: beginDate
+    primary_key:
+      field: ""
+      required: false
+    date_field: statisticsDate
+    date_window:
+      enabled: true
+      start_field: beginDate
+      end_field: endDate
+      default_start: "2026-07-02"
+      days: 1
+      lag_days: 1
+    rate_limit:
+      sleep_seconds: 65
+    retry:
+      retries: 1
+      delay_seconds: 1
+    params:
+      showCurrencyType: YUAN
+      page: 1
+      pagesize: 100
+
+  # 第五十五个真实文档接口：店铺统计，文档 id=133；文档声明分页字段无效，因此按单次列表请求验证。
+  - api_code: market_analyze_page
+    name: 店铺统计
+    enabled: false
+    method: POST
+    path: /operation/sts/marketAnalyze/page
+    page:
+      enabled: false
+      list_field: data.rows
+    commit_per_page: true
+    data_date_param: beginDate
+    primary_key:
+      field: ""
+      required: false
+    date_field: ""
+    date_window:
+      enabled: true
+      start_field: beginDate
+      end_field: endDate
+      default_start: "2026-07-02"
+      days: 1
+      lag_days: 1
+    rate_limit:
+      sleep_seconds: 65
+    retry:
+      retries: 1
+      delay_seconds: 1
+    params:
+      target: unitsOrdered
+      viewType: day
+      showCurrencyType: YUAN
+
+  # 第五十六个真实文档接口：商品统计，文档 id=130，按 MSKU 维度和单日销量窗口先保持关闭验证。
+  - api_code: listing_analyze_page
+    name: 商品统计
+    enabled: false
+    method: POST
+    path: /operation/sts/listingAnalyze/page
+    page:
+      enabled: true
+      page_no_field: page
+      page_size_field: pagesize
+      page_size: 100
+      max_pages: 45
+      list_field: data.rows
+      total_field: data.total
+    commit_per_page: true
+    data_date_param: beginDate
+    primary_key:
+      field: ""
+      required: false
+    date_field: ""
+    date_window:
+      enabled: true
+      start_field: beginDate
+      end_field: endDate
+      default_start: "2026-07-02"
+      days: 1
+      lag_days: 1
+    rate_limit:
+      sleep_seconds: 65
+    retry:
+      retries: 1
+      delay_seconds: 1
+    params:
+      groupByType: seller_sku
+      target: unitsOrdered
+      viewType: day
+      showCurrencyType: YUAN
+      page: 1
+      pagesize: 100
+
+  # 第五十七个真实文档接口：商品表现，文档 id=140，按 MSKU 维度和单日窗口先保持关闭验证。
+  - api_code: listing_analyze_multi_index_page
+    name: 商品表现
+    enabled: false
+    method: POST
+    path: /operation/sts/listingAnalyzeMultiIndex/page
+    page:
+      enabled: true
+      page_no_field: page
+      page_size_field: pagesize
+      page_size: 100
+      max_pages: 45
+      list_field: data.rows
+      total_field: data.total
+    commit_per_page: true
+    data_date_param: beginDate
+    primary_key:
+      field: ""
+      required: false
+    date_field: statisticsDate
+    date_window:
+      enabled: true
+      start_field: beginDate
+      end_field: endDate
+      default_start: "2026-07-02"
+      days: 1
+      lag_days: 1
+    rate_limit:
+      sleep_seconds: 6
+    retry:
+      retries: 1
+      delay_seconds: 1
+    params:
+      groupByType: seller_sku
+      showCurrencyType: YUAN
+      isShowTotal: false
+      page: 1
+      pagesize: 100
+
+  # 第五十八个真实文档接口：销售利润分析，文档 id=1016，先用店铺维度和单日窗口保持关闭验证。
+  - api_code: sale_profit_page
+    name: 销售利润分析
+    enabled: false
+    method: POST
+    path: /operation/sts/saleProfit/page
+    page:
+      enabled: true
+      page_no_field: page
+      page_size_field: pagesize
+      page_size: 100
+      max_pages: 5
+      list_field: data.rows
+      total_field: data.total
+    commit_per_page: true
+    data_date_param: beginDate
+    primary_key:
+      field: ""
+      required: false
+    date_field: statisticsDate
+    date_window:
+      enabled: true
+      start_field: beginDate
+      end_field: endDate
+      default_start: "2026-07-02"
+      days: 1
+      lag_days: 1
+    rate_limit:
+      sleep_seconds: 65
+    retry:
+      retries: 1
+      delay_seconds: 1
+    params:
+      showCurrencyType: YUAN
+      type: MARKET
+      page: 1
+      pagesize: 100
+
+  # 第五十九个真实文档接口：财务利润分析-分摊记录，文档 id=128，先按固定单月保持关闭验证。
+  - api_code: allocation_detail_page
+    name: 财务利润分析-分摊记录
+    enabled: false
+    method: GET
+    path: /finance/sts/allocationDetail/page
+    page:
+      enabled: true
+      page_no_field: page
+      page_size_field: pagesize
+      page_size: 100
+      max_pages: 20
+      list_field: data.rows
+      total_field: data.total
+    commit_per_page: true
+    primary_key:
+      field: id
+      required: false
+    date_field: createTime
+    rate_limit:
+      sleep_seconds: 3
+    retry:
+      retries: 1
+      delay_seconds: 1
+    params:
+      marketDate: "2026-06"
+      page: 1
+      pagesize: 100
+
+  # 第六十个真实文档接口：采购/到库成本分析，文档 id=129，先按单日先进先出成本口径保持关闭验证。
+  - api_code: profit_cost_analysis_page
+    name: 采购/到库成本分析
+    enabled: false
+    method: POST
+    path: /finance/sts/profitCostAnalysis/page
+    page:
+      enabled: true
+      page_no_field: page
+      page_size_field: pagesize
+      page_size: 100
+      max_pages: 190
+      list_field: data.rows
+      total_field: data.total
+    commit_per_page: true
+    data_date_param: beginDate
+    primary_key:
+      field: id
+      required: false
+    date_field: purchaseDate
+    date_window:
+      enabled: true
+      start_field: beginDate
+      end_field: endDate
+      default_start: "2026-07-02"
+      days: 1
+      lag_days: 1
+    rate_limit:
+      sleep_seconds: 6
+    retry:
+      retries: 1
+      delay_seconds: 1
+    params:
+      currency: YUAN
+      platformCodes:
+        - AMAZON
+      costValues: 0
+      page: 1
+      pagesize: 100
+
+  # 第六十一个真实文档接口：财务利润分析-结算明细，文档 id=309，先按单日人民币口径保持关闭验证。
+  - api_code: financial_profit_analysis_page
+    name: 财务利润分析-结算明细
+    enabled: false
+    method: POST
+    path: /finance/sts/financialProfitAnalysis/page
+    page:
+      enabled: true
+      page_no_field: page
+      page_size_field: pagesize
+      page_size: 100
+      max_pages: 220
+      list_field: data.rows
+      total_field: data.total
+    commit_per_page: true
+    data_date_param: startDate
+    primary_key:
+      field: id
+      required: false
+    date_field: marketDate
+    date_window:
+      enabled: true
+      start_field: startDate
+      end_field: endDate
+      default_start: "2026-07-02"
+      days: 1
+      lag_days: 1
+    rate_limit:
+      sleep_seconds: 3
+    retry:
+      retries: 1
+      delay_seconds: 1
+    params:
+      currency: YUAN
+      platformCodes:
+        - AMAZON
+      page: 1
+      pagesize: 100
+
+  # 第六十二个真实文档接口：查询财务利润分析V2，文档 id=2256，先按店铺维度和单日窗口保持关闭验证。
+  - api_code: financial_analysis_v2_page
+    name: 查询财务利润分析V2
+    enabled: false
+    method: POST
+    path: /finance/sts/financialAnalysis/page/V2
+    page:
+      enabled: true
+      page_no_field: page
+      page_size_field: pagesize
+      page_size: 100
+      max_pages: 5
+      list_field: data.rows
+      total_field: data.total
+    commit_per_page: true
+    data_date_param: startDate
+    primary_key:
+      field: ""
+      required: false
+    date_field: standardDate
+    date_window:
+      enabled: true
+      start_field: startDate
+      end_field: endDate
+      default_start: "2026-07-02"
+      days: 1
+      lag_days: 1
+    rate_limit:
+      sleep_seconds: 11
+    retry:
+      retries: 1
+      delay_seconds: 1
+    params:
+      queryType: market
+      costValues: 0
+      currency: YUAN
+      dateType: 0
+      page: 1
+      pagesize: 100
+
+  # 第六十三个真实文档接口：查询财务利润分析V2-自定义字段，文档 id=2280，先按店铺维度保持关闭验证。
+  - api_code: financial_analysis_columns_query
+    name: 查询财务利润分析V2-自定义字段
+    enabled: false
+    method: GET
+    path: /finance/sts/colData/query
+    page:
+      enabled: false
+      list_field: data
+    commit_per_page: true
+    primary_key:
+      field: colCode
+      required: false
+    date_field: ""
+    rate_limit:
+      sleep_seconds: 0.5
+    retry:
+      retries: 1
+      delay_seconds: 1
+    params:
+      dimension: market
+
+  # 第六十四个真实文档接口：财务利润分析-月度查询V2，文档 id=2284，固定单月整体保存月份轴和数据树。
+  - api_code: financial_analysis_month_v2_query
+    name: 财务利润分析-月度查询V2
+    enabled: false
+    method: POST
+    path: /finance/sts/financialAnalysisMonth/query/V2
+    page:
+      enabled: false
+    response:
+      item_field: data
+    commit_per_page: true
+    data_date_param: startDate
+    primary_key:
+      field: ""
+      required: false
+    date_field: ""
+    rate_limit:
+      sleep_seconds: 2
+    retry:
+      retries: 1
+      delay_seconds: 1
+    params:
+      costValues: 0
+      startDate: "2026-06-01"
+      endDate: "2026-06-30"
+      currency: YUAN
+
+  # 第六十五个真实文档接口：查询月结算，文档 id=113；按单日窗口查询销量，先保持关闭验证。
+  - api_code: monthly_statement_amount_query
+    name: 查询月结算
+    enabled: false
+    method: POST
+    path: /finance/asset/monthlyStatementAmount/query
+    page:
+      enabled: false
+      list_field: data
+    commit_per_page: true
+    data_date_param: beginDate
+    primary_key:
+      field: ""
+      required: false
+    date_field: ""
+    date_window:
+      enabled: true
+      start_field: beginDate
+      end_field: endDate
+      default_start: "2026-07-02"
+      days: 1
+      lag_days: 1
+    rate_limit:
+      sleep_seconds: 1.1
+    retry:
+      retries: 1
+      delay_seconds: 1
+    params:
+      typeCode: 0
+      viewType: day
+      showCurrencyType: YUAN
 
   # 第五十个真实文档接口：流量统计-ASIN，文档 id=122，已完成完整单日窗口验证并加入 daily enabled。
   - api_code: traffic_page
@@ -1459,6 +2090,94 @@ apis:
       page: 1
       pagesize: 100
 
+  # 采购板块：采购订单列表，文档 id=86；分页字段位于 pageInfo，首轮仅验证一页。
+  - api_code: procure_page
+    name: 查询采购订单列表
+    enabled: false
+    method: POST
+    path: /purchase/srm/procure/page
+    timeout_seconds: 30
+    page:
+      enabled: true
+      page_no_field: pageInfo.page
+      page_size_field: pageInfo.pagesize
+      page_size: 100
+      max_pages: 1
+      list_field: data.rows
+      total_field: data.total
+    primary_key:
+      field: id
+      required: true
+    date_field: updateTime
+    sensitive_response: false
+    rate_limit:
+      sleep_seconds: 1
+    retry:
+      retries: 1
+      delay_seconds: 1
+    params:
+      pageInfo:
+        page: 1
+        pagesize: 100
+
+  # 采购板块：供应商信息列表，文档 id=43；首轮仅一页，联系人类字段只做 raw 备份。
+  - api_code: supplier_page
+    name: 查询供应商信息
+    enabled: false
+    method: POST
+    path: /purchase/srm/supplier/page
+    timeout_seconds: 30
+    page:
+      enabled: true
+      page_no_field: page
+      page_size_field: pagesize
+      page_size: 100
+      max_pages: 1
+      list_field: data.rows
+      total_field: data.total
+    primary_key:
+      field: ""
+      required: false
+    date_field: createdAt
+    sensitive_response: true
+    rate_limit:
+      sleep_seconds: 1
+    retry:
+      retries: 1
+      delay_seconds: 1
+    params:
+      page: 1
+      pagesize: 100
+
+  # 采购板块：供应商产品列表，文档 id=91；按实时 total 完整分页，人员标识只做 raw 备份。
+  - api_code: supplier_sku_quote_page
+    name: 查询供应商产品列表
+    enabled: false
+    method: POST
+    path: /purchase/srm/supplierSkuQuote/page
+    timeout_seconds: 30
+    page:
+      enabled: true
+      page_no_field: page
+      page_size_field: pagesize
+      page_size: 100
+      list_field: data.rows
+      total_field: data.total
+    commit_per_page: true
+    primary_key:
+      field: id
+      required: true
+    date_field: createdAt
+    sensitive_response: true
+    rate_limit:
+      sleep_seconds: 1
+    retry:
+      retries: 1
+      delay_seconds: 1
+    params:
+      page: 1
+      pagesize: 100
+
   # 第二十一个真实文档接口：产品详情，文档 id=211，依赖 product_page 的产品 id，小样本验证阶段保持 disabled。
   - api_code: product_detail
     name: 查询产品详情
@@ -1687,5 +2406,57 @@ apis:
       sleep_seconds: 0.2
     retry:
       retries: 3
+      delay_seconds: 1
+    params: {}
+
+  # 基础数据阶段 16T：查询所有用户列表，人员字段仅保存到 raw_json，小样本验证阶段保持 disabled。
+  - api_code: all_user_list
+    name: 查询所有用户列表
+    enabled: false
+    method: GET
+    path: /middle/base/allUser/list
+    page:
+      enabled: false
+      list_field: data
+    primary_key:
+      field: id
+      required: true
+    date_field: createdTime
+    sensitive_response: true
+    rate_limit:
+      sleep_seconds: 1.1
+    retry:
+      retries: 1
+      delay_seconds: 1
+    params: {}
+
+  # 基础数据阶段 16U：附件链接仅按真实附件 ID 小样本 raw-only 备份，保持 disabled。
+  - api_code: file_file_url_query
+    name: 附件信息链接
+    enabled: false
+    method: GET
+    path: /middle/base/fileFileUrl/query
+    page:
+      enabled: false
+    response:
+      scalar_field: data
+      scalar_target_field: fileUrl
+    primary_key:
+      field: ""
+      param_field: id
+      required: false
+    date_field: ""
+    sensitive_response: true
+    param_source:
+      source_api_code: transfer_detail
+      limit: 3
+      auto_advance: false
+      fields:
+        - source_field: raw_json.attachmentVOList[].id
+          target_field: id
+    rate_limit:
+      sleep_seconds: 0.6
+    retry:
+      retries: 1
       delay_seconds: 1
     params: {}

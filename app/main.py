@@ -12,7 +12,7 @@ from app.api_client import JijiaApiClient
 from app.config import load_api_configs, load_settings
 from app.db import check_db_connection, create_db_engine
 from app.logger import setup_logging
-from app.sync_engine import SyncEngine
+from app.sync_engine import ApiRequestError, SyncEngine
 
 SYNC_TASK_LOCK_NAME = "jijia_polardb_sync_task"
 
@@ -29,6 +29,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--test-token", action="store_true", help="测试获取积加 accessToken")
     parser.add_argument("--test-api", help="测试单个积加 API，并写入 raw_api_data")
     parser.add_argument("--sync-api", help="同步单个真实积加 API，并写入 raw_api_data")
+    parser.add_argument("--probe-api", help="只请求单个分页 API 首页，返回总数和所需页数")
     parser.add_argument("--sync-enabled", action="store_true", help="同步 YAML 中 enabled=true 的真实积加 API")
     parser.add_argument("--sync-api-configs", action="store_true", help="同步 YAML API 配置到 api_config 表")
     return parser.parse_args()
@@ -57,6 +58,10 @@ def main() -> None:
     api_configs = load_api_configs(settings.api_config_path)
     if args.sync_api_configs:
         _sync_api_configs(settings, api_configs)
+        return
+
+    if args.probe_api:
+        _probe_single_api(settings, api_configs, args.probe_api)
         return
 
     if args.sync_enabled:
@@ -222,6 +227,46 @@ def _sync_enabled(settings, api_configs) -> None:
         result["batch_no"],
         result["api_count"],
         result["item_count"],
+        result["request_count"],
+    )
+
+
+def _probe_single_api(settings, api_configs, api_code: str) -> None:
+    """只读预检单个普通分页 API 的总数和最小页数。"""
+    logger = logging.getLogger(__name__)
+    try:
+        auth_client = JijiaAuthClient(settings)
+        token = auth_client.get_access_token()
+        result = SyncEngine(api_configs).probe_api(
+            api_code,
+            JijiaApiClient(settings, auth_client=auth_client),
+            token,
+        )
+    except HTTPError as error:
+        status_code = error.response.status_code if error.response is not None else "unknown"
+        logger.error("pagination probe failed: http_status=%s", status_code)
+        raise SystemExit(1)
+    except ApiRequestError as error:
+        original_error = error.original_error
+        response = getattr(original_error, "response", None)
+        status_code = getattr(response, "status_code", None)
+        logger.error(
+            "pagination probe failed: error_type=%s http_status=%s",
+            type(original_error).__name__,
+            status_code if status_code is not None else "unknown",
+        )
+        raise SystemExit(1)
+    except (RequestException, ValueError) as error:
+        logger.error("pagination probe failed: error_type=%s", type(error).__name__)
+        raise SystemExit(1)
+
+    logger.info(
+        "pagination probe ok: api_code=%s total_count=%s page_size=%s "
+        "required_pages=%s requests=%s",
+        result["api_code"],
+        result["total_count"],
+        result["page_size"],
+        result["required_pages"],
         result["request_count"],
     )
 

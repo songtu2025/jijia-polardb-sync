@@ -2855,3 +2855,327 @@
 - 阶段 15M 详情覆盖证据：`storage_inbound_detail` 在最终批次同步 37/37；按真实上游 `raw_json.code` 口径统计为 174599/174599，缺口探针为空。批次结束后 named lock 空闲、外部事务 0、无同步进程残留，销售表现仍全部 disabled。
 - 阶段 15M 覆盖审计口径：不要用 `storage_inbound_page.source_primary_key` 代替真实参数源，也不要用全量 JSON CTE 做缺口联结；应复用同步引擎的 `raw_json.code` LEFT JOIN 目标主键并用 `LIMIT 1` 探测缺口。一次超时只读 CTE 已确认修改行 0、锁行 0并清理，最终外部事务为 0。
 - 阶段 15M 结论：本阶段完成，不需要再次运行完整长批次；当前工作区保持未提交，下一步先复核变更范围并等待用户决定是否提交。
+- 阶段 16A 决策：统计板块按文档接口逐个接入，不批量配置或启用；首个候选选择文档 `id=1017` 的“流量数据-msku”，因为它与已验证的 `traffic_analysis_page` 请求和响应边界最接近。
+- 阶段 16A 配置边界：新增 `traffic_sku_analysis_page`，保持 `enabled=false`；使用官方最大 `pagesize=100`、`viewType=day`、单日 `date_window`、`lag_days=1`、65 秒页间隔、`data.rows/data.total`，无强制稳定主键时使用 `data_hash` 幂等。
+- 阶段 16A 失败证据：第一次普通事务单接口尝试在已产生 201 个事务修改计数后，业务连接读取 checkpoint 时收到 MySQL 2006 / WinError 10054；named lock 专用连接也同时被远端重置，后续失败日志和批次收尾因连接失效进入 `PendingRollbackError`。该事务完整回滚，未留下候选批次、raw、checkpoint、API log 或 failed request。
+- 阶段 16A 根因判断：MySQL `wait_timeout=86400`，且两个独立连接同时断开，因此不是应用侧三分钟空闲超时；直接根因是外部连接重置。普通单接口路径把 HTTP、65 秒 sleep 和多页 raw 写入包在同一事务中，放大了瞬时断链影响。
+- 阶段 16A 最小处理：复用已有 `_test_api_once_commit_per_page()`，仅给候选增加 `commit_per_page=true`，不修改全局同步架构；每页 raw 使用独立短事务，HTTP 和页间 sleep 期间不持有 InnoDB 事务，最后再独立提交 checkpoint 和接口日志。
+- 阶段 16A TDD 证据：配置测试先以 `commit_per_page` 缺失按预期 RED，再新增单个 YAML 字段转 GREEN；既有 `tests.test_sync_api_commit_per_page` 同时通过。
+- 阶段 16A 成功证据：单接口批次 `sync_20260715_150626_428012` 完成 19 请求、1857/1857、0 失败、耗时 1263 秒；每页提交后的外部 InnoDB 事务均为 0，最终 checkpoint 推进到 `2026-07-03`。
+- 阶段 16A 数据证据：本批次 raw 1857 条、1857 个不同 hash、空主键 1857、空 `data_date` 0，日期均为 `2026-07-02`；`failed_request_log=0`，结束后 named lock 空闲、外部事务 0、无同步进程残留。
+- 阶段 16A 启用边界：候选继续 disabled。当前 `commit_per_page` 只用于单接口路径，enabled 主链尚未复用，因此不能仅凭本次单接口成功直接启用。
+- 阶段 16A 结论：catalog 为 187/52/46/6，DB/YAML 为 60/46；统计板块 17 个文档接口中已配置 5 个、剩余 12 个。16B 优先接入文档 `id=131` 的“产品表现”，仍按默认关闭、短事务单接口验证推进。
+- 阶段 16B 决策：接入文档 `id=131` 的“产品表现” `POST /operation/sts/productAnalyzeMultiIndex/page`，保持 `enabled=false`；请求使用 `showCurrencyType=YUAN`、官方最大 `pagesize=100`、单日日期窗口、`lag_days=1`、65 秒页间隔和 `commit_per_page=true`。
+- 阶段 16B 幂等决策：文档中的行 `id` 和 `statisticsDate` 均非强制且示例可为空，不编造稳定主键；使用 `data_hash` 幂等，并用请求 `beginDate` 覆盖 `data_date`，保证报表行没有日期时仍能标记窗口归属。
+- 阶段 16B 首次验证证据：批次 `sync_20260715_154048_587898` 完成 20 次请求和 2000 条按页提交后，完整性校验发现 `total_count=2891`，正确标记 failed；checkpoint 未创建，`failed_request_log=0`，结束后 named lock 空闲、外部事务 0。
+- 阶段 16B 分页决策：不放宽 `item_count == total_count` 校验；官方 `pagesize` 上限为 100，实际 2891 条需要 29 页，因此只把该候选 `max_pages` 从 20 调到 30。配置测试先得到 `20 != 30` 的 RED，再修改 YAML 转 GREEN。
+- 阶段 16B 成功证据：批次 `sync_20260715_161132_797343` 完成 29 请求、2891/2891、0 失败、耗时 1949 秒；raw 2891 条、2891 个不同 hash、空主键 2891、空 `data_date` 0，日期均为 `2026-07-02`。
+- 阶段 16B checkpoint 证据：记录 `last_page=29`、`request_count=29`、`item_count=2891`、`total_count=2891`、`next_window_start=2026-07-03`；最终 named lock 空闲、外部事务 0、数据库会话 0。
+- 阶段 16B 启用边界：候选继续 disabled；当前 enabled 主链尚未复用 `commit_per_page`，且单日 29 请求约耗时 32 分钟，不能仅凭单接口成功直接加入 daily enabled。
+- 阶段 16B 结论：catalog 为 187/53/46/7，DB/YAML 为 61/46；统计板块已配置 6/17、剩余 11 个。16C 优先接入文档 `id=132` 的“店铺表现”，继续按默认关闭和单接口验证推进。
+- 阶段 16C 决策：接入文档 `id=132` 的“店铺表现” `POST /operation/sts/storeSalesPerformance/page`，保持 `enabled=false`；请求使用 `showCurrencyType=YUAN`、官方最大 `pagesize=100`、`max_pages=20`、单日日期窗口、65 秒页间隔和 `commit_per_page=true`。
+- 阶段 16C 字段边界：公开字段表把 `id`、`statisticsDate` 标为必填，但官方响应示例二者均为 `null`；因此不使用 `id` 强制主键，不依赖行日期，继续采用 `data_hash` 幂等和请求 `beginDate` 覆盖 `data_date`。
+- 阶段 16C TDD 证据：配置测试先因缺少 `store_sales_performance_page` 按预期 RED；新增唯一候选配置后转 GREEN，未修改同步引擎或 enabled 清单。
+- 阶段 16C 成功证据：批次 `sync_20260715_165256_777600` 完成 1 请求、25/25、0 失败；raw 25 条、25 个不同 hash、空主键 25、空 `data_date` 0，日期均为 `2026-07-02`。
+- 阶段 16C checkpoint 证据：记录 `last_page=1`、`request_count=1`、`item_count=25`、`total_count=25`、`next_window_start=2026-07-03`；`failed_request_log=0`，最终 named lock 空闲、外部事务 0、数据库会话 0。
+- 阶段 16A-16C 复盘：三个统计候选均保持 disabled 并使用单接口短事务；16A/16B 的分钟级多页验证持续证明限流等待期间外部事务为 0，16C 单页同样通过；三轮都没有运行完整 `--sync-enabled`。
+- 阶段 16A-16C 完整性结论：16B 的 `2000/2891` 截断被校验正确拦截且 checkpoint 未前移，随后仅按官方页大小和真实总量调整上限；后续统计接口继续禁止放宽 `item_count == total_count`。
+- 阶段 16A-16C 启用结论：三个新接口虽然单接口成功，但 enabled 主链不支持 `commit_per_page`，且前两个单日分别约 21/32 分钟，因此都不能直接 enabled。
+- 阶段 16C 结论：catalog 为 187/54/46/8，DB/YAML 为 62/46；统计板块已配置 7/17、剩余 10 个。16D 优先接入文档 `id=133` 的“店铺统计”，先确认 `target` 和 `viewType` 枚举，再按默认关闭单接口推进。
+- 阶段 16D 决策：接入文档 `id=133` 的“店铺统计” `POST /operation/sts/marketAnalyze/page`，保持 `enabled=false`；使用官方示例 `target=unitsOrdered`、`viewType=day`、`showCurrencyType=YUAN` 和单日窗口。
+- 阶段 16D 响应边界：文档没有请求分页字段，并明确把响应 `total/page/pagesize` 标为无效；因此配置 `page.enabled=false`、`list_field=data.rows`，不配置 `total_field`，不发送 `page/pagesize`，避免围绕无效总量做错误循环。
+- 阶段 16D 幂等边界：行只有店铺和金额映射，`marketId` 不能区分日期窗口或指标；不把它设为唯一主键，继续使用 `data_hash`，并以请求 `beginDate` 覆盖 `data_date`。
+- 阶段 16D TDD 证据：测试先因缺少 `market_analyze_page` RED；新增唯一非分页候选配置后 GREEN，明确断言无 `total_field` 和无分页请求参数。
+- 阶段 16D 成功证据：批次 `sync_20260715_170801_554088` 完成 1 请求、25 行、0 失败；raw 25 条、25 个不同 hash、空主键 25、空 `data_date` 0，日期均为 `2026-07-02`。
+- 阶段 16D checkpoint 证据：记录 `last_page=1`、`item_count=25`、`total_count=null`、`next_window_start=2026-07-03`；null 是对官方无效字段的真实表达，不能写成伪造的 25。
+- 阶段 16D 终态：DB/YAML 为 63/46，catalog 为 187/55/46/9；候选 disabled，`failed_request_log=0`、named lock 空闲、外部事务 0、数据库会话 0。
+- 阶段 16D 结论：统计板块已配置 8/17、剩余 9 个。16E 优先接入文档 `id=130` 的“商品统计”，先确认多个业务枚举和分页字段是否有效，再按默认关闭单接口推进。
+- 阶段 16E 决策：接入文档 `id=130` 的“商品统计” `POST /operation/sts/listingAnalyze/page`，保持 `enabled=false`；使用 `groupByType=seller_sku`、`target=unitsOrdered`、`viewType=day`、`showCurrencyType=YUAN`、官方最大 `pagesize=100`、单日窗口和 `commit_per_page=true`。
+- 阶段 16E 幂等边界：响应没有可靠的统计日期主键组合，不用 `addDate/firstSalesDate` 代替统计日期；采用 `data_hash` 幂等，并以请求 `beginDate` 覆盖 `data_date`。
+- 阶段 16E 中断证据：批次 `sync_20260715_172023_885288` 在 1700 条后遇到 API 连接与本机 DNS 同时中断；批次 `sync_20260715_182354_185521` 在 4100 条后被 Windows 终端进程结束。两者都没有 API log/checkpoint，确认命名锁、事务和进程已清理后，只把精确 batch 如实收尾为 failed，没有伪造日志或 checkpoint。
+- 阶段 16E 分页证据：批次 `sync_20260715_174526_930015` 在 `max_pages=30` 时被完整性校验正确标记为 `3000/4305` 截断；TDD 先得到 `30 != 45` 的 RED，再把该候选保护值最小提高到 45，未放宽 `item_count == total_count`。
+- 阶段 16E 成功证据：独立后台单接口批次 `sync_20260716_112121_765692` 完成 44 请求、4309/4309、0 失败；上游总量较前一日增加 4 条，因此完整性必须以同一批次返回的 total 为准。
+- 阶段 16E 数据证据：成功批次 raw 为 4309 条、4309 个不同 hash、null 主键 4309、空 `data_date` 0，日期均为 `2026-07-02`；checkpoint 为 `last_page=44`、`total_count=4309`、`next_window_start=2026-07-03`，`failed_request_log=0`。
+- 阶段 16E 终态：DB/YAML 为 64/46，catalog 为 187/56/46/10；候选继续 disabled，named lock 空闲、外部事务 0、数据库活动会话 0，未运行完整 `--sync-enabled`。
+- 阶段 16F 决策：接入文档 `id=140` 的“商品表现” `POST /operation/sts/listingAnalyzeMultiIndex/page`，保持 `enabled=false`；使用 `groupByType=seller_sku`、`showCurrencyType=YUAN`、`isShowTotal=false`、官方最大 `pagesize=100`、单日窗口、`max_pages=45` 和 `commit_per_page=true`。
+- 阶段 16F 限流边界：公开文档默认限流为每 5 秒 1 次，与文档 130 的每分钟 1 次不同；因此配置 6 秒页间隔，不沿用 65 秒，也不低于官方限制。
+- 阶段 16F 幂等边界：虽然响应声明有记录 `id`，但维度记录可能跨日期复用；为了保留日快照，仍使用 `data_hash` 幂等，并用行 `statisticsDate` 和请求 `beginDate` 共同保证 `data_date` 归属。
+- 阶段 16F TDD 证据：测试先因缺少 `listing_analyze_multi_index_page` 按预期 RED；新增唯一候选配置后转 GREEN。完整 101 个 unittest、`compileall`、无参数 dry-run 和 `git diff --check` 通过，dry-run 仍只加载 46 个 enabled。
+- 阶段 16F 成功证据：批次 `sync_20260716_141834_366978` 完成 44 请求、4309/4309、0 失败；raw 4309 条、4309 个不同 hash、null 主键 4309、空 `data_date` 0，日期均为 `2026-07-02`。
+- 阶段 16F checkpoint 证据：记录 `last_page=44`、`request_count=44`、`item_count=4309`、`total_count=4309`、`next_window_start=2026-07-03`；`failed_request_log=0`，最终 named lock 空闲、外部事务 0、数据库活动会话 0。
+- 阶段 16D-16F 复盘：三轮新增候选全部保持 disabled，enabled 始终为 46；16D 如实保留无效 total 的 null，16E/16F 均用同批次 `item_count == total_count` 验证完整性，三轮没有运行完整 `--sync-enabled`。
+- 阶段 16D-16F 运行边界：分钟级大分页候选可用独立后台进程避免终端单元生命周期中断，但仍必须由 named lock 保证单任务、由 DB batch/log/checkpoint 判定结果；不能仅凭进程退出码或部分 raw 判定成功。
+- 阶段 16F 结论：catalog 为 187/57/46/11，DB/YAML 为 65/46；统计板块已配置 10/17、剩余 7 个。16G 优先接入文档 `id=1016` 的“销售利润分析”，先用 `MARKET` 低基数维度和单日窗口验证。
+- 阶段 16G 决策：接入文档 `id=1016` 的“销售利润分析” `POST /operation/sts/saleProfit/page`，保持 `enabled=false`；先使用 `type=MARKET`、`showCurrencyType=YUAN` 和单日窗口证明接口可用性，不直接以 MSKU 维度拉取大批量数据。
+- 阶段 16G 配置边界：响应有 `statisticsDate` 但记录 `id` 可能跨日期复用，继续使用 `data_hash` 保留日快照；用请求 `beginDate` 覆盖 `data_date`，使用官方最大 `pagesize=100`、`max_pages=5`、65 秒页间隔和 `commit_per_page=true`。
+- 阶段 16G TDD 证据：测试先因缺少 `sale_profit_page` 按预期 RED；新增唯一候选后 GREEN。catalog 为 187/58/46/12，DB/YAML 为 66/46，完整 102 个 unittest、`compileall`、dry-run 和差异检查通过，enabled 仍为 46。
+- 阶段 16G 成功证据：批次 `sync_20260716_143418_686778` 完成 1 请求、24/24、0 失败；raw 24 条、24 个不同 hash、null 主键 24、空 `data_date` 0，日期均为 `2026-07-02`。
+- 阶段 16G checkpoint 证据：记录 `last_page=1`、`request_count=1`、`item_count=24`、`total_count=24`、`next_window_start=2026-07-03`；`failed_request_log=0`，最终 named lock 空闲、外部事务 0、数据库活动会话 0。
+- 阶段 16G 结论：统计板块已配置 11/17、剩余 6 个。16H 优先接入文档 `id=128` 的“财务利润分析-分摊记录”，使用固定单月筛选控制首次验证范围。
+- 阶段 16H 决策：接入文档 `id=128` 的“财务利润分析-分摊记录” `GET /finance/sts/allocationDetail/page`，保持 `enabled=false`；使用固定 `marketDate=2026-06`、官方最大 `pagesize=100`、`max_pages=20`、3 秒页间隔和 `commit_per_page=true` 控制首次验证范围。
+- 阶段 16H 日期边界：请求月份是 `YYYY-MM`，不能直接作为 MySQL DATE；不配置 `data_date_param`，使用响应 `createTime`。主键使用官方 `id`，但 `required=false`，避免异常空 ID 行被过滤而违反 raw 保留边界。
+- 阶段 16H TDD 证据：测试先因缺少 `allocation_detail_page` 按预期 RED；新增唯一候选后 GREEN。catalog 为 187/59/46/13，DB/YAML 为 67/46，完整 103 个 unittest、`compileall`、dry-run 和差异检查通过，enabled 仍为 46。
+- 阶段 16H 成功证据：批次 `sync_20260716_144111_386873` 完成 10 请求、903/903、0 失败；raw 903 条、903 个不同主键、903 个不同 hash、空主键 0、空 `data_date` 0，日期均为 `2026-06-01`。
+- 阶段 16H checkpoint 证据：记录 `last_page=10`、`request_count=10`、`item_count=903`、`total_count=903`；固定单月候选没有伪造 `next_window_start`。`failed_request_log=0`，最终 named lock 空闲、外部事务 0、数据库活动会话 0。
+- 阶段 16H 结论：统计板块已配置 12/17、剩余 5 个。16I 优先接入文档 `id=129` 的“采购/到库成本分析”，按单日窗口验证。
+- 阶段 16I 决策：接入文档 `id=129` 的“采购/到库成本分析” `POST /finance/sts/profitCostAnalysis/page`，保持 `enabled=false`；使用 `currency=YUAN`、`platformCodes=[AMAZON]`、`costValues=0`、单日窗口、官方最大 `pagesize=100`、6 秒页间隔和 `commit_per_page=true`。
+- 阶段 16I 分页证据：首批 `sync_20260716_144820_882238` 被完整性校验正确拦截为 `2000/18425`，TDD 将单接口 `max_pages` 从 20 最小提高到 190，不放宽 `item_count == total_count`。
+- 阶段 16I 连接证据：批次 `sync_20260716_145343_590447` 在第 94 页 INSERT 时发生 MySQL 2013 失效连接，前 93 页 9300 条已提交；`pool_pre_ping` 只能在取连接时探活，不能修复已取出连接的中途失效。
+- 阶段 16I 恢复边界：仅对 `DBAPIError.connection_invalidated=true` 的短事务页写入换新连接重试一次。raw upsert 幂等，因此首次提交结果不确定时可安全重试；语法、约束等其他数据库错误不得重试或吞掉。
+- 阶段 16I 进程边界：批次 `sync_20260716_151848_575655` 在 300 条后被外部结束，没有 API log/checkpoint；确认进程、锁、事务和活动会话全清后只精确收尾 batch。长接口后续改用工具会话保持存活的前台受管进程，不再用父进程退出后的后台方式。
+- 阶段 16I 成功证据：最终批次 `sync_20260717_101830_525973` 完成 185 请求、18425/18425、0 失败；raw 18425 条且官方主键、hash 均 18425 个，空主键和空日期均为 0，日期为 `2026-07-02`。
+- 阶段 16I checkpoint 证据：记录 `last_page=185`、`request_count=185`、`item_count=18425`、`total_count=18425`、`next_window_start=2026-07-03`；`failed_request_log=0`，最终 named lock 空闲、外部事务和活动会话均为 0。
+- 阶段 16G-16I 复盘：三个新候选全部保持 disabled，enabled 始终为 46；分别用低基数维度、固定月份和单日大分页控制风险，没有运行完整 `--sync-enabled`。完整性截断与失效连接恢复是不同边界，前者修正分页保护，后者只做一次幂等页写重试。
+- 阶段 16I 结论：catalog 为 187/60/46/14，DB/YAML 为 68/46；统计板块已配置并验证 13/17、剩余 4 个。16J 优先接入文档 `id=309` 的“财务利润分析-结算明细”，按单日窗口验证。
+- 阶段 16J 决策：接入文档 `id=309` 的“财务利润分析-结算明细” `POST /finance/sts/financialProfitAnalysis/page`，保持 `enabled=false`；使用 `currency=YUAN`、`platformCodes=[AMAZON]`、单日窗口、官方最大 `pagesize=100`、3 秒页间隔和 `commit_per_page=true`。
+- 阶段 16J 分页证据：首批 `sync_20260717_105203_289692` 被完整性校验正确拦截为 `5000/20978`；完整窗口需要 210 页，TDD 将单接口 `max_pages` 从 50 最小提高到 220，不放宽 `item_count == total_count`。
+- 阶段 16J 成功证据：最终批次 `sync_20260717_105845_443853` 完成 210 请求、20978/20978、0 失败；raw 20978 条且官方主键、hash 均 20978 个，空主键和空日期均为 0，日期为 `2026-07-02`。
+- 阶段 16J checkpoint 证据：记录 `last_page=210`、`request_count=210`、`item_count=20978`、`total_count=20978`、`next_window_start=2026-07-03`；`failed_request_log=0`，最终 named lock 空闲、外部事务和活动会话均为 0。
+- 阶段 16J 结论：catalog 为 187/61/46/15，DB/YAML 为 69/46；统计板块已配置并验证 14/17、剩余 3 个。16K 优先接入文档 `id=2256` 的“查询财务利润分析V2”，先用 MARKET 低基数维度和单日窗口验证。
+- 阶段 16K 决策：接入文档 `id=2256` 的“查询财务利润分析V2” `POST /finance/sts/financialAnalysis/page/V2`，保持 `enabled=false`；使用 `queryType=market`、`costValues=0`、`dateType=0`、`currency=YUAN`、单日窗口、官方最大 `pagesize=100`、`max_pages=5`、11 秒页间隔和 `commit_per_page=true`。
+- 阶段 16K 幂等边界：响应没有通用稳定业务主键，不使用维度值覆盖跨日期快照；采用 `data_hash` 幂等，并用请求 `startDate` 覆盖 `data_date`。
+- 阶段 16K 成功证据：批次 `sync_20260717_112436_771393` 完成 1 请求、23/23、0 失败；raw 23 条、23 个不同 hash、空主键 23、空日期 0，日期为 `2026-07-02`。
+- 阶段 16K checkpoint 证据：记录 `last_page=1`、`request_count=1`、`item_count=23`、`total_count=23`、`next_window_start=2026-07-03`；`failed_request_log=0`，最终 named lock 空闲、外部事务和活动会话均为 0。
+- 阶段 16K 结论：catalog 为 187/62/46/16，DB/YAML 为 70/46；统计板块已配置并验证 15/17、剩余 2 个。16L 接入文档 `id=2280` 的 V2 自定义列查询。
+- 阶段 16L 决策：接入文档 `id=2280` 的“查询财务利润分析V2-自定义字段” `GET /finance/sts/colData/query`，保持 `enabled=false`；使用 `dimension=market`、非分页 `list_field=data`、`colCode` 主键、空日期、0.5 秒间隔和 `commit_per_page=true`。
+- 阶段 16L 原始边界：响应项中的 `detailCols` 作为列配置 raw JSON 的一部分整体保留，不拆表；接口没有日期和有效 total，分别保留 `data_date=null`、`total_count=null`，不为统一格式伪造值。
+- 阶段 16L 成功证据：批次 `sync_20260717_113058_412348` 完成 1 请求、55 条、0 失败；raw 55 条、55 个不同 `colCode`、55 个不同 hash、空主键 0、空日期 55。
+- 阶段 16L checkpoint 证据：记录 `last_page=1`、`request_count=1`、`item_count=55`、`total_count=null`；`failed_request_log=0`，最终 named lock 空闲、外部事务和活动会话均为 0。
+- 阶段 16J-16L 复盘：三个新候选全部保持 disabled，enabled 始终为 46；16J 用真实总量校准分页保护，16K 无稳定主键按 hash 幂等，16L 无日期和 total 如实保留 null，三轮没有运行完整 `--sync-enabled`。
+- 阶段 16L 结论：catalog 为 187/63/46/17，DB/YAML 为 71/46；统计板块已配置并验证 16/17，只剩文档 `id=2284` 的 V2 月度查询。
+- 阶段 16M 决策：接入文档 `id=2284` 的“财务利润分析-月度查询V2” `POST /finance/sts/financialAnalysisMonth/query/V2`，保持 `enabled=false`；固定 `2026-06-01` 至 `2026-06-30`，使用 `costValues=0`、`currency=YUAN`、2 秒间隔和 `commit_per_page=true`。
+- 阶段 16M 原始粒度：响应 `data` 同时包含月份轴和数据树，使用 `response.item_field=data` 将整个对象保存为一条 raw；不能只提取内部 `data.data`。固定单月配置不伪造自动月份 checkpoint。
+- 阶段 16M 成功证据：批次 `sync_20260717_113608_001647` 完成 1 请求、1 个整体对象、0 失败；raw 1 条、hash 1、空主键 1、空日期 0，日期为 `2026-06-01`。
+- 阶段 16M 结构证据：raw 根对象 `date` 为数组且长度 1，`data` 为数组且长度 7；月份轴和数据树均保留。checkpoint 为 `last_page=1`、`item_count=1`、`total_count=null`，失败请求 0，最终锁和事务全清。
+- 统计板块最终决策：catalog 统计菜单 17 个文档全部有真实配置，3 个 enabled、14 个 disabled、缺失 0；DB/YAML 为 72/46，catalog 为 187/64/46/18。本轮十三个新增候选的最新 checkpoint、API log、raw 和成功批次失败日志全部一致。
+- 截至阶段 16M 的统计板块启用边界：只完成安全接入和单接口真实验证，不直接扩大 enabled；当时 enabled 主链尚未复用 `commit_per_page`。该调度缺口已在 16N 补齐，但分钟级限流、大分页和固定月份候选仍不能直接加入每日批量。
+- 阶段 16N 决策：不新增调度框架，只在 `sync_enabled_apis()` 的单 API 循环按 `commit_per_page` 做最小分流；普通 API 保留现有独立事务，短事务 API 直接复用 `_sync_api_with_page_transactions()`。
+- 阶段 16N 边界：20 个 `commit_per_page` 配置当前全部 disabled，且没有与 `param_source` 组合；本阶段不修改 YAML/DB enabled，不运行真实 API 或完整 `--sync-enabled`。
+- 阶段 16N TDD 证据：混合 enabled 测试先按预期 RED，最小分流后 GREEN；4 个定向测试、完整 110 个 unittest、`compileall app tests`、YAML 配置加载和差异检查通过。
+- 阶段 16O 分层标准：同时考虑请求页数与限流、日期窗口能否自动推进、是否有有效 total、catalog 敏感响应标签、历史连接/完整性事件和实际业务价值；不能只按单次请求是否成功判断 enabled 风险。
+- 阶段 16O 结论：20 个 `commit_per_page` disabled 配置分为低风险 3 个、中风险 7 个、高风险或阻断 10 个；固定月份接口、185–210 页财务明细和存在历史空日期的高基数销售表现不能直接 enabled。
+- 阶段 16O 推荐：首个启用前候选选择 `financial_analysis_v2_page`，因为它已真实验证 1 请求、23/23、自动单日推进、有效 total、非敏感响应标签，并且比列元数据接口更有每日同步价值。本阶段不改 enabled，下一轮必须先刷新 DB、锁和事务证据。
+- 阶段 16P 选择决策：全平台覆盖主线只新增文档 `id=113` 的“查询月结算”，不推进统计候选启用；它是 `POST /finance/asset/monthlyStatementAmount/query` 查询操作，真实上游参数均来自公开文档和固定枚举，不依赖其他 API。
+- 阶段 16P 请求边界：使用 `typeCode=0` 查询销量，`viewType=day`、`showCurrencyType=YUAN`，由 `date_window` 自动提供单日 `beginDate/endDate`；接口非分页，官方默认限流每秒 1 次，单轮预计并实际只请求 1 次。
+- 阶段 16P 幂等与日期边界：响应没有稳定业务主键，不编造组合键，按 `data_hash` 幂等；用请求 `beginDate` 覆盖 `data_date`，避免金额行缺少独立日期造成空日期。
+- 阶段 16P 敏感边界：catalog 未把该接口标记为敏感响应；raw 仍按原始 JSON 整体保存，审核和交接只记录行数、hash、日期等汇总，不输出业务内容。
+- 阶段 16P TDD 证据：配置测试先因候选缺失按预期 RED，新增唯一 `enabled=false` 配置后 GREEN；完整 111 个 unittest、`compileall app tests`、dry-run 和 `git diff --check` 通过。
+- 阶段 16P 成功证据：批次 `sync_20260717_153412_241025` 完成 1 请求、5 条、0 失败；raw 5 条、5 个不同 hash、空主键 5、空日期 0，日期均为 `2026-07-02`。
+- 阶段 16P checkpoint 证据：记录 `last_page=1`、`request_count=1`、`item_count=5`、`total_count=null`、`next_window_start=2026-07-03`；失败请求 0，最终锁、事务、活动会话和同步进程全清。
+- 阶段 16P 终态：DB/YAML 为 73/46，catalog 为 187/65/46/19；未配置文档 122 个，剩余只读/审查候选 94 个，候选继续 disabled，未运行完整 `--sync-enabled`。
+- 阶段 16P 下一步：继续全平台覆盖时仍只能从 94 个候选中逐个做公开文档、参数来源、读取性质、分页限流、幂等、日期和敏感字段审核，先提交最小方案并等待确认。
+- 阶段 16Q 机制决策：未配置接口的人工审核结论不写死在生成 catalog 中，统一保存在 `config/api_review_overrides.yaml`；catalog 重新生成后仍能稳定保留终态。
+- 阶段 16Q 优先级：已配置状态优先于审核覆盖，审核覆盖优先于自动分类；避免已接入接口被旧审核记录降级，也避免自动规则覆盖人工证据。
+- 阶段 16Q 终态白名单：仅接受 `framework_auth_only`、`defer_no_param_source`、`defer_sensitive_credentials`、`defer_runtime_rejected`、`defer_duplicate_or_obsolete`、`defer_unsupported_shape`；写操作继续由自动分类产生 `defer_write_or_mutation`。
+- 阶段 16Q 敏感边界：文档 596 只由鉴权模块处理，文档 3095 的公开响应包含凭证字段，二者均不得进入业务 raw 同步，也没有执行真实业务请求。
+- 阶段 16Q 板块收口：`closed` 只由 `pending_review == 0` 决定；`configured` 与 `terminal_deferred` 分开统计，不能把审核暂缓表述为接口已配置。
+- 阶段 16Q 基础数据证据：16 个文档中 9 个已配置、3 个终态暂缓、4 个待审，enabled 仍为 9；全平台 YAML/DB enabled 仍为 46。
+- 阶段 16Q 验证：117 个 unittest、`compileall`、dry-run 和差异检查通过；catalog 187 个详情全部刷新成功且无错误。
+- 阶段 16Q 下一步：文档 1177 必须先过独立确认门，失败时只登记 `defer_runtime_rejected`，不得在同一阶段猜测其他数组编码。
+- 阶段 16R 参数决策：文档 1177 的 `markerIds` 按官方 `array<int>` 发送，每个真实上游 market ID 包装为单元素列表；首次上限 3 个，未降低为标量或硬编码示例值。
+- 阶段 16R 能力边界：`wrap_in_list` 只在字段显式开启时生效，旧数组参数来源保持标量；单元素列表主键规范化为元素本身，避免写成 Python 列表字符串。
+- 阶段 16R 来源证据：上游 raw 展开得到 39 个不同 market ID，足以支持小样本；审核只记录计数，不输出标识值。
+- 阶段 16R 失败证据：批次 `sync_20260717_223116_798898` 第 1 次请求返回 HTTP 400，batch 和 API log 均 failed，失败日志 1、raw 0、checkpoint 0。
+- 阶段 16R 终态：不重试、不尝试其他编码，文档 1177 登记 `defer_runtime_rejected`；失败配置从 YAML 和 DB `api_config` 精确清理，保留失败 batch/log 证据。
+- 阶段 16R 计数：DB/YAML 回到 73/46，catalog 仍为 187/65/46/19；基础数据为 9 个已配置、4 个终态暂缓、3 个待审。
+- 阶段 16R 验证：121 个 unittest、`compileall`、dry-run 和差异检查通过；最终锁、事务、会话和同步进程全清。
+- 阶段 16R 下一步：只预审文档 1179；若真实请求同样返回 400/509，采用相同终态处理，不猜测其他数组编码。
+- 阶段 16S 参数决策：文档 1179 的 `marketIdList` 按官方 `array<int>` 发送，每个来源 market ID 包装为单元素列表；首次上限 3 个，不使用示例值或硬编码。
+- 阶段 16S 幂等决策：公开文档未证明可单独作为全局主键的响应字段，因此临时配置不设置业务主键，按完整响应对象 `data_hash` 幂等，`data_date` 如实为 null。
+- 阶段 16S 限流决策：接口默认每秒 1 次，配置 1.1 秒请求间隔；`retries=1` 表示总尝试一次，首个 400 后立即终止。
+- 阶段 16S 失败证据：批次 `sync_20260718_105341_073837` 第 1 次请求返回 HTTP 400，batch/API log 均 failed，失败日志 1、raw 0、checkpoint 0。
+- 阶段 16S 终态：不重试、不尝试其他数组编码，文档 1179 登记 `defer_runtime_rejected`；临时 YAML 和 DB `api_config` 精确清理，失败证据保留。
+- 阶段 16S 计数：DB/YAML 回到 73/46，catalog 为 187/65/46/19；基础数据为 9 个已配置、5 个终态暂缓、2 个待审。
+- 阶段 16S 验证：122 个 unittest、`compileall`、dry-run 和差异检查通过；最终锁、事务、会话和同步进程全清。
+- 阶段 16S 安全边界：未输出真实 market ID、失败参数或响应正文，未运行完整 `--sync-enabled`，未暂存、提交或推送。
+- 阶段 16S 下一步：只预审文档 25 的用户列表；涉及人员信息时只允许审核后的 raw-only，日志、测试和文档不得出现真实敏感字段值。
+- 阶段 16T 配置决策：文档 25 使用 `all_user_list`，保持 disabled、单次 GET、非分页 `data` 数组、必填主键 `id` 和 `createdTime` 日期字段，不进入 enabled 主链。
+- 阶段 16T 日期决策：严格识别 13 位毫秒时间戳并按 `Asia/Shanghai` 生成 `data_date`，继续兼容原有 ISO 日期；为 Windows 补充标准 `tzdata` 依赖，不使用本地系统时区猜测。
+- 阶段 16T 敏感边界：成功响应仍按 raw-only 完整备份；日志、测试和文档不输出人员字段值，敏感接口失败时不保存响应正文或原始错误详情，普通接口原有失败证据保持不变。
+- 阶段 16T 成功证据：批次 `sync_20260720_104305_848823` 为 success，1 次请求、35 条、0 失败；raw 主键/hash 均 35 个且日期全非空，checkpoint 与批次一致，失败日志为 0。
+- 阶段 16T 计数：YAML/DB 为 74/46 且配置差异 0；catalog 为 187/66/46/20，基础数据为 10 个已配置、5 个终态暂缓、1 个待审。
+- 阶段 16T 验证：127 个 unittest、`compileall`、dry-run 和差异检查通过；最终锁、事务、会话和同步进程全清。
+- 阶段 16T 下一步：阶段 16U 只能先统计现有 raw 中语义明确的附件 ID 来源，不输出附件 ID 或链接；有来源后提交最小方案等待确认，无来源则登记 `defer_no_param_source`。
+- 阶段 16U 文档决策：文档 694 是 `GET /middle/base/fileFileUrl/query`，请求 `id` 为整数，响应 `data` 为字符串，默认每秒 2 次；只读、非分页，当前不配置。
+- 阶段 16U 来源证据：raw 顶层发现 3 个附件语义容器；仅 `attachmentVOList[].id` 具有可复用的明确语义，来源为 `procure_detail` 1 条和 `transfer_detail` 999 条，均为整数且无缺失/空值。
+- 阶段 16U 最小方案（待确认）：使用 `transfer_detail.raw_json.attachmentVOList[].id`，首轮最多 3 个，目标参数 `id`，请求参数作为 raw 主键，标量 `data` 保存为单条 raw，日期为空，限流 0.6 秒，保持 disabled；不使用示例值或硬编码。
+- 阶段 16U 安全边界：审核只做服务器端字段名和计数聚合，未输出附件 ID、文件名、链接或人员字段值，未请求真实业务接口。
+
+- 阶段 16U 实施决策：用户确认后只新增 `file_file_url_query` 一项默认关闭配置；参数仅来自 `transfer_detail.raw_json.attachmentVOList[].id`，上限 3、`auto_advance=false`，不使用文档示例值、猜测字段或硬编码值。
+- 阶段 16U 幂等与敏感决策：响应是标量 `data`，统一包装为 `fileUrl` raw；请求参数 `id` 作为 `source_primary_key` 而不写入 raw JSON，按该主键和 `data_hash` 幂等，`data_date` 如实为 null。`sensitive_response=true` 保证失败时不保存响应正文或原始错误详情。
+- 阶段 16U 成功证据：单接口批次 `sync_20260720_112016_182107` 为 success，3 次请求、3 条成功、0 失败；raw 主键/hash 均为 3 个、空日期 3，字段存在性聚合确认 3 条 `fileUrl`、0 条请求 `id`，未读取或输出链接值。
+- 阶段 16U checkpoint 证据：唯一 checkpoint 指向该成功批次，`last_page=3`、`total_count=3`、`item_count=3`、`param_offset=0`、`param_limit=3`、`next_param_offset=3`；失败日志为 0。
+- 阶段 16U 终态：YAML/DB 为 75/46 且配置差异 0，catalog 为 187/67/46/21；基础数据为 11 个已配置、5 个终态暂缓、0 个待审、`closed=true`。这里的收口是审核终态收口，不代表所有接口均已配置。
+- 阶段 16U 验证与运行边界：130 个 unittest、`compileall`、dry-run 和差异检查通过；未运行完整 `--sync-enabled`，未暂存、提交或推送。最终 named lock 空闲、外部事务 0、本地同步进程 0、同步相关活动会话 0；存在非同步会话不占用锁。
+- 阶段 16U 下一步：按板块顺序只对产品板块做整板只读预审，先列出终态和逐个候选的真实参数来源、读取性质、分页限流、幂等、日期与敏感边界，再提交下一接口最小方案等待确认。
+
+- 产品板块预审决策：18 个文档中 8 个已有 enabled 配置，9 个为写操作自动终态；文档 5070 是唯一待审读取接口，因此本轮只处理该终态，不扩展至任何其他板块或接口。
+- 文档 5070 参数来源决策：公开文档要求 `attributeName`，但 36,820 条相关产品 raw 的字段名聚合均未发现该字段或属性项字段；`product_page.variantProperty` 仅为 null，不能据此猜测参数或使用文档示例值。
+- 文档 5070 终态决策：登记 `defer_no_param_source`，不创建业务 API YAML，不同步 DB `api_config`，不发起真实请求；未来只有发现语义明确、稳定且真实的参数来源后才可重新预审。
+- 文档 5070 数据边界：接口非分页、默认每秒 3 次，响应没有可用日期字段；由于当前不请求接口，不写 raw、checkpoint、API log 或失败日志。若未来重新评估，不能把文档中非必填 `id` 直接视为已证明的稳定主键。
+- 产品板块终态：catalog 刷新为产品 `configured=8`、`enabled=8`、`terminal_deferred=10`、`pending_review=0`、`closed=true`；全局 YAML/DB 保持 75/46，catalog 保持真实配置 67、enabled 46、configured disabled 21。
+- 验证边界：130 个 unittest、`compileall` 和 dry-run 通过，未运行完整 `--sync-enabled`，未暂存、提交或推送；实际同步锁、外部事务、同步相关会话和本地同步进程均清空。
+- 下一步决策：固定顺序进入仓库板块的整板只读预审，先判断全部 6 个文档的配置、终态和待审项，再选择最多 1 个候选提交最小方案。
+
+- 阶段 16V 接入决策：文档 64 `POST /purchase/inventory/supplierWarehouse/page` 是仓库板块首个候选；请求只需 `page`、`pagesize`，因此不需要猜测或建立上游参数来源。配置固定为默认 disabled，不进入 enabled 主链。
+- 阶段 16V 分页与幂等决策：文档响应使用 `data.rows` 和 `data.total`，从第 1 页开始、每页最多 100、最多 20 页；响应 `id` 是主键并设为必填，`createDate` 生成 `data_date`，`data_hash` 保留原始 JSON 一致性保障。
+- 阶段 16V 敏感边界：catalog 的敏感审查标记不因公开示例字段而降低；配置 `sensitive_response=true`，成功时只按 raw 备份，失败时不保存响应正文或原始错误详情。
+- 阶段 16V 结果决策：批次 `sync_20260720_152244_506820` 成功返回空列表，checkpoint 的 `total_count=0` 与 API log、raw 和失败日志一致；将接口保留为“已配置并真实验证、disabled”，不误登记为运行时拒绝或终态暂缓。
+- 阶段 16V 后续边界：仓库板块仍有 3 个待审接口；下一轮只做一个接口的只读预审和确认门，不批量新增、不运行完整 `--sync-enabled`。
+
+- 阶段 16W 接入决策：文档 212 `POST /purchase/inventory/selfWarehouse/page` 无业务必填参数，只接受 `page`、`pagesize`；因此作为仓库板块第二个候选，固定默认 disabled，不进入 enabled 主链。
+- 阶段 16W 幂等与日期决策：公开响应存在 `id`，设为必填主键并保留 `data_hash`；没有日期字段，`date_field` 留空，27 条真实 raw 的 `data_date` 均为 null。
+- 阶段 16W 敏感边界：公开字段包含联系人、邮箱、手机和电话；配置 `sensitive_response=true`，成功响应仅 raw 备份，失败响应正文与原始错误详情不得保存或输出。
+- 阶段 16W 成功证据：批次 `sync_20260720_155429_491510` 为 success，1 次请求、27 条成功、0 失败；raw 主键/hash 各 27 个且无空主键，checkpoint 与 batch 一致，失败日志为 0。
+- 阶段 16W 后续边界：仓库板块尚余文档 1035、1449 两项待审；下一轮只做其中一个接口的只读审核和确认门，不批量新增、不运行完整 `--sync-enabled`。
+
+- 阶段 16X 文档 1035 终态决策：尽管它是读取分页接口且 `model` 子字段均为可选，公开响应结构仍含服务商凭证字段；登记 `defer_sensitive_credentials`，禁止业务 raw 备份和真实探测。
+- 阶段 16X 文档 1449 终态决策：它是读取分页接口，但 `rnType` 为必填参数；现有仓库 raw 类型字段的值集合不能证明映射至公开枚举，登记 `defer_no_param_source`，禁止使用示例值或猜测值。
+- 阶段 16X catalog 决策：全量公开文档请求因单条详情无超时阻塞而未完成写出；保留有效的 187 条既有详情，按新审核覆盖离线重分类，得到仓库 `configured=4`、`enabled=2`、`terminal_deferred=2`、`pending_review=0`、`closed=true`。
+- 阶段 16X 运行边界：不新增业务 API 配置，不同步 `api_config`，不请求真实业务 API，不运行完整 `--sync-enabled`；YAML/DB 保持 77/46。
+- 阶段 16X 下一步：固定顺序进入库存板块，只做整板只读预审；先证明候选参数来源、读取性质、分页限流、幂等、日期和敏感边界，再等待确认。
+
+- 阶段 16Y 文档 1022 终态决策：它是非敏感分页读取接口，但公开响应没有稳定 `id` 或日期字段；历史日窗口真实请求返回 400/50099，未获得新官方证据前登记 `defer_runtime_rejected`，禁止重复探测。
+- 阶段 16Y 幂等与日期决策：若未来重评估，只能以 `data_hash` 幂等；当前没有可靠 `data_date` 来源，不能把无日期请求的可访问性误当成每日备份可用性。
+- 阶段 16Y 限流与参数决策：公开文档未给出限流值；日窗口参数已有失败证据，因此本轮业务请求量为 0，运行时间为 0，不使用示例值或猜测值。
+- 阶段 16Y catalog 决策：保留有效的 187 条既有公开详情，按新审核覆盖离线重分类，得到库存 `configured=9`、`enabled=8`、`terminal_deferred=5`、`pending_review=0`、`closed=true`。
+- 阶段 16Y 下一步：固定顺序进入采购板块，只做整板只读预审；先提交唯一候选的最小方案并等待确认。
+- 阶段 16Z 接入决策：文档 86 `POST /purchase/srm/procure/page` 仅有官方嵌套分页协议字段，不需要业务参数来源；配置为默认关闭、最多一页，避免把首次验证扩大为全量备份。
+- 阶段 16Z 分页决策：分页字段可使用点路径 `pageInfo.page` 与 `pageInfo.pagesize`；同步引擎在普通分页和参数来源分页两条路径均使用既有嵌套读写器，避免生成错误的扁平键。
+- 阶段 16Z 幂等和日期决策：公开响应的 `id` 为必填主键，`data_hash` 继续提供内容一致性保障；`updateTime` 作为 `data_date`，无需编造业务日期。
+- 阶段 16Z 成功证据：批次 `sync_20260720_171204_853350` 为 success，1 次请求、100 条成功、0 失败；raw 主键和 hash 均为 100 个，日期均非空，checkpoint 与批次一致，失败日志为 0。
+- 阶段 16Z catalog 决策：不重新抓取公开文档站点，保留 187 条有效详情并离线重分类；采购板块仍有 6 项待审，不能表述为已收口。
+
+- 阶段 16AA 参数来源决策：文档 90 的 `code` 是采购计划单号，不能将采购订单号同名字段视为等价来源；`procure_page.purchasePlanCode` 虽字段存在于 100 条 raw，但全部为空，采购计划列表也没有可用 raw。
+- 阶段 16AA 终态决策：登记 `defer_no_param_source`，禁止猜测参数、使用示例值或发起真实请求；当前没有 raw、checkpoint、API log 或失败日志新增。
+- 阶段 16AA 接口边界：公开接口为非分页读取、未公布限流、响应无敏感字段；若未来出现真实计划单号来源，应重新证明响应对象的 `data_hash` 幂等和空 `data_date` 边界后再提交独立最小方案。
+- 阶段 16AA catalog 决策：保留 187 条有效公开详情并离线重分类；采购板块为 6 个已配置、12 个终态暂缓、5 个待审，尚未收口。
+
+- 阶段 16AB 接入决策：文档 43 无必填业务参数，采用默认关闭的一页小窗口验证，不把首次验证扩大为全量供应商备份。
+- 阶段 16AB 敏感边界：公开字段含联系人、电话、邮箱和地址；设置 `sensitive_response=true`，成功响应仅 raw 备份，失败响应正文与原始错误详情不落库、不输出。
+- 阶段 16AB 幂等和日期决策：供应商 `code` 未在运行前证明唯一，首轮按完整 raw 对象 `data_hash` 幂等；`createdAt` 作为 `data_date`。
+- 阶段 16AB 成功证据：批次 `sync_20260720_182049_479213` 为 success，1 次请求、27 条成功、0 失败；raw hash 为 27 个、日期均非空、checkpoint 与批次一致，失败日志为 0。
+- 阶段 16AB catalog 决策：保留 187 条有效公开详情并离线重分类；采购板块为 7 个已配置、12 个终态暂缓、4 个待审，尚未收口。
+
+- 阶段 16AC 参数来源决策：文档 88 要求采购计划 `id` 或 `code`；采购计划列表没有 raw，采购订单不含计划 ID且计划编号为空，交货单 `fid` 是采购订单 ID，均不构成真实来源。
+- 阶段 16AC 终态决策：登记 `defer_no_param_source`，禁止猜测参数、使用示例值或发起真实请求；当前没有 raw、checkpoint、API log 或失败日志新增。
+- 阶段 16AC 敏感边界：公开响应含人员姓名、账号及采购成本等业务敏感字段；若未来出现真实来源，须以 `data.id` 主键、`updateTime` 日期和 `sensitive_response=true` 重新提交独立最小方案。
+- 阶段 16AC catalog 决策：保留 187 条有效公开详情并离线重分类；采购板块为 7 个已配置、13 个终态暂缓、3 个待审，尚未收口。
+
+- 阶段 16AD 接入决策：文档 91 `POST /purchase/srm/supplierSkuQuote/page` 无业务必填参数，新增 `supplier_sku_quote_page` 并保持默认关闭；首轮只允许一页 100 条，不进入 enabled 主链。
+- 阶段 16AD 幂等和敏感决策：公开响应的 `id` 作为必填主键，`createdAt` 生成 `data_date`；采购员、创建人等人员标识只保存到 raw，失败时按 `sensitive_response=true` 保护请求参数和响应正文。
+- 阶段 16AD 运行结果决策：首次单接口请求写入 100 条完整主键/hash raw，但上游有效总量超过一页容量；分页完整性保护阻止 checkpoint 和成功 API log，批次 `sync_20260729_120154_588297` 保持 failed。该结果不是上游拒绝，禁止登记运行时拒绝终态。
+- 阶段 16AD 后续边界：不得重复运行一页配置或直接扩大分页上限；必须先由用户确认新的受限请求页数和预计运行时间，再重新执行单接口验证。接口保持 configured disabled，不能表述为已验证成功。
+
+- 阶段 16AE 受限扩页决策：用户只确认将文档 91 的首次验证上限提高到 2 页；TDD 与 YAML/DB 配置一致，接口仍保持 configured disabled。
+- 阶段 16AE 运行结果决策：批次 `sync_20260729_121333_642328` 已完成两次成功请求和 200 条主键/hash 完整 raw 写入，但有效总量仍超过两页。分页完整性保护继续阻止 checkpoint 和成功状态，失败不是上游拒绝。
+- 阶段 16AE 后续边界：禁止重跑 1 页或 2 页配置，也禁止自行扩大到未知总量。下一轮必须先由用户确认新的明确页数、请求量和运行时间上限，再只执行此接口。
+
+- 阶段 16AF 决策：普通分页接口可先用 `--probe-api` 读取首页 total 并计算所需页数；该命令不创建数据库连接或写入同步表，不能替代真实同步验收。
+- 阶段 16AF 边界：普通事务和 `commit_per_page` 必须在首页 raw 写入前确认 `max_pages >= required_pages`。文档 91 当前需 98 页，`max_pages=2` 和 `enabled=false` 不变；未获确认前不得同步该接口或运行完整 `--sync-enabled`。
+
+- 阶段 16AG 官方分页决策：文档 91 只规定 `page/pagesize`、单页最大 100 和响应 `data.total`，没有固定总页数上限；不得再把一次预检的 98 页或其他猜测值写成长期业务上限。
+- 阶段 16AG 引擎决策：分页配置省略 `max_pages` 时按每页最新 `total` 自动继续；配置了 `max_pages` 的历史接口保持原容量保护。total 驱动接口缺失或返回非法 `total` 时必须在首页 raw 写入前失败。
+- 阶段 16AG 事务决策：`supplier_sku_quote_page` 使用 `commit_per_page=true`，每页 raw 独立提交；只有完整遍历当次 total 后才写 checkpoint 和成功 API log。中途失败时允许保留已幂等写入的 raw，但不得写成功 checkpoint。
+- 阶段 16AG 运行边界：本轮只修改本地代码、YAML 和测试并执行只读 probe，不运行 `--sync-api-configs`、真实 `--sync-api` 或完整 `--sync-enabled`。DB 配置快照仍保留旧两页上限，下一次写操作必须重新完成锁、事务、会话和进程检查并取得用户确认。
+
+- 阶段 16AH 配置决策：用户确认后把实时 total 驱动配置同步到 DB；`supplier_sku_quote_page` 不设置固定 `max_pages`、使用 `commit_per_page=true`，并继续保持 configured disabled，不进入 enabled 主链。
+- 阶段 16AH 运行结果：批次 `sync_20260729_151815_934165` 按运行时 total 完成 98 页、9,727 条数据的真实同步；batch 和 API log 均为 success，失败计数和失败请求均为 0。
+- 阶段 16AH 幂等与日期证据：raw 行数、不同业务主键数和不同 data hash 数均为 9,727，空主键和空 `data_date` 均为 0；checkpoint 与 batch、请求数、条数和 total 完全一致。
+- 阶段 16AH 后续边界：98 页只是本次 total 对应结果，不写成长期上限。采购板块仍有文档 1080 和 5262 两项待审，下一阶段先按官方文档只读审核其中 1 项并提交最小方案，不批量处理。
+
+- 阶段 16AI 参数决策：文档 1080 必须使用官方定义的字符串数组 `data`，真实值只来自 `procure_page.raw_json.code`；`wrap_in_list=true` 只对显式配置字段生效，未配置时保持旧标量行为。
+- 阶段 16AI 运行决策：候选保持 disabled，只运行当前单接口。批次 `sync_20260730_100043_263810` 的首次官方格式请求返回 HTTP 400 后立即停止，不重试、不猜测其他数组编码，也不把运行拒绝误写成接口成功。
+- 阶段 16AI 终态决策：文档 1080 登记为 `defer_runtime_rejected`；临时 YAML/DB 配置清理，失败 batch、API log 和脱敏失败日志保留，raw 与 checkpoint 均为 0。
+- 阶段 16AI catalog 决策：实时官方目录已从上一快照的 187 个有效详情变为 189 个，本地 catalog 必须保留本次 189 条实时证据；新增的 2 条均归入物流板块，不能继续沿用旧总数。
+- 阶段 16AI 后续边界：采购板块仅剩文档 5262 待审。其官方响应含联系人、邮箱、电话、税号、地址、银行和印章图片等敏感字段，下一阶段只提交敏感终态最小方案并等待确认，不执行真实业务 API，也不提前切换物流板块。
+
+- 阶段 16AJ 敏感边界：文档 5262 虽是无请求体的公开读取接口，但官方响应包含联系方式、税号、地址、银行账户和公章图片链接等高敏感字段，不得因为无需参数就接入通用 raw 备份。
+- 阶段 16AJ 终态决策：文档 5262 登记为 `defer_sensitive_credentials`；不新增业务 YAML/DB 配置，不调用真实业务 API，不为其建立主键、日期或 checkpoint 配置。
+- 阶段 16AJ 板块结论：采购板块为 23 个文档接口、8 个已配置、15 个终态暂缓、0 个待审，`closed=true` 只表示审核终态收口，不表示所有接口都已配置或验证。
+- 阶段 16AJ 后续边界：按既定板块顺序进入物流板块，先对当前 21 个文档接口做整板只读预审，再从 16 个待审项中只选择 1 个候选提交最小方案；不得批量接入或直接探测。
+
+- 阶段 16AK-A 契约决策：文档 3059 的当前官方 `detail` 和 apiMap 均为 GET，且默认每秒 1 次；历史 POST 配置与成功记录不能覆盖当前官方规范，本地配置必须先关闭并纠正。
+- 阶段 16AK-A 分页决策：官方只规定 `pagesize` 最大 100 和返回 `data.total`，没有固定总页数上限；删除猜测的 `max_pages=10`，同步时按每页最新有效 total 自动继续，业务增长无需手工改上限。
+- 阶段 16AK-A 预检证据：唯一一次首页请求返回 total 292，对应当前 3 页；正常完整同步为 3 次业务请求和 2 次页间 1 秒等待，网络及数据库耗时另计。现有每页最多 3 次尝试配置意味着异常情况下最多 9 次请求，实际请求数必须在 API log 中审核。
+- 阶段 16AK-A 写入边界：本轮不把配置同步到 DB，不运行真实单接口同步或完整 enabled；本地 YAML/catalog 的 45 enabled 与 DB 的 46 enabled 暂时存在预期差异，只有用户再次确认后才能进入 16AK-B。
+- 阶段 16AK-A 后续顺序：16AK-B 只处理 `ship_transport_list` 的配置同步和单接口验证；完成 DB/raw/checkpoint/锁事务验收后，才回到物流板块的下一个候选文档 1027。
+
+- 阶段 16AK-B 配置决策：用户确认后先把 doc3059 的 GET、disabled、1 秒限流和实时 total 分页配置同步到 DB；同步后 YAML/DB 为 80/45 且 code/enabled/method/path 差异 0。
+- 阶段 16AK-B 运行结果：只执行 `ship_transport_list`，本次 total 292 对应 3 次请求，批次和 API log 均为 success，292 条成功、0 失败；没有运行完整 enabled。
+- 阶段 16AK-B 幂等决策：本批次 292 条均有不同 `id` 主键和 data hash；raw 总表多出的 1 条是本次上游未返回的历史对象。原始备份范围不执行删除，不把当前快照缺失误当成可删除指令。
+- 阶段 16AK-B 日期与检查点决策：官方响应没有日期字段，`data_date` 保持 null；checkpoint 必须记录本次第 3 页、3 次请求、292 条和 total 292。
+- 阶段 16AK-B 启用边界：接口真实 GET 链路已经验证，但仍保持 `enabled=false`；恢复 daily enabled 必须作为 16AK-C 单独确认，且不通过完整 `--sync-enabled` 重跑其他接口来证明。
+- 阶段 16AK-B 后续顺序：完成是否恢复 enabled 的决策后，才回到物流板块文档 1027；两项不得混在同一阶段。
+
+- 阶段 16AK-C 启用决策：doc3059 已按当前官方 GET 契约完成真实单接口验证，292 条数据、3 次请求、主键/hash 和 checkpoint 均正确，响应无敏感字段，因此恢复 `enabled=true`。
+- 阶段 16AK-C 配置边界：只切换 enabled 状态；GET、实时 total 分页、每页 100、`id` 主键、空 `data_date` 和 1 秒限流保持 16AK-B 已验证配置。
+- 阶段 16AK-C 运行边界：只运行 `--sync-api-configs`，不调用业务 API、不运行单接口或完整 enabled；DB 最新 batch/raw/checkpoint/API log 不得因配置同步变化。
+- 阶段 16AK-C 终态：YAML/DB 为 80/46 且配置差异 0，catalog 为 189/72/46，物流板块 enabled 恢复为 2。
+- 阶段 16AK-C 后续顺序：doc3059 契约修正闭环完成；下一阶段可对物流文档 1027 提交独立最小方案，但必须重新核对实时官方文档和运行时 total，不复用 3059 的分页或限流。
+
+- 阶段 16AL-A 官方契约决策：文档 1027 只要求 `page/pagesize`，单页最大 100，返回 `data.rows/data.total`，默认每秒 2 次；不得增加官方未规定的业务筛选、固定页数或请求上限。
+- 阶段 16AL-A 分页决策：唯一首页预检的 total 为 18162，对应当前 182 页；该数字只是运行时快照，不写成 `max_pages`，后续业务增长由每次同步读取的最新 total 自动覆盖。
+- 阶段 16AL-A 幂等与日期决策：响应 `id` 优先作为主键，但按官方非必填事实配置 `required=false`，缺失时回退完整对象 `data_hash`；`updateTime` 生成 `data_date`。
+- 阶段 16AL-A 敏感边界：发货单响应含账号、人员、金额、单号和备注等业务敏感信息，只允许 `sensitive_response=true` 的 raw 备份，不在日志、测试和交接材料中输出真实字段值。
+- 阶段 16AL-A 写入边界：本轮只新增本地 disabled 配置并执行一次只读 probe，不同步 DB，不产生 batch、API log、raw、checkpoint 或失败日志；YAML 81/46 与 DB 80/46 的唯一差异必须保留到下一次确认。
+- 阶段 16AL-A 事务决策：当前 total 对应 182 页，真实同步前必须显式增加 `commit_per_page=true`，使每页独立短事务；不得把一次 182 页快照固化为上限。
+- 阶段 16AL-A 后续顺序：16AL-B 只同步和验证 `delivery_page`，继续保持 disabled；验证完成后是否进入 daily enabled 必须另行确认，不与下一个物流接口混在同一阶段。
+
+- 阶段 16AL-B 契约复核决策：真实同步前重新读取官方 detail 和 apiMap，方法、路径、分页、单页上限、total 及每秒 2 次限流均未变化；配置不得加入业务筛选或固定总页数。
+- 阶段 16AL-B 事务决策：当前数据量需要 182 页，使用 `commit_per_page=true` 让每页 raw 独立提交；完整遍历运行时 total 后才写成功 API log 和 checkpoint。
+- 阶段 16AL-B 运行结果：唯一批次 `sync_20260730_143314_977605` 按最新 total 18168 完成 182 次请求，18168 条成功、0 失败；预检后的 6 条业务增长被动态分页正常覆盖。
+- 阶段 16AL-B 幂等与日期证据：18168 条 raw 的业务主键和 hash 均唯一，无空 id 或主键映射错误；`updateTime` 与 `data_date` 全部存在且映射一致。
+- 阶段 16AL-B 敏感边界：响应中的账号、人员、金额、业务单号和备注仍只保存于 raw，不进入日志或交接内容；本次 error message 为空且没有失败请求记录。
+- 阶段 16AL-B 启用边界：真实链路已经验证，但接口继续保持 `enabled=false`；当前完整运行约 18.5 分钟、182 次请求，是否加入每日主链必须单独确认。
+- 阶段 16AL-B 后续顺序：16AL-C 若获确认，只切换 enabled 并同步配置，不再次调用业务 API 或运行完整 enabled；完成后才选择物流板块下一个候选。
+
+- 阶段 16AL-C 启用决策：文档 1027 已完成官方契约、182 页、18168 条、幂等、日期、敏感日志和 checkpoint 验收，因此将 `delivery_page` 恢复为 `enabled=true`。
+- 阶段 16AL-C 配置边界：只切换 enabled；POST、实时 total、每页 100、无固定 max_pages、按页短事务、`id`/hash、`updateTime` 和敏感 raw-only 均保持已验证配置。
+- 阶段 16AL-C 运行边界：只执行 `--sync-api-configs`，不调用业务 API、不运行单接口或完整 enabled；不得用重复业务同步证明配置启用。
+- 阶段 16AL-C 证据：YAML/DB 为 81/47 且差异 0；latest batch、18168 条 raw、API log、checkpoint 和失败日志均保持 16AL-B 结果，锁、事务、会话和同步进程为空。
+- 阶段 16AL-C catalog 结果：189 个有效详情、73 个已配置、47 个 enabled；物流板块为 4 个 configured、3 个 enabled、2 个 terminal、15 个 pending。
+- 阶段 16AL-C 候选筛选：文档 256 官方要求分页查询至少带一个条件，禁止因 catalog 业务必填字段为空而直接无条件探测，也禁止在没有官方批量边界时按全部发货单号逐单调用。
+- 阶段 16AM-A 候选决策：下一接口选择文档 1778 `POST /fulfillment/ship/cost/page`；官方名称、opType=page 和公开审核状态证明其为读取接口，所有业务筛选字段均为可选。
+- 阶段 16AM-A 数据策略：分页使用 `page/pagesize`、单页最大 100、列表 `data.rows`、总数 `data.total`、默认每秒 2 次；非必填 `id` 优先主键并回退 hash，`updateAt` 生成 `data_date`，费用与组织字段敏感 raw-only。
+- 阶段 16AM-A 边界：先只增加 disabled 本地配置并执行一次无数据库首页 probe；不设置固定 max_pages，不提前增加 commit_per_page，取得实时 total 后再单独确认真实同步方案。
+
+- 阶段 16AM-A 契约决策：文档 1778 是公开读取分页接口，业务筛选均可选；配置只传 `page/pagesize`，不猜测业务条件，不设置官方未规定的总页数。
+- 阶段 16AM-A 配置决策：`logistics_cost_page` 保持 disabled，使用 `data.rows/data.total`、每页 100、0.5 秒限流、单次尝试、`id`/hash 和 `updateAt`；费用及付款字段敏感 raw-only。
+- 阶段 16AM-A 运行决策：只允许一次无数据库首页 probe；实际执行返回 `ApiRequestError` 且未取得 total 后立即停止，不重试、不改参数、不进入真实同步。
+- 阶段 16AM-A 证据分类：现有 probe 日志没有提供安全 HTTP 状态，不能把包装异常推断为上游 400、500、网络失败或其他具体原因，也不能登记 `defer_runtime_rejected`。
+- 阶段 16AM-A 可观测性决策：下一步只应从 `ApiRequestError.original_error.response.status_code` 提取状态码；禁止输出异常正文、请求参数、响应正文、费用数据或鉴权信息。
+- 阶段 16AM-A 数据库边界：没有运行 `--sync-api-configs`；DB 保持 81/47，目标配置、API log、raw、checkpoint 和失败日志均为 0，latest batch 不变。
+- 阶段 16AM-A catalog 状态：本地配置使 catalog 为 189/74/47，物流板块 configured=5、enabled=3、terminal=2、pending=14；目标继续 configured disabled，等待错误分类。
+- 阶段 16AM-B 边界：用户确认后先 TDD 修正安全日志，再重新完成官方文档和锁事务门禁，最多执行一次复检；成功才提交 total 驱动同步方案，明确 HTTP 拒绝则停止并登记终态，无状态网络错误则继续保持 disabled。
+
+- 阶段 16AM-B 契约纠正：文档 1778 的接口说明明确要求“发货单集合、时间必传一项”；字段级 `must=false` 不等于允许无筛选请求，16AM-A 的相反判断由本决策废止。
+- 阶段 16AM-B 证据优先级：完整接口说明高于从字段 `must` 推导的结论；发现冲突后必须停止调用，不能为了取得状态码重复已知不符合契约的请求。
+- 阶段 16AM-B 日志决策：包装 `ApiRequestError` 只记录 `original_error` 类型和可选 HTTP 状态，异常消息、URL、请求参数与响应正文均不得输出。
+- 阶段 16AM-B 运行决策：因缺少已证明的 `codes` 或时间条件来源，不执行原计划中的第二次 probe；旧异常不再用于判断上游拒绝或网络故障。
+- 阶段 16AM-B 配置决策：`logistics_cost_page` 继续 configured disabled，本地 YAML 82/47、DB 81/47；不执行配置同步或业务同步，catalog 继续计入 pending review。
+- 阶段 16AM-B 下一步：只读证明发货单号或时间条件来源、官方边界、请求量和运行时间后，再提交单独最小方案等待确认。
+
+- 阶段 16AM-C 来源决策：delivery_page.raw_json.code 已由官方文档证明为发货单号，并有 18,168 条真实非空唯一来源，可在语义上对应文档 1778 的 codes。
+- 阶段 16AM-C 边界决策：文档 1778 未规定 codes 数组上限或时间跨度，禁止自行猜测批量大小和历史窗口；用户确认暂缓该接口，保留 configured disabled。
+- 阶段 16AM-C 顺序决策：暂缓文档 1778 后只审核下一个物流候选文档 1028，不并行调用或修改其他业务接口。
+
+- 阶段 16AN-A 契约决策：文档 1028 是非分页读取接口，使用单元素字符串数组 deliveryCodes 和 needItem=true，响应从 data 数组提取，按官方每秒 5 次配置 0.2 秒间隔。
+- 阶段 16AN-A 来源决策：唯一请求参数值来自 delivery_page.raw_json.code，首次 limit=1；禁止使用示例值、硬编码或其他数组编码。
+- 阶段 16AN-A 幂等决策：优先使用响应 deliveryCode，缺失或空值时按完整对象 data_hash；真实样本的 deliveryCode 为空字符串，因此本批次使用 hash 幂等，不猜测替换主键。
+- 阶段 16AN-A 日期与敏感边界：updateTime 生成 data_date；人员、金额、物流跟踪、备注及其他业务字段只保存到 raw，不进入日志、测试或交接内容。
+- 阶段 16AN-A 运行结果：唯一批次 sync_20260731_105320_767996 成功完成 1 次请求、1 条 raw、0 失败；checkpoint 记录单源窗口和下一个偏移。
+- 阶段 16AN-A 启用边界：接口继续 disabled，不在本阶段运行 18,168 个来源的完整同步或加入 daily enabled；如需扩大必须重新提交请求量、运行时间和幂等风险方案。
+- 阶段 16AN-A 运行边界：只调用当前接口一次，不运行 probe、文档 1778、其他业务接口或完整 --sync-enabled；配置同步不会改变 disabled 状态。
+
+- 阶段 16AO-A 契约决策：文档 9 只按官方必填 `page/pagesize=1/100` 发起首页预检；不增加官方未要求的筛选条件或固定总页数。
+- 阶段 16AO-A 数据决策：若接口可运行，优先使用非必填 `id` 并回退 hash，`returnDateTime` 生成日期；订单、退货原因、买家备注和商品字段只作敏感 raw 备份。
+- 阶段 16AO-A 运行决策：唯一一次只读 probe 返回 HTTP 400 后立即停止；不重试、不猜测参数、不输出响应内容，也不执行配置同步或数据库业务同步。
+- 阶段 16AO-A 终态决策：文档 9 登记 `defer_runtime_rejected` 并清理临时业务配置；没有 total，取消 16AO-B 的全量请求量与数据库同步方案。
+- 阶段 16AO-A 证据边界：HTTP 400 只证明当前官方最小请求被上游拒绝，不能推断具体业务原因；取得新官方证据前不重复探测。
+- 阶段 16AO-A 决策分工：本地 TDD、最小配置和回归由执行方自主完成；真实业务 API 调用、数据库写入、完整运行和 daily enabled 仍是交给用户确认的关键节点。
+- 阶段 16AO-B 运行时契约决策：真实错误响应证明业务请求必须包含日期查询条件且跨度不能超过 31 天；使用官方 `returnStartDate/returnEndDate`，不再把只有 `page/pagesize` 的请求作为可运行配置。
+- 阶段 16AO-B 范围决策：用户将验证范围改为最近 7 个完整自然日，即 `2026-08-04` 至 `2026-08-10`；不传可选 `marketIds`，覆盖全部可访问店铺站点，不包含验证当天。
+- 阶段 16AO-B 分页决策：始终使用首页实时 `data.total` 计算 `ceil(total/100)`，不设置固定 `max_pages`；本次 `total=11007`、请求 111 页、累计 11007 条，完整性一致。
+- 阶段 16AO-B 安全决策：独立脚本只输出状态、traceId 和分页汇总，不输出或保存订单行、accessToken、凭证或其他敏感字段，也不连接数据库写入链路。
+- 阶段 16AO-B 状态决策：删除文档 9 的 `defer_runtime_rejected` 覆盖；真实分页验证已解除运行阻断，但接口仍未进入 YAML、DB `api_config`、raw、API log 或 checkpoint，正式接入必须另行执行 disabled 闭环。
