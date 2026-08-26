@@ -8048,3 +8048,13 @@
 - 新增 `tests/test_request_sale_return_order_page.py`，离线证明 `total=250` 时只请求 3 页、累计 250 条，汇总结果不包含 `rows`；完整回归为 175 个 unittest 通过。
 - 本阶段没有新增 YAML 业务配置，没有运行 `--sync-api-configs`、`--sync-api` 或完整 `--sync-enabled`；DB 仍为 83/47，目标配置、API log、raw、checkpoint 和失败日志均为 0。
 - 文档 9 的 `defer_runtime_rejected` 已失效并从审核覆盖表移除；接口回到待正式接入审核，不把独立只读测试表述为已经完成数据库同步接入。
+
+## 2026-08-26 阶段 0 + M1：Web 身份认证可登录闭环
+
+- 保留现有 `app/` 同步链路和 `sql/init_tables.sql`，新增独立 `backend/`、`frontend/` 与 Windows PowerShell 脚手架。
+- Alembic `0001` 只创建 `app_user`、`auth_action_token`、`user_session`；邀请令牌和 Session 只落 SHA-256 哈希，密码使用 Argon2。
+- 完成首个管理员邀请、邀请验证/注册、邮箱密码登录、服务端 HttpOnly Session Cookie、CSRF、退出、登录失败锁定与会话过期；邀请链接使用 URL Fragment，注册页按 Fragment 解析令牌。
+- 完成 Admin/Operator/Viewer 固定角色、管理员成员/邀请管理、最后一名可用管理员保护，以及 SMTP/Console/Fake 邮件适配器。
+- Figma 文件新增 `20 · 邮箱密码登录`、`21 · 邀请注册` 和 `Overlay · 邀请成员`，前端实现复用既有 `10 · 成员与权限` 视觉规范。
+- 后端 11 个 pytest、前端 5 个 Vitest、既有 175 个 unittest、Ruff、mypy、TypeScript、Vite build、compileall、pip check 和 diff check 纳入统一检查。
+- 未执行生产数据库迁移、真实 SMTP、部署或真实业务 API；未实现密码重置、积加账号、同步策略、Worker、Redis、Celery 和第三方登录。

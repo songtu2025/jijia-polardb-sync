@@ -343,3 +343,28 @@ probe 现已安全记录包装内的原始异常类型和 HTTP 状态码；异�
 唯一一次无数据库首页预检在 1.154 秒后返回 HTTP 400，没有取得 `total` 或所需页数。没有重试、猜测筛选条件、改换请求编码或输出响应内容，因此不进入真实同步阶段。
 
 文档 9 已登记为 `defer_runtime_rejected`，临时业务配置已清理。YAML/DB 均保持 83 个配置、47 个 enabled，catalog 为 189/75/47；销售板块为 0 个已配置、2 个终态暂缓、13 个待审。latest batch 仍为 `sync_20260731_105320_767996` success，目标五张表均为 0。
+
+## Web 服务：阶段 0 + M1
+
+Web 管理服务独立位于 `backend/` 和 `frontend/`，不会启动或改写现有同步任务。当前支持受邀注册、邮箱密码登录、服务端 Session Cookie、CSRF、退出、Admin/Operator/Viewer 固定角色、成员管理，以及 SMTP/Console/Fake 邮件适配器。
+
+Windows PowerShell 本地启动：
+
+```powershell
+.\scripts\setup.ps1
+.\.venv\Scripts\python.exe -m alembic -c backend\alembic.ini upgrade head
+.\.venv\Scripts\python.exe -m backend.app.cli bootstrap-admin --email admin@example.com
+.\scripts\dev-api.ps1
+# 另开一个 PowerShell
+.\scripts\dev-web.ps1
+```
+
+本地 `MAIL_PROVIDER=console` 时，邀请地址只输出到 API 进程终端；生产环境必须配置 SMTP、HTTPS、`SESSION_COOKIE_SECURE=true` 和带 `__Host-` 前缀的 Cookie 名。`0001` 只创建 `app_user`、`auth_action_token`、`user_session`，生产迁移必须由部署负责人执行。
+
+完整检查：
+
+```powershell
+.\scripts\check.ps1
+```
+
+本阶段不包含密码重置、积加账号管理、同步策略、Worker、Redis、Celery 或第三方登录。

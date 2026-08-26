@@ -718,3 +718,10 @@
 - 执行前重新只读检查 Git、YAML/catalog、DB、latest batch、named lock、外部事务、数据库会话和本地同步进程；真实数据库写入仍需用户确认。
 - 正式闭环固定为配置测试 -> `--sync-api-configs` -> 仅运行当前 `--sync-api sale_return_order_page` -> 审核 batch、API log、raw、checkpoint、失败日志、锁、事务和进程 -> 再决定是否进入 daily enabled。
 - 不运行完整 `--sync-enabled`，不批量新增接口，不读取或输出凭证、订单明细或真实敏感字段值。
+
+## Web 阶段 0 + M1 交接
+
+- Web 身份认证闭环已实现；本地启动前先配置测试数据库并显式运行 `alembic -c backend\alembic.ini upgrade head`，再用 `python -m backend.app.cli bootstrap-admin --email ...` 创建首个管理员邀请。
+- 生产迁移、真实 SMTP、HTTPS Cookie 和部署尚未验证；这些操作必须由部署负责人按环境配置单独执行。
+- 后续如继续 Web 工作，先从 M1 验收和部署配置开始；不得直接进入积加账号、同步策略、sync_job/Worker、Redis/Celery 或第三方登录。
+- 现有同步业务的下一节点仍是退货订单下一历史窗口，两条工作线不得混合修改或共享迁移所有权。

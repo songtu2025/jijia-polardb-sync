@@ -6,3 +6,10 @@ __pycache__/
 logs/*.log
 logs/cron.log
 logs/token_cache.json
+frontend/node_modules/
+frontend/dist/
+frontend/coverage/
+.coverage
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/

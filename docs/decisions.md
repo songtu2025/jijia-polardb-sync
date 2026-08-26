@@ -3179,3 +3179,10 @@
 - 阶段 16AO-B 分页决策：始终使用首页实时 `data.total` 计算 `ceil(total/100)`，不设置固定 `max_pages`；本次 `total=11007`、请求 111 页、累计 11007 条，完整性一致。
 - 阶段 16AO-B 安全决策：独立脚本只输出状态、traceId 和分页汇总，不输出或保存订单行、accessToken、凭证或其他敏感字段，也不连接数据库写入链路。
 - 阶段 16AO-B 状态决策：删除文档 9 的 `defer_runtime_rejected` 覆盖；真实分页验证已解除运行阻断，但接口仍未进入 YAML、DB `api_config`、raw、API log 或 checkpoint，正式接入必须另行执行 disabled 闭环。
+
+- Web M1 隔离决策：现有同步程序继续由 `app/` 和 `sql/init_tables.sql` 管理；FastAPI/React 与身份域迁移独立放在 `backend/`、`frontend/`，不修改同步入口和业务表。
+- Web M1 认证决策：浏览器只持有 HttpOnly Session Cookie；服务端仅保存 Session 哈希，CSRF 令牌只在响应体和请求头之间传递，不写 localStorage。
+- Web M1 权限决策：只提供 Admin、Operator、Viewer 三个固定角色；成员与邀请接口仅 Admin 可访问，并在服务端禁止降级或停用最后一名可用管理员。
+- Web M1 邮件决策：本地允许 Console/Fake，生产只允许 SMTP；Console 只输出到进程终端，不写业务表或日志文件。
+- Web M1 迁移决策：Alembic `0001` 只拥有三张身份域表，downgrade 只删除这三张表；不接管既有同步表，不自动执行生产迁移。
+- Web M1 范围决策：按用户确认不提前实现密码重置、积加账号、同步策略、sync_job、Worker、多账号历史迁移、Redis、Celery 或第三方登录。

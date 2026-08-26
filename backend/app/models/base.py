@@ -1,0 +1,19 @@
+from datetime import datetime
+
+from sqlalchemy import DateTime, func
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+
+class Base(DeclarativeBase):
+    """Web 服务 SQLAlchemy 模型基类。"""
+
+
+class TimestampMixin:
+    """为身份表提供统一创建和更新时间。"""
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(), nullable=False, server_default=func.now(), onupdate=func.now()
+    )
