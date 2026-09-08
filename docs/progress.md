@@ -8049,6 +8049,30 @@
 - 本阶段没有新增 YAML 业务配置，没有运行 `--sync-api-configs`、`--sync-api` 或完整 `--sync-enabled`；DB 仍为 83/47，目标配置、API log、raw、checkpoint 和失败日志均为 0。
 - 文档 9 的 `defer_runtime_rejected` 已失效并从审核覆盖表移除；接口回到待正式接入审核，不把独立只读测试表述为已经完成数据库同步接入。
 
+## 2026-08-25 阶段 16AO-C：退货订单正式接入与首窗口同步
+
+- 实时官方 detail 再次确认文档 9 为公开、审核通过的 `POST /operation/sale/returnOrder/page` 读取分页接口；必填 `page/pagesize`、单页最大 100、响应为 `data.rows/data.total`、默认每秒 5 次。
+- 运行时已验证业务请求必须提供日期条件且跨度不超过 31 天；正式配置使用 `returnStartDate/returnEndDate`、`default_start=2026-01-01`、31 天窗口和 `lag_days=1`，不传可选 `marketIds`。
+- TDD 将原“未配置”测试改为完整配置契约，先因目标缺失得到 RED；新增唯一 `sale_return_order_page` 后转 GREEN，没有修改同步引擎。
+- 配置保持 `enabled=false`，使用实时 total 分页、不设置 `max_pages`、`commit_per_page=true`、官方 `id` 优先并回退 `data_hash`、`returnDateTime` 生成 `data_date`、敏感字段 raw-only、0.2 秒页间隔和单次重试配置。
+- catalog 实时刷新 189/189 成功，结果为 189 个文档、76 个已配置、47 个 enabled；文档 9 为 `configured_disabled`，销售板块 configured=1、enabled=0、terminal=1、pending=13。
+- 本地完整验证为 175 个 unittest、`compileall app tests`、`pip check`、47 enabled dry-run 和 `git diff --check` 通过。
+- 首页预检窗口 `2026-01-01` 至 `2026-01-31` 返回 HTTP 200、业务码 200、实时 `total=41557`，按每页 100 精确计算 416 页；取得用户确认后才进入数据库写入。
+- 写前再次确认 named lock 空闲、外部 InnoDB 事务 0、活动数据库会话 0、本地同步进程 0；`--sync-api-configs` 成功把 YAML/DB 同步为 84/47，code/enabled/method/path 差异为 0。
+- 仅运行 `--sync-api sale_return_order_page`，批次 `sync_20260825_170357_498282` 为 success：416 次请求、41,557 个处理行、0 失败，运行约 18 分 44 秒；没有运行完整 `--sync-enabled`。
+- 上游 41,557 个返回行按 `id` 幂等后保留 38,198 条唯一 raw；source primary key 缺失 0、唯一主键 38,198、唯一 hash 38,198，`data_date` 缺失 0，日期范围为 `2026-01-01` 至 `2026-01-31`。
+- 针对处理行数与唯一 raw 数的差异，跨第 1、100、200、300 和尾页附近抽样 50 页共 4,957 行：发现 244 个完全重复行，distinct id 与 distinct full-row hash 均为 4,713，同一 id 对应不同 hash 的碰撞数为 0；因此保留 `id` 幂等策略，不把上游重复行重复落库。
+- checkpoint 记录窗口 `2026-01-01..2026-01-31`、`total_count=41557`、`next_window_start=2026-02-01`；本批次失败日志为 0，收尾 named lock 空闲、外部事务 0、活动会话 0。
+- 当前只完成首个历史窗口，接口继续 disabled；没有继续 `2026-02-01` 之后的回填，也没有暂存、提交或推送，既有 `AGENTS.md` 用户修改保持不变。
+
+## 2026-08-26 阶段 16AP-A：接入 Seekway Codex 开发规范
+
+- 核对 `songtu2025/seekway-codex-standards` 主分支，采用 V1.0.0、提交 `18150b5b24bb8af8a8db4b875137c7425fc6c761` 作为本次接入基准。
+- 按上游对现有项目的要求，将通用开发、范围控制、Python、数据库、安全、验证和完成报告规则合并到根目录 `AGENTS.md`，完整保留原有积加同步业务规范。
+- 明确历史项目差异：继续使用现有单体 Python 结构、`sql/init_tables.sql`、ECS 与 cron/systemd timer，不为套用模板新增 FastAPI、React、Alembic、Docker、Ruff 或类型检查依赖。
+- 修正规则内“直接实施”与“先调研确认”的潜在冲突，统一为完成调研并取得必要确认后再实施。
+- 本阶段不修改业务代码、API 配置、数据库、认证、依赖、部署配置或 README，不调用真实积加 API，不连接或写入 PolarDB。
+
 ## 2026-08-26 阶段 0 + M1：Web 身份认证可登录闭环
 
 - 保留现有 `app/` 同步链路和 `sql/init_tables.sql`，新增独立 `backend/`、`frontend/` 与 Windows PowerShell 脚手架。
@@ -8058,3 +8082,232 @@
 - Figma 文件新增 `20 · 邮箱密码登录`、`21 · 邀请注册` 和 `Overlay · 邀请成员`，前端实现复用既有 `10 · 成员与权限` 视觉规范。
 - 后端 11 个 pytest、前端 5 个 Vitest、既有 175 个 unittest、Ruff、mypy、TypeScript、Vite build、compileall、pip check 和 diff check 纳入统一检查。
 - 未执行生产数据库迁移、真实 SMTP、部署或真实业务 API；未实现密码重置、积加账号、同步策略、Worker、Redis、Celery 和第三方登录。
+
+## 2026-08-26 M2：积加账号与接口策略本地代码验收
+
+- 新增积加账号、加密凭证、账号级接口策略、只读接口目录、Alembic `0002` 以及账号列表、接入向导和策略页面；未引入 Worker、`sync_job` 或多账号同步表迁移。
+- M1 跨角色修复已纳入集成：邀请令牌条件更新保证单次消费、邀请邮件失败回滚、Session 恢复时 CSRF 稳定；成员邀请失败时保留弹窗和输入。
+- M2 安全回归补齐缺失/错误 CSRF、Viewer 策略写入拒绝、验证失败脱敏、凭证更新后待重验、停用状态和同一接口的账号级策略隔离。
+- 总负责人串行运行 `scripts/check.ps1` 通过：后端 29 个 pytest、既有同步 177 个 unittest、前端 9 个文件 13 个 Vitest、Ruff、mypy、TypeScript、Vite build、compileall、pip check 和 `git diff --check` 全部通过；后端覆盖率 86%。
+- 应用内浏览器验证成员邀请弹窗焦点与 `Esc` 恢复、账号空列表和接入向导进入/返回均通过，控制台无 `warn/error`。首次账号页错误已证明是旧 M1 演示进程未加载 M2 路由，不是当前代码缺陷。
+- 本阶段只完成本地代码和临时 SQLite 隔离验证；未执行真实 MySQL/PolarDB `0002` 迁移、真实积加 Token 联调、生产 SMTP、部署、提交、推送或合并。
+
+## 2026-08-26 Web M3 MVP：退货历史同步任务闭环
+
+- 按 MVP 原则完成 `sale_return_order_page` 单接口闭环：创建历史任务、固定 31 天窗口、队列领取、单窗口执行、成功后自动衔接下一窗口，并保持“一任务一批次一窗口”。
+- 原始数据采用“完整业务历史 + 内容变化版本”；同一业务主键内容未变化时不新增版本，Viewer 查询在 SQL 层排除 `raw_json`，Admin/Operator 查看原文时写审计日志。
+- 新增多账号隔离的 M3 数据模型、API、单 Worker、运行/失败/原始版本/审计查询，以及 Dashboard、任务、运行、原始数据和审计前端页面；未引入 Redis、Celery 或额外调度基础设施。
+- 修复同步核心 checkpoint 对字典、字符串和字节 JSON 的兼容读取，并统一同步核心 UTC 时间写入；既有同步链路保持原目录与调用方式。
+- 全量 `scripts/check.ps1` 通过：后端 38 个 pytest、同步核心 189 个 unittest、前端 28 个 Vitest，以及 Ruff、mypy、compileall、pip check、ESLint、Vite build 和 `git diff --check`。
+- 应用内浏览器使用临时 SQLite 和虚构账号完成创建任务、任务详情与审计闭环；Worker 未启动，未调用真实积加 API，未执行 MySQL/PolarDB 迁移、部署、提交、推送或合并。
+
+## 2026-08-26 Web M3 Gate 2：可靠性与增量闭环
+
+- 复盘纠正了上一阶段“代码骨架即完整闭环”的表述；本轮补齐定时入队、失联恢复、CLI/Web 互斥、历史完成后的 `updateTime` 增量追赶和前端增量状态。
+- 积加官方文档 9 已确认 `updateTimeBegin/updateTimeEnd` 为 `datetime`，格式为 `yyyy-MM-dd HH:mm:ss`；契约保存到现有生成目录并纳入离线测试，未调用真实业务接口。
+- 历史扫描继续使用官方已验证的最大 31 天窗口，从 `2020-01-01` 连续覆盖；增量目标按策略时区与 `lag_days` 冻结，历史冻结日期不会污染增量任务。
+- 调度器只在创建任务、确认同一槽位已存在或本槽已追平时推进计划；活动任务阻塞时保留 due，终态后补建同一槽且不重复。
+- CLI 与 Web Core 使用同一个 MySQL named lock；锁忙时任务退回队列、5 秒退避且不消耗尝试次数，数据库锁错误不会伪装成锁争用。正常任务允许一次无批次失联恢复。
+- MySQL 连接和在线迁移连接统一设置 UTC Session；`0003` 增加独立只读 preflight，旧数据保持 legacy 账号 `0`，未确认前不自动映射正数账号或补种版本基线。
+- 前端任务与 Dashboard 已区分历史和增量状态，并展示“增量同步已追平”；无认证浏览器只验证登录跳转，未完成三角色保护页真实联调。
+- 本地全量门禁通过；未执行真实 MySQL/PolarDB 迁移、真实积加 API、生产 SMTP、部署、提交、推送或合并。
+
+## 2026-08-26 Web M3 Gate 2：三角色浏览器验收
+
+- 使用临时 SQLite、Fake 邮件和虚构 Admin/Operator/Viewer 账号完成保护页验收；临时登录辅助只存在于仓库外的 QA 启动器，没有写入生产代码。
+- Admin 可访问成员和审计页；Operator 可进入积加账号接入页，直接访问成员页会返回概览；Viewer 不显示管理入口和写入口，访问 `/accounts/new` 会返回账号列表，访问 `/audit` 会返回概览，任务页不显示发起任务按钮。
+- 三个角色页面均正常渲染，前端与 API 临时服务日志无运行错误；没有提交任何账号、凭证、任务或业务数据写操作。
+- 未发现需要修改代码的 P0/P1；浏览器验收后已关闭本次创建的临时页面和 8000/5177 服务。
+- 本轮未改变数据库结构、认证、权限、配置、依赖或部署方式；真实 MySQL/PolarDB、积加 API、SMTP、ECS 仍未验证。
+
+## 2026-08-26 Web M3 Gate 3：隔离副本预检代码门禁
+
+- 三方审计发现升级 SQL 把 `first_observed_at` 设为无默认值的 NOT NULL，而快照写入未传该列；已同时补齐迁移默认值、SQLAlchemy server default 和应用首次观察时间参数，避免 MySQL 严格模式首次新增失败。
+- 新增只读 `migration_preflight` 命令，显式要求确认目标为隔离副本；以单行脱敏 JSON 和 0/2/1 退出码区分通过、阻断和运行错误，不输出数据库 URL、异常正文或业务记录。
+- preflight 现检查旧列类型、NULL、字符长度，旧索引唯一性和列顺序，半迁移目标列/表、UTC Session、同步 named lock、投影身份 NULL/重复及 checkpoint 重复；fake MySQL collector 覆盖全部 7 次只读查询。
+- 删除了会丢失账号归属的破坏性 DDL down 指令；升级失败统一要求使用切换前副本快照/PITR 恢复，应用回滚继续兼容扩展表。
+- 最终 `scripts/check.ps1` 通过：后端 69 个 pytest（87% 覆盖率）、同步核心 195 个 unittest、前端 17 个文件 37 个 Vitest，以及 Ruff、mypy、compileall、pip check、TypeScript、Vite build 和 `git diff --check`；真实 MySQL/PolarDB 副本仍未执行，因此 `PREFLIGHT_PASSED` 和迁移行为尚无真实数据库证据。
+- legacy 数据映射到哪个正数积加账号、以及何时补种 `sale_return_order_page` 首次历史基线仍未确认；本轮未执行迁移、真实 API、部署、提交、推送或合并。
+
+## 2026-08-26 Web M3 Gate 4：迁移执行器与历史链可靠性
+
+- 新增受控 `0003` 迁移执行器：必须显式确认隔离副本与快照就绪，并在同一数据库连接中完成 named lock、持锁预检、20 条固定 DDL、升级后校验和锁释放；结果只输出稳定脱敏状态。
+- 修复旧表 `updated_at ON UPDATE` 在迁移更新中被自动刷新、导致旧时间戳丢失的问题；DDL 显式自赋值保留原时间，并补齐历史表全部字段、索引和 `extra` 属性的升级后校验。
+- 失败重试改为读取当前 checkpoint 后继续下一个连续窗口；历史切增量和回填 T0 都按策略时区换算本地日期，避免 UTC 跨日偏移。
+- `commit_per_page` 模式在每页事务真正提交后持久化实时分页进度；整接口事务不提前报告未提交进度。任务列表和详情页展示阶段、窗口及已完成页数，并提供下一窗口导航。
+- 最终完整 `scripts/check.ps1` 通过：后端 113 个 pytest、同步核心 196 个 unittest、前端 17 个文件 39 个 Vitest，以及 Ruff、mypy、compileall、pip check、TypeScript、Vite build 和 `git diff --check`；终审再运行迁移、预检和契约测试共 66 项，并通过 Ruff、格式检查与 mypy。
+- 仍未连接隔离 MySQL/PolarDB、执行真实迁移、调用真实积加 API、部署、提交、推送或合并；legacy 账号映射和既有快照是否补种历史基线仍待业务确认。
+
+## 2026-08-26 Web M3 Gate 5：本地可观测与数据库契约闭环
+
+- Worker 领取任务时强制 `attempt_count < max_attempts`；达到上限的 queued 任务不会继续领取、创建批次或调用执行器。
+- 任务响应新增同任务、同账号关联的 `syncRunId`，失败任务可直接进入对应运行日志；raw 列表支持当前快照 `sync_batch_no` 过滤并返回 `batchNo`，fake executor 已证明 job、batch、API log、checkpoint 和 raw 可串联回查。
+- CLI 与 named lock 日志只保留固定上下文、HTTP 状态和异常类型，不再写任意异常正文、URL、请求参数、响应或数据库地址；既有锁失败测试同步改为断言敏感正文不出现。
+- Core Table metadata、`init_tables.sql` 和迁移 postflight 对六张同步表执行全量命名索引相等校验；preflight/postflight 使用 `column_type` 拒绝 signed BIGINT，MySQL metadata 明确六表 id 与 observation count 为 `BIGINT UNSIGNED`。
+- 新增 `/health/ready` 数据库探活和脱敏 503；Dashboard 在存在活动任务时自动刷新，任务详情轮询已有测试，运行详情一侧请求失败不会隐藏另一侧排障数据。
+- 数据库首轮交叉审批因索引子集假绿和 unsigned 漏检被拒，修复后复审通过；后端、前端、readiness 和日志脱敏也均由非实施成员审批，无残余 P0/P1。
+- 最终 `scripts/check.ps1` 通过：后端 193 个 pytest（87% 覆盖率）、同步核心 198 个 unittest、前端 17 个文件 45 个 Vitest，以及 Ruff、mypy、compileall、pip check、TypeScript、Vite build 和 `git diff --check`。
+- 未连接真实 MySQL/PolarDB 或积加 API，未执行迁移、SMTP、部署、提交、推送或合并；真实副本演练、legacy 账号映射和首次历史基线仍是外部门禁。
+
+## 2026-08-26 Web M4 Gate 6：ECS 原生部署 MVP
+
+- 新增 ECS 原生 systemd API/单 Worker 与 Nginx 模板：API 只监听回环地址，Worker 使用 `flock` 防重复实例，Nginx 负责 TLS、SPA、API/健康检查代理、静态缓存和登录限流；没有引入 Docker、Redis 或 Celery。
+- Worker 支持 SIGTERM/SIGINT 优雅停止，停止后不领取新任务；失联恢复每轮执行，systemd 最多等待当前任务 3 小时。API/Worker 日志进入 journald，只记录稳定错误码和异常类型。
+- 运行 `.env` 与迁移 `.env.migration` 已分离。发布 preflight 只读检查生产配置、前端产物、API YAML、Alembic head、六张核心表精确结构和运行库可写；API/Worker 直启也执行 YAML 和生产运行目标门禁。
+- 生产 readiness 在数据库不可用或只读时返回脱敏 503；完整 schema 校验只在启动和发布检查执行，健康检查不调用积加 API。生产 `PUBLIC_WEB_URL` 必须为 HTTPS 且具有主机名。
+- 前端任意 API 401 会清理过期会话；初始 Session 的网络或 5xx 错误显示服务不可用并允许重试，不再错误显示为未登录。Nginx 保证 `/api/`、`/health/` 不落入 SPA fallback。
+- 后端、数据库和前端实现均由非实施成员交叉审批；两轮发现的 SMTP TLS/Worker 时序、迁移凭据泄漏、schema 子集假绿、YAML 异常脱敏及启动调用点测试问题已修复，最终无残余 P0/P1。
+- `release_preflight` 缺少显式确认时返回脱敏 `RELEASE_CONFIRMATION_REQUIRED` 和退出码 2，未读取配置或连接数据库。最终 `scripts/check.ps1` 通过：后端 252 个 pytest（89% 覆盖率）、同步核心 205 个 unittest、前端 19 个文件 52 个 Vitest，以及 Ruff、mypy、compileall、pip check、TypeScript、Vite build 和 `git diff --check`。
+- 未执行真实 MySQL/PolarDB 副本检查、`0003`、恢复演练、积加 API、SMTP、ECS/systemd/Nginx 部署、提交、推送或合并；legacy 账号映射和首次历史基线仍需业务确认。
+
+## 2026-08-26 Web M4 Gate 7：隔离浏览器 E2E 与会话并发修复
+
+- 新增显式开关、独立临时目录启动的 fail-closed E2E 应用；只使用内存 SQLite、FakeMail 和合成凭据，不导入 Worker，并以禁网测试证明账号验证不会访问外部积加 API。
+- 合成数据使用两个账号共享同一 `api_code`、业务主键和记录身份，分别保存独立 current/history、hash、批次和 marker；6 项子进程测试证明列表、详情、版本按账号隔离，Viewer 响应中完全不存在 `rawJson`。
+- Vite 开发代理支持 `DEV_PROXY_TARGET`，默认目标仍为 `127.0.0.1:8000`，只用于把隔离浏览器实例定向到独立本地 API 端口，不进入客户端或生产产物。
+- 应用内浏览器完成 Admin/Viewer 登录、会话恢复、账号与策略权限、Fake 邀请、受限路由、退货单当前快照和版本历史验证；Admin 可见合成 JSON，Viewer 只见元数据，控制台无 warn/error。
+- 浏览器并发加载发现 `UserSession` ORM touch 在 MySQL 秒级 DATETIME 下可能抛出 `StaleDataError`。现改为带 `last_seen_at <= now` 条件的原子 UPDATE，既消除 500，也阻止乱序请求让活动时间倒退；相关认证测试 11 项及全新浏览器实例复验通过，请求均为 200。
+- E2E、Vite 代理和会话修复均经非实施成员交叉审批，最终无 P0/P1。完整 `scripts/check.ps1` 通过：隔离 E2E 6 项、后端 254 个 pytest（89% 覆盖率）、同步核心 205 个 unittest、前端 19 个文件 52 个 Vitest，以及 Ruff、mypy、compileall、pip check、TypeScript、Vite build 和 `git diff --check`。
+- 本阶段没有连接真实 MySQL/PolarDB、积加 API 或 SMTP，没有启动 Worker、执行迁移、部署、提交、推送或合并；SQLite/Fake 浏览器证据不能替代隔离副本和 ECS 验收。
+
+## 2026-08-26 Web M4 Gate 8：运行追溯与可信合成链
+
+- 新增 `GET /api/v1/sync-runs/{run_id}`；详情查询关联积加账号并复用运行列表响应契约，已覆盖认证、账号名称和 `SYNC_RUN_NOT_FOUND`。
+- fail-closed E2E 现包含两个账号各自独立的 job、batch、API log、checkpoint、current raw 和 history。毒化日志使用第二账号与第一批次，运行日志仍只返回同账号、同批次的数据。
+- 两个成功历史任务按真实 Worker 水位建模：从 `2020-01-01` 按 31 天窗口扫描，共 79 个窗口；T0 为 `2026-08-26`，Asia/Shanghai 时区、lag 1 天，历史完成到 `2026-08-25`。任务窗口、公开进度、内部水位和 checkpoint 已逐项核对。
+- 前端异步页面使用 generation 标识丢弃旧请求结果，避免快速切换任务或运行后被迟到响应覆盖；Admin 和 Viewer 浏览器验收覆盖任务、运行、日志、当前记录与版本，Viewer 响应不含 `rawJson`。
+- 新增并发回归：旧运行的 failed load-more 请求 reject 时，新运行请求仍保持 pending；generation 同时保护 success、catch 和 finally，旧请求不能写入错误或清除新运行的 loading，该 P2 已闭合。
+- 后端、数据库、前端和浏览器链均完成非实施成员交叉审批；修复期间发现的运行详情缺口、批次语义、合成水位和账号隔离问题已进入回归测试。
+- 全量本地门禁通过：隔离 E2E 6 项、后端 254 个 pytest（89% 覆盖率）、同步核心 205 个 unittest、前端 60 个 Vitest，并通过 Ruff、mypy、compileall、pip check、TypeScript、Vite build 和 `git diff --check`。
+- 本轮仍未连接真实 MySQL/PolarDB、积加 API 或 SMTP，没有启动 Worker、执行 `0003`、部署、提交、推送或合并。
+
+## 2026-08-26 Web M4 Gate 9：发布门禁与并发收口
+
+- 迁移 preflight 现按列、默认值、`auto_increment`、`ON UPDATE` 和索引做精确对称检查；`0003` 的 20 条 DDL 顺序已由测试锁定。
+- `0003 downgrade` 已改为明确拒绝，避免删除 `sync_job` 和 `audit_log` 证据；数据库回滚继续采用迁移前快照或 PITR，应用回滚保持兼容当前 schema。
+- 创建任务时先锁定账号接口策略行，再锁定活动任务查询；同窗口重试保留冻结窗口和内部水位，但分页进度重置为 `0/0`。
+- 旧运行追溯改用 `observed_sync_batch_no` 查询“该批次曾观察过的业务记录”，列表仍返回当前快照；详情版本明确展示各自 `batchNo`。
+- 发布 preflight 不再只检查 `dist/index.html`，还要求真实 `script[type=module]` JS 入口非空，并验证全部本地静态资源存在。
+- 前端已收口任务、运行、审计、概览、原始数据和详情页请求竞态；慢轮询改为请求完成后再等待 3 秒，账号与列表独立结算，StrictMode 会话恢复与重新登录使用认证代次隔离旧 401。
+- 三轮交叉审批均为最终 `APPROVE`，未留 P0/P1/P2；任务弹窗还在提交端校验当前账号可用 API 白名单，避免“新账号 + 旧接口”。
+- 串行 `scripts/check.ps1` 通过：隔离 E2E 6、后端 286（89% 覆盖率）、同步核心 205、前端 89，并通过 Ruff、mypy、compileall、pip check、TypeScript、Vite production build 和 `git diff --check`。
+- 应用内浏览器使用隔离 SQLite/Fake 数据验证任务页、第二账号切换、接口选项、按钮状态、静态资源和控制台；未点击创建任务，控制台无相关 warn/error。
+- 未连接真实 MySQL/PolarDB、积加 API、SMTP 或 ECS，未执行迁移、Worker、部署、提交、推送或合并。
+- 真实隔离副本演练仍需用户确认 legacy `account_id=0` 映射到哪个正数账号，以及既有 `sale_return_order_page` 快照是否补种为首个历史版本。
+
+## 2026-08-26 Web M4 Gate 10：MVP 完成度审计与本地收口
+
+- 数据库、后端发布和前端三条线完成只读完成度审计；本轮只处理审计证明的 1 个 P1 和 3 组 P2，不扩展业务功能或基础设施。
+- Nginx 静态目录与发布 preflight 统一为 `__PROJECT_ROOT__/frontend/dist`，并由正反契约禁止重新引入独立前端目录占位符。
+- `0003` 迁移基线现对五张 legacy 表同时保存和比较 `created_at/updated_at` 的最小、最大时间；空表保持 `None`，任一时间边界漂移都会阻断 postflight。
+- 活动任务轮询改为请求完成后再等待 3 秒，慢请求不重叠；账号已创建但 Token 验证失败时进入账号列表并明确提示，重新验证失败后刷新服务端真实状态。
+- README 和交接说明已修正生产环境变量入口、readiness 的“实例非只读”精确语义、`observed_sync_batch_no`、唯一调度所有者、MySQL DDL 恢复边界和历史交接失效状态。
+- 发布、迁移、前端和说明四条变更均由非实施成员独立复审，最终 `APPROVE`，无 P0/P1/P2。
+- 串行 `scripts/check.ps1` 通过：隔离 E2E 6、后端 288（90% 覆盖率）、同步核心 205、前端 93；Ruff、mypy、compileall、pip check、TypeScript、Vite production build 和 `git diff --check` 全部通过。仅保留现有 Starlette/TestClient 弃用告警与 LF/CRLF 提示。
+- 本轮未连接真实 MySQL/PolarDB、积加 API、SMTP 或 ECS，未执行迁移、Worker、部署、提交、推送或合并；外部验收仍需业务选择和单独授权。
+
+## 2026-08-26 Web M4 Gate 11：数据归属与调度割接设计
+
+- 复核确认 legacy CLI 的 `SyncContext` 默认持续写入 `jijia_account_id=0`；全量映射后若原 cron 不退役或不改造，下一次运行会再次产生账号 0 数据，不能把“映射目标账号”与“调度割接”分开决策。
+- MVP 推荐只迁移 `sale_return_order_page`：其 YAML 继续保持 disabled，真实副本必须证明相关批次全部为单接口批次，再把 batch、log、failed request、raw/history 和 checkpoint 在一个事务内整体归属到指定正数账号；发现混合批次立即阻断。
+- 首次历史基线推荐从迁移前当前快照补种，原样保留 identity、hash、JSON、批次和业务时间，并以 `last_observed_at` 作为 `observed_at`；是否补种仍等用户明确确认。
+- 归属动作推荐使用独立受控命令，不修改固定 20 条结构 DDL、不新增 Alembic 数据迁移；命令必须支持只读 dry-run、同一 named lock、单事务、幂等、postflight、脱敏输出和快照/PITR 恢复边界。
+- `sale_return_order_page` 推荐由 Web scheduler 独占历史追赶与后续增量；其他接口暂时继续由 legacy cron 以账号 0 运行，避免为了一个优先接口一次性迁移 47 个既有任务。
+- 生产发布前还应增加 fail-closed 所有权门禁，阻止实际部署 YAML 把 Web 独占接口设为 enabled；legacy 单接口写入口的割接边界需与归属命令一并实现和测试。
+- 前端无需新增页面；隔离副本后只需同一制品的 release preflight、systemd/Nginx/HTTPS 自动检查，以及 Admin/Operator/Viewer + SMTP 一次生产人工冒烟。
+- 本轮只完成只读设计和纠正实施方案中过期的 `legacy_default`/迁移顺序说明；未修改运行逻辑，未连接外部，未执行迁移、API、Worker、部署、提交、推送或合并。
+
+## 2026-08-26 Web M4 Gate 11：数据归属与调度割接实现
+
+- `sale_return_order_page` 已设为 Web scheduler 独占接口；legacy 的 `--sync-api`、`--test-api`、`--sync-enabled` 和 `--mock-sync` 写入口均 fail-closed，release preflight 也会拒绝实际 YAML 启用冲突。只读 `--probe-api` 和仅同步配置元数据的 `--sync-api-configs` 保持可用。
+- 新增受控历史归属命令与服务：必须显式指定正数账号 ID 或 `account_code`，默认仅 dry-run；执行还必须同时确认写入者已停止和快照已就绪，并使用迁移配置、共享 named lock、单连接和单事务。
+- 归属计划只接受终态、账号 0、单接口、非 mock、无 Web 任务关联的纯批次；允许失败日志和 checkpoint 的空批次引用，非空引用必须可证明归属。发现混合批次、目标唯一键冲突或 mock 标记时以稳定错误码阻断。
+- 执行顺序覆盖既有历史、缺失当前快照基线补种、当前 raw、API/失败日志、checkpoint 和 batch；完全相同基线不重复插入。提交前以精确行数和关联关系 postflight 复核，输出只包含脱敏计数和稳定状态。
+- 独立复审先后发现 legacy `--mock-sync` 漏门禁、历史 mock 批次可误迁移和测试因果性不足，均已修复；最终后端、数据库和前端复审均为 `APPROVE`，无残余 P0/P1/P2。
+- 完整 `scripts/check.ps1` 通过：隔离 E2E 6、后端 326（90% 覆盖率）、同步核心 212、前端 93，并通过 Ruff、格式、mypy、compileall、pip check、TypeScript、Vite build 和 `git diff --check`。仅保留既有 Starlette/TestClient 弃用告警、LF/CRLF 提示和 npm 更新提示。
+- 本轮未连接真实 MySQL/PolarDB、积加 API、SMTP 或 ECS，未执行迁移、数据归属、Worker、部署、提交、推送或合并；目标账号与隔离副本授权仍是外部门禁。
+
+## 2026-08-27 Web M4 Gate 12：停用边界、归属反向引用与发布密钥门禁
+
+- Worker 在成功窗口准备自动衔接前，会按 `policy -> job` 的固定锁序重新验证账号 ACTIVE、策略 enabled、受控目录和官方只读属性；任一业务或目录条件失效时，当前 job/batch 仍正常记为 success，只停止创建后续任务。数据库异常继续传播，不会被业务失效分支吞掉。
+- 新增策略停用、账号停用、目录失效、非法 YAML、YAML 顶层类型错误、生产配置路径自动派生，以及“checkpoint 已推进 -> 停用不衔接 -> 重新启用后从下一窗口恢复”的完整反例；跨日暴露的时间依赖测试已冻结业务时钟，专门的 history 到 incremental 契约保持独立覆盖。
+- legacy 归属计划新增 `sync_job.sync_batch_no` 反向引用检查；候选批次被任意 Web job 引用时以 `LEGACY_BATCH_WEB_JOB_REFERENCE` 阻断，并只公开聚合计数，不泄露账号、批次或业务数据。
+- 新增无第三方依赖的高置信敏感字面量扫描：覆盖全部 Git 候选文件和实际 `frontend/dist` 文本制品；真实 `.env*` 与 symlink 只阻断不读取；支持 UTF-8-SIG 和 BOM UTF-16；白名单绑定文件、规则、行指纹和次数；失败只输出 JSON 格式的规则、文件和行号。
+- 三个工作单均由非实施成员审批。首轮审批拦下目录解析异常破坏成功收尾、生产路径/恢复组合证据不足，以及白名单、编码、symlink、Git 强制跟踪目录和控制字符绕过；修复后最终无 P0/P1/P2。
+- 完整 `scripts/check.ps1` 通过：隔离 E2E 6、后端 336（90% 覆盖率）、同步核心 224、前端 93，并通过 Ruff、格式、mypy、compileall、pip check、TypeScript、Vite build、敏感字面量扫描和 `git diff --check`。仅保留既有 Starlette/TestClient 弃用告警、LF/CRLF 和 npm 更新提示。
+- 本轮未连接真实 MySQL/PolarDB、积加 API、SMTP 或 ECS，未执行迁移、归属写入、Worker、部署、提交、推送或合并；项目总目标继续等待外部门禁，不标记完成。
+
+### Gate 10～12 三轮工作单复盘
+
+- 主要返工来自两类遗漏：按“已知入口”而不是“不变量”枚举写入路径，以及只跑独立测试没有及时覆盖日期滚动、异常格式和对抗性输入。
+- 独立审批实际拦下了 `--mock-sync` 所有权绕过、mock/反向 Web job 数据误归属、目录异常让成功任务滞留、同文件白名单绕过、编码和 symlink 绕过，以及跨日测试假设。
+- 下一轮工作单固定同时列出正常路径、反例、异常格式、并发/锁序、时间边界和脱敏输出；实现者先跑定向测试，负责人随后立即跑相邻组合，最后才跑全量门禁。
+- MVP 边界保持不变：只修复能破坏数据归属、唯一写入者、任务连续性或发布安全证据的问题；没有新增页面、表、迁移、依赖或基础设施。
+
+## 2026-08-27 Web M4 Gate 13：配置真实性与 SMTP 传输安全
+
+- 按完成定义复核后确认两个本地真实缺口：日期窗口策略保存了 `lookback_days/start_date`，但 Worker 并未消费这两种语义；SMTP STARTTLS 未显式使用受验证的系统信任链。按 MVP 不猜测业务语义，当前日期窗口只开放已实现的 `checkpoint`。
+- 后端对 `lookback_days`、`start_date` 以及 `checkpoint` 混带旧字段统一返回 `422/WINDOW_MODE_UNSUPPORTED`，并在任何赋值和提交前完成校验；四类拒绝路径均验证策略前后完全一致。纯 `checkpoint` 继续正常保存，官方目录字段和未知 API 仍不可改写。
+- 前端对支持日期窗口的接口只展示和提交 `checkpoint`；旧策略读取后归一为 `checkpoint`，同时清空旧字段。不支持日期窗口的接口才显示“不适用”并提交 `null`，Viewer 只读边界保持不变。
+- SMTP STARTTLS 现在显式传入 `ssl.create_default_context()`，并以 30 秒具名常量限制连接时间；禁网 Fake 验证 `CERT_REQUIRED`、主机名校验、host/port/timeout 和 `starttls -> login -> send` 顺序，非 TLS 分支不创建 SSL context。
+- 三项首轮交叉审批分别发现混合载荷被静默丢弃、旧前端策略提交必然 422、SMTP 无应用级超时；修复后均由非实施成员复审 `APPROVE`，无 P0/P1/P2。
+- 完整 `scripts/check.ps1` 通过：隔离 E2E 6、后端 343（91% 覆盖率）、同步核心 224、前端 96；Ruff、格式、mypy、compileall、pip check、TypeScript、Vite build、敏感字面量扫描和 `git diff --check` 均通过。仅保留既有 Starlette/TestClient 弃用告警和 LF/CRLF 提示。
+- 本轮没有新增表、迁移、配置、依赖或部署变更；未连接真实 MySQL/PolarDB、积加 API、SMTP 或 ECS，未执行数据写入、迁移、Worker、部署、暂存、提交、推送或合并。真实浏览器链路、SMTP 投递、HTTPS 和副本恢复仍属于外部验收。
+
+## 2026-08-27 Web M4 Gate 14：事务不变量、状态一致性与审计闭环
+
+- `0003` 的六条既有表 UPDATE 现在逐条显式保留 `updated_at`，固定 20 条语句及顺序不变；legacy preflight 对五张迁移表、target/runtime/归属门禁对六张核心表逐表要求 InnoDB，任一 MyISAM 在结构变更或归属 DML 前阻断。
+- 迁移 runner 将第 1 条 `SET SESSION` 与结构 DDL 分离：session setup 失败返回 `MIGRATION_SESSION_SETUP_FAILED` 且无需恢复，从第 2 条首个结构 DDL 起失败才要求快照/PITR 恢复。真实 SQLAlchemy 一次性 `MappingResult` 在采集时立即物化，避免合法 InnoDB 副本被二次消费误阻断。
+- 登录按规范化邮箱使用锁定读串行化失败计数；成员更新先按主键顺序锁定完整 active admin 集合，确保并发降级后仍至少一名可用管理员。邀请重发按邀请 ID 锁定同用户全部邀请，并在持锁期间完成邮件发送，成功后才提交；邮件失败回滚，重复或并发重发最终只有最后送达令牌有效。
+- 策略页按路由账号和请求代次隔离 load/save，切账号立即隐藏旧数据，旧请求的 success/catch/finally 均不能污染新账号；保存失败不再产生未处理拒绝。退出只有服务端成功或明确 401 才清本地会话，网络/5xx 保留用户并允许重试；新建任务提示提供不受列表筛选影响的详情链接。
+- 新增只加入调用方事务、不自行提交的审计助手；补齐登录成功、每个连续失败锁定周期、登出、邀请创建/重发/撤销、成员角色/状态、积加账号创建/更新/验证成功与失败/停用、接口策略更新。任务和 raw 原文访问沿用既有生产者，不重复记录。审计只保存稳定动作、关联 ID、结果及脱敏枚举/布尔，CLI 明确使用空 request ID。
+- 四个工作单均由非实施成员审批。审批实际拦下并发邀请“最后邮件却已失效”、真实 SQLAlchemy 结果集只能消费一次，以及第二个登录锁定周期漏审计；修复后最终无 P0/P1/P2。
+- 完整 `scripts/check.ps1` 通过：隔离 E2E 6、后端 382（92% 覆盖率）、同步核心 224、前端 106；Ruff、格式、mypy、compileall、pip check、TypeScript、Vite build、敏感字面量扫描和 `git diff --check` 均通过。仅保留既有 Starlette/TestClient 弃用告警和 LF/CRLF 提示。
+- 本轮没有新增表、迁移版本、配置、依赖、页面或部署结构；未连接真实 MySQL/PolarDB、积加 API、SMTP 或 ECS，未执行迁移、归属 DML、Worker、部署、暂存、提交、推送或合并。真实副本事务/恢复、邮件投递和 ECS 浏览器链仍属于外部验收。
+
+## 2026-08-27 Web M4 Gate 15：本地完成定义反证审计
+
+- 账号验证先冻结密文凭据和状态、结束读取事务，再调用外部 Token 接口；返回后重新锁定账号行。凭据或状态已被并发修改时返回 `409/ACCOUNT_VERIFY_STALE`，不覆盖新状态、不创建默认策略，也不写成功或失败验证审计。
+- 邀请注册、重发和撤销统一采用“无锁定位用户 ID -> 锁定用户行 -> 按邀请 ID 升序锁定该用户全部邀请”的顺序；注册仍以完整条件 UPDATE 原子消费目标令牌。双向两会话模型证明等待方在用户锁前不持邀请锁，注册与重发、注册与撤销不会形成锁环或同时成功。
+- 成员页的用户与邀请列表独立结算；写操作成功会先更新本地事实，随后刷新失败只提示“操作已成功、列表刷新失败”，不再误报业务写入失败。邀请弹窗使用实例代次隔离旧请求，旧 success/catch/finally 不能关闭、清空、提示、刷新或提前解锁新弹窗。
+- 原始数据详情与版本历史独立加载、独立报错；一侧失败不再隐藏另一侧证据。资源 ID、首屏请求和加载更多均受请求代次保护，Viewer 继续只能查看元数据，当前及历史 `rawJson` 均不可见。
+- 数据库、后端与前端实现均由非实施成员交叉审批。审批实际拦下账号验证覆盖并发凭据、注册与撤销同时成功、注册与重发锁序死锁、写成功被刷新失败误报，以及旧邀请请求污染新弹窗；修复后最终无 P0/P1/P2。
+- 完整 `scripts/check.ps1` 通过：隔离 E2E 6、后端 393（92% 覆盖率）、同步核心 224、前端 114；Ruff、格式、mypy、compileall、pip check、TypeScript、Vite build、敏感字面量扫描和 `git diff --check` 均通过。仅保留既有 Starlette/TestClient 弃用告警和 LF/CRLF 提示。
+- 本轮没有新增表、迁移、配置、依赖、页面或部署结构；未连接真实 MySQL/PolarDB、积加 API、SMTP 或 ECS，未执行迁移、归属 DML、Worker、部署、暂存、提交、推送或合并。项目总目标继续等待外部门禁。
+
+### Gate 13～15 三轮工作单复盘
+
+- 主要返工源于测试替身把真实系统简化得过头：可重复读取的假结果掩盖 SQLAlchemy 一次性结果集，单全局锁掩盖 InnoDB 多行部分持锁，顺序 Promise 掩盖跨实例和“写成功、刷新失败”的组合状态。
+- 独立审批实际拦下 SMTP 传输边界、迁移时间证据与事务引擎假设、账号验证陈旧覆盖、邀请锁序环、旧弹窗请求污染，以及只覆盖 success/catch 却漏掉 finally 的弱测试。
+- 后续工作单固定要求：外部调用与数据库写入之间必须冻结并重查事实；所有两阶段 UI 必须区分业务动作与后续刷新；并发不变量同时提供 MySQL 锁定 SQL 和双会话时序证据；SQLAlchemy 结果替身默认按一次性消费建模；异步代次测试必须覆盖 success、catch、finally 和卸载。
+- MVP 边界保持不变：只修复会破坏数据一致性、权限、安全审计或用户真实反馈的问题；没有引入 outbox、队列、新迁移、新页面或基础设施。
+
+## 2026-09-03 接口配置运行时与接口中心闭环
+
+- `api_config` 已成为 Web、任务、调度器、Worker、查询服务和 legacy CLI 的唯一运行时配置源；YAML 只用于离线校验和受控发布，数据库失败时不回退。
+- 新增配置哈希、版本、官方只读证据、Web 平台开关和发布时间；新任务冻结单接口配置快照，重试、恢复和后续窗口继承原快照。
+- `--validate-api-configs` 负责离线核验，`--publish-api-configs` 持同步锁原子发布，并为所有现有账号补齐默认关闭策略；未核验为只读的接口不能启用 legacy 或 Web 平台开关。
+- Web 新增 `/api-catalog` 接口中心，分别展示已发布接口和官方接口目录，可查看数据提取、主键、日期、存储、敏感性、平台/账号/运行/数据状态，以及受控新增接口步骤。
+- 官方目录生成保留同一路径对应的多个本地 `api_code`，避免销售分析等多维配置在目录中互相覆盖。
+- 完整 `scripts/check.ps1` 通过：隔离 E2E 6、后端 441（91% 覆盖率）、同步核心 231、前端 183，并通过 Ruff、mypy、compileall、pip check、TypeScript、Vite build、敏感字面量扫描和 `git diff --check`。Knip、Vulture 无死代码；jscpd 正常完成，本次新增的默认策略重复已清理。
+- 应用内浏览器连接成功，但客户端阻止访问本机 localhost，未取得截图或真实交互证据。未连接真实 MySQL/PolarDB、积加 API、SMTP 或 ECS，未执行生产迁移、配置发布、部署、提交或推送。
+
+## 2026-09-08 Seekway Codex V1.5.0 规范接入
+
+- 以 `songtu2025/seekway-codex-standards` V1.5.0、提交 `f3bd25e2f134414a8b0348b7c7681aef312b7b0f` 为基准完成差异化接入；根 `AGENTS.md` 保持 100 行以内，并按触发条件索引 `docs/codex/` 细则。
+- 新增工作流、代码质量、后端、前端、验证和同步项目专用规则；明确既有同步表继续由 `sql/init_tables.sql` 与 `sql/migrations/` 管理，Alembic 只管理 Web 身份域及已确认的 Web 增量表。
+- 新增项目化 Web UI 标准和 `seekway-theme.css` 语义主题入口；沿用现有品牌色、React/CSS 组件和 `900px` 导航切换，不改变业务流程或页面结构。
+- 前端补齐 Prettier、ESLint、TypeScript、Vitest、Vite build；项目检查脚本补齐重复代码、Knip、Vulture、敏感字面量与差异检查。新增依赖均为开发依赖，Python 运行依赖未变化。
+- 完整 `scripts/check.ps1` 通过：隔离 E2E 6、后端 466（90% 覆盖率）、同步核心 234、前端 198；Ruff、格式、mypy、compileall、pip check、Prettier、ESLint、TypeScript、Vite build、Knip、Vulture、敏感字面量和 `git diff --check` 均通过。
+- ESLint 保留 14 条既有 Hooks/Fast Refresh 告警且无错误；jscpd 正常完成，现有代码共 68 处克隆、重复行 2.64%，本轮未为清零指标进行无关重构。
+- BrowserAct 合成环境视觉冒烟通过：登录页与概览页在 `1440 × 900` 和 `390 × 844` 均无页面级横向溢出；合成管理员登录、保护页跳转和退出成功。未发现 JavaScript 运行时异常；控制台只有访客会话探测的预期 `401` 和缺少 favicon 的 `404`。
+- 未连接真实 MySQL/PolarDB、积加 API、SMTP 或 ECS，未执行迁移、配置发布、Worker、部署、提交或推送；浏览器会话及本地合成服务均已关闭。
+
+## 2026-09-08 项目定位与阶段口径收口
+
+- 用户确认最终产品只保留积加数据同步管理平台作为生产业务入口；第一阶段 CLI/cron 同步工具降级为历史基础，不再作为长期产品或生产日常调度方式。
+- README、同步专项规范、内部平台架构、完整实施方案、历史交接和下一会话提示已统一为两个宏观阶段；M1～M4、Gate 和接口接入编号明确为阶段内部记录。
+- 最终运行链路统一为 `Web -> account_api_policy -> Web Scheduler -> sync_job -> Worker -> app 同步内核 -> PolarDB`；全部接口割接后停用生产 `--sync-enabled` cron。
+- `app/` 继续作为平台内部同步内核，受控配置校验、连接检查、只读探测、迁移和必要诊断能力可以保留，本轮不删除或修改任何代码。
+- M4 已统一为“发布准备”，不再以“可上线”暗示生产完成；真实数据库迁移、legacy 数据归属、调度割接、SMTP、HTTPS、systemd/Nginx、ECS 和完整周期验证仍是外部门禁。
+- 本轮只修改项目文档，没有连接外部系统、执行数据库写入、迁移、同步、部署、提交或推送。

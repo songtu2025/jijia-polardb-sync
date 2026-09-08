@@ -1,184 +1,58 @@
-# AGENTS.md
+# Codex 项目开发规范
 
-## Project Role
+- 规范来源：`songtu2025/seekway-codex-standards`
+- 规范版本：V1.5.0
+- 上游基准提交：`f3bd25e2f134414a8b0348b7c7681aef312b7b0f`
+- 接入日期：2026-09-08
+- 默认开发环境：Windows PowerShell
+- 代码托管平台：GitHub
+- 生产环境：阿里云 ECS
 
-你是本项目的 Python 后端工程师，负责实现和维护“积加开放平台 -> PolarDB MySQL”的数据同步服务。
+本文件只保留始终生效的核心规则和专项规范索引；“必须”“不得”和“禁止”均为强制要求。
 
-本项目目标是：通过积加开放平台 API 获取当前账号可访问的全部数据，并每天同步一次到阿里云 PolarDB MySQL，用于数据备份、后续查询、分析和二次开发。
+## 1. 优先级与规则加载
 
-## Core Goals
+1. 系统和平台约束、法律合规、数据安全、权限与生产边界不得被项目文档或普通需求覆盖。
+2. 在上述边界内，依次遵守用户明确目标和验收标准、从项目根目录到当前目录的 `AGENTS.md`、任务命中的专项规范、项目现有实现和默认规则；更接近当前目录的规则更具体。
+3. 专项规范是本文件的强制扩展；文件缺失、内容冲突或不适用于本项目时必须说明并确认，不得猜测执行。
+4. 需求、业务规则或影响范围不明确时必须先确认，不得自行编造。
 
-1. 实现一个可运行、可配置、可部署的 Python 数据同步项目。
-2. 支持积加开放平台 API 鉴权、分页、限流、失败重试和日志记录。
-3. 将所有接口返回的原始 JSON 数据写入 PolarDB MySQL。
-4. 保证重复运行时尽量幂等，避免明显重复数据。
-5. 通过配置文件管理 API 列表，方便后续新增接口。
-6. 提供清晰 README，让项目可以部署到阿里云 ECS，并通过 cron 每天运行。
+| 触发条件 | 必须读取 |
+| --- | --- |
+| 了解业务边界、同步链路、架构、启动或部署方式 | `README.md`、`docs/codex/sync-project.md` 及 README 明确引用的文档 |
+| 实施代码、调整结构、配置、依赖、部署或项目文档 | `docs/codex/workflow.md` |
+| 新增、修改、重构或评审任何代码 | `docs/codex/code-quality.md` |
+| 修改 Python、FastAPI、数据库或迁移 | `docs/codex/backend.md` 和 `docs/codex/sync-project.md` |
+| 修改 React 或 TypeScript | `docs/codex/frontend.md` |
+| 修改 Web 界面 | `docs/codex/frontend.md` 和 `docs/web-ui-standard.md` |
+| 制定验证方案、执行检查或输出完成报告 | `docs/codex/verification.md` 和 README 的实际检查命令 |
+| 编写或核对任务验收标准 | 当前任务说明；采用公司任务模板时再读取上游 `templates/task-template.md` |
 
-## Tech Stack
+## 2. 项目事实与架构边界
 
-- Language: Python 3.11+
-- Database: 阿里云 PolarDB MySQL
-- HTTP Client: `requests` 或 `httpx`
-- Database Access: 优先使用 `SQLAlchemy`
-- Config: `.env` + `pydantic-settings` 或 `python-dotenv`
-- API Config: YAML
-- Logging: Python `logging`
-- Runtime: 阿里云 ECS
-- Scheduler: Linux `cron` 或 `systemd timer`
+1. 最终产品是积加数据同步管理平台；第一阶段 CLI/cron 只是历史基础。生产业务最终只通过 Web、Scheduler、数据库任务队列和 Worker 运行，`app/` 仅作为平台内部同步内核及受控运维能力保留。
+2. 保持现有 `app/` 单体同步核心；Web 服务独立放在 `backend/` 和 `frontend/`，不得把同步核心迁入 Web 目录。
+3. Web 服务使用 FastAPI、React、TypeScript 和 Vite；不得借规范升级重构既有同步链路。
+4. `sql/init_tables.sql` 管理既有同步表；Alembic 只管理 Web 身份域和已确认的 Web 增量表，不能接管、删除或重建既有同步表。
+5. 部署使用阿里云 ECS、systemd 和 Nginx，当前不使用 Docker；legacy cron 只允许存在于平台割接过渡期，不属于最终生产架构。
+6. 同步链路使用 `unittest`、`compileall`、`pip check`、dry-run 和差异检查；Web 范围另使用 Ruff、Mypy、pytest、Vitest、TypeScript、ESLint、Prettier 和 Vite build。
+7. 接入真实积加 API 前必须核对官方文档；文档不可访问或字段、分页语义不明确时，只能开发与具体接口无关的框架，不得猜测配置、探测或同步。
 
-## Expected Project Structure
+## 3. 工作、安全与生产边界
 
-```text
-jijia-polardb-sync/
-  app/
-    main.py
-    config.py
-    auth.py
-    api_client.py
-    sync_engine.py
-    db.py
-    logger.py
-    retry.py
-    transformers/
-      __init__.py
-      base.py
-      order_transformer.py
-      product_transformer.py
-      inventory_transformer.py
-  sql/
-    init_tables.sql
-  config/
-    api_config.example.yaml
-  docs/
-    progress.md
-    decisions.md
-    next_prompt.md
-  logs/
-  requirements.txt
-  README.md
-  .env.example
-  AGENTS.md
-```
+1. 修改前必须阅读相关规则、代码和测试，优先用 CodeGraph 检查调用链和可复用能力，并复述需求与验收标准。
+2. 非简单任务必须先说明修改文件、风险、验证、回滚及数据库、认证、权限、配置、依赖和部署影响，获得确认后再实施。
+3. 只修改当前任务所需内容；不得自行增加功能、字段、接口、业务规则、生产依赖或无关重构。
+4. 优先复用现有实现，不得复制业务规则、提前设计未来能力或保留本次修改产生的失效代码。
+5. 不得主动读取、输出、提交或传播真实密码、Token、AccessKey、SecretKey、私钥、生产环境变量、未脱敏业务数据和敏感日志；只允许检查字段名、配置结构和占位示例。
+6. 不得擅自执行生产 API 写入、数据库写入、完整同步、迁移、部署、提交、推送或合并；生产变更由有权限的负责人执行。
+7. 数据库变更必须说明表、字段、索引、数据范围、升级与回滚；不得擅自删除数据或使用浮点数存储、计算金额。
 
-## Implementation Rules
+## 4. 代码质量与完成
 
-1. 不要只输出方案，优先直接创建或修改项目文件。
-2. 不要把真实 API 凭证、数据库密码、accessToken 写死在代码、README 或示例配置里。
-3. 所有敏感信息必须通过 `.env` 或环境变量读取。
-4. 可以创建 `.env.example`，但只能放占位符。
-5. 接入任何真实积加 API 前，必须先查看并核对积加官方接口文档，确认请求方式、请求路径、参数类型、分页规则、官方上限、`total` 语义、限流要求、响应结构、读写性质和敏感字段；配置和代码必须以官方规范为依据，禁止凭经验猜测、使用文档示例值代替真实规则，或擅自增加官方未规定的限制。
-6. 如果积加官方接口文档暂时无法访问，或文档未明确接口字段、参数语义和分页行为，只能继续开发与具体接口无关的通用框架；在取得官方依据或用户确认前，不得把该接口作为真实配置接入，不得进行真实探测或同步。
-7. 所有 API 原始返回必须保留到 `raw_api_data.raw_json`。
-8. 对订单、商品、库存等结构化表可以预留 transformer，但第一版以原始 JSON 备份为主。
-9. 数据写入必须考虑幂等：
-   - 优先使用接口返回的业务主键。
-   - 如果没有稳定主键，使用 `data_hash` 去重。
-10. 失败请求必须可追踪，写入 `failed_request_log`。
-11. 每次同步必须生成批次记录，写入 `sync_batch`。
-12. 每个接口的执行结果必须写入 `sync_api_log`。
-13. 每个接口的同步进度应写入 `sync_checkpoint`。
-14. 代码要模块化，不要把所有逻辑堆在 `main.py`。
-15. 保持实现简单可靠，避免过度设计。
-
-## Code Comment Rules
-
-写代码备注时遵循以下底层逻辑：
-
-1. 备注优先解释“为什么这样做”，其次解释“这段代码负责什么”，不要逐行翻译 Python 语法。
-2. 主要类、主要函数和复杂私有方法应写中文 docstring，说明职责、输入输出、使用场景和关键边界。
-3. 行内注释只放在关键业务决策点，例如认证、分页、限流、重试、幂等写入、批次日志、checkpoint、失败请求记录、敏感信息不落库等位置。
-4. 注释必须尊重真实代码行为，不要写代码没有实现的能力，不要把未来计划写成当前事实。
-5. 对未知的积加接口字段，不要用注释编造确定含义；可以说明“待真实文档确认”。
-6. 涉及安全边界时必须写清楚，例如 accessToken、数据库密码、API 凭证不能写入日志、README、示例配置或业务表。
-7. 注释要帮助后续维护者快速理解同步链路：配置读取 -> token 获取 -> API 请求 -> 分页 -> 原始 JSON 入库 -> 日志与 checkpoint。
-8. 保持注释和代码同级维护。修改逻辑时同步更新相关注释，避免注释比代码更旧。
-9. 不为了显得详细而堆砌废话。能从函数名和变量名直接看懂的内容，不需要重复解释。
-10. SQL 和 YAML 可以写少量中文注释，重点说明表用途、幂等约束、分页配置和示例字段边界，不要写成长篇文档。
-
-## Database Requirements
-
-`sql/init_tables.sql` 必须包含以下表：
-
-- `api_config`
-- `sync_batch`
-- `sync_api_log`
-- `raw_api_data`
-- `sync_checkpoint`
-- `failed_request_log`
-
-要求：
-
-1. `raw_api_data.raw_json` 使用 MySQL `JSON` 类型。
-2. `raw_api_data` 至少包含：
-   - `api_code`
-   - `source_primary_key`
-   - `data_hash`
-   - `raw_json`
-   - `data_date`
-   - `sync_batch_no`
-   - `created_at`
-   - `updated_at`
-3. `api_code + source_primary_key` 建唯一索引。
-4. `api_code + data_hash` 建索引或唯一索引，用于无稳定主键时去重。
-5. 所有表都应包含 `created_at` 和 `updated_at`。
-6. 表结构要适合长期同步和排查问题。
-
-## Sync Behavior
-
-同步任务流程：
-
-1. 启动程序。
-2. 读取 `.env` 和 API 配置。
-3. 获取或刷新积加开放平台 `accessToken`。
-4. 创建一条 `sync_batch`。
-5. 加载启用的 API 配置。
-6. 遍历 API 配置并执行同步。
-7. 根据接口配置生成请求参数。
-8. 支持分页请求。
-9. 遵守接口限流配置。
-10. 将原始 JSON 写入 `raw_api_data`。
-11. 写入接口同步日志 `sync_api_log`。
-12. 成功后更新 `sync_checkpoint`。
-13. 失败时重试。
-14. 重试仍失败时写入 `failed_request_log`。
-15. 全部接口执行完成后更新 `sync_batch` 状态。
-
-## README Requirements
-
-`README.md` 必须包含：
-
-1. 项目用途
-2. 目录结构
-3. 环境变量说明
-4. PolarDB 初始化方式
-5. API 配置文件说明
-6. 本地运行方式
-7. ECS 部署方式
-8. cron 每天定时运行示例
-9. 如何新增一个积加 API
-10. 如何查看同步日志
-11. 常见问题
-12. 安全注意事项
-
-## Testing and Verification
-
-完成代码后，尽量执行以下检查：
-
-1. `python -m compileall app`
-2. 检查 `requirements.txt` 是否完整。
-3. 检查 `.env.example` 是否不包含真实密钥。
-4. 检查 `README.md` 是否能指导部署。
-5. 检查 SQL 是否能在 MySQL 8 / PolarDB MySQL 兼容环境下执行。
-
-如果无法连接真实积加 API 或 PolarDB，请说明原因，并提供 mock / dry-run 的方式验证主流程。
-
-## Delivery Standard
-
-每完成一个阶段，请说明：
-
-1. 创建或修改了哪些文件。
-2. 如何验证本阶段结果。
-3. 哪些内容还没有做。
-4. 下一阶段建议。
-5. 更新 `docs/progress.md`、`docs/decisions.md` 和 `docs/next_prompt.md`。
+1. 遵循 KISS、PEP 8、高内聚和低耦合；Python 名称使用清晰英文，普通注释和 docstring 使用中文。
+2. 公共函数和复杂业务逻辑提供类型注解；禁止裸 `except`、吞异常、拼音命名、无意义缩写和用忽略规则掩盖问题。
+3. 完成后必须删除本次产生的重复、失效和未使用代码，并执行项目已有的重复与死代码检查。
+4. 必须按 `docs/codex/verification.md` 和 README 执行相关检查，如实报告通过、失败、未配置、不适用和未自动验证项。
+5. 未连接真实积加 API 或 PolarDB 时，只能报告离线、mock 或 dry-run 结果，不得把理论可行或 SQLite/Fake 验证写成生产验证。
+6. 只有满足验收标准、未超范围、必要检查通过且未降低代码健康度时才可标记完成。

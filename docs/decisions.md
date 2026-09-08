@@ -3180,9 +3180,147 @@
 - 阶段 16AO-B 安全决策：独立脚本只输出状态、traceId 和分页汇总，不输出或保存订单行、accessToken、凭证或其他敏感字段，也不连接数据库写入链路。
 - 阶段 16AO-B 状态决策：删除文档 9 的 `defer_runtime_rejected` 覆盖；真实分页验证已解除运行阻断，但接口仍未进入 YAML、DB `api_config`、raw、API log 或 checkpoint，正式接入必须另行执行 disabled 闭环。
 
+- 阶段 16AO-C 接入决策：文档 9 只新增一个 `sale_return_order_page` 配置并保持 disabled；使用官方 `data.rows/data.total`、每页 100、默认每秒 5 次，不设置固定 `max_pages`。
+- 阶段 16AO-C 窗口决策：历史起点由用户确认为 `2026-01-01`；按已验证的上游边界使用 31 天 `returnStartDate/returnEndDate` 窗口和 `lag_days=1`，checkpoint 每次只推进一个窗口。
+- 阶段 16AO-C 事务与敏感边界：长分页使用 `commit_per_page=true`；订单编号、退货原因、买家备注和商品信息只保存完整 raw，不输出字段值，不加入结构化业务表。
+- 阶段 16AO-C 幂等决策：官方响应提供 `id`，配置为非必填主键并在缺失时回退 `data_hash`；首窗口 41,557 个处理行落为 38,198 个唯一 id/hash，跨段 50 页抽样证明减少部分是内容完全相同的上游重复行，同一 id 对应不同 hash 的碰撞为 0，因此不改成猜测性组合主键。
+- 阶段 16AO-C 运行决策：取得首页 `total=41557` 和用户数据库写入确认后，先同步 84 条配置，再只运行当前接口；批次 `sync_20260825_170357_498282` 成功完成 416 次请求，失败日志为 0，未运行完整 `--sync-enabled`。
+- 阶段 16AO-C 启用决策：首窗口成功不等于历史回填完成或 daily enabled；接口继续 disabled，checkpoint 从 `2026-02-01` 起等待下一次单接口确认。
+
+- 阶段 16AP-A 规范来源决策：根目录 `AGENTS.md` 以 Seekway Codex 开发规范 V1.0.0、提交 `18150b5b24bb8af8a8db4b875137c7425fc6c761` 为通用基线，并继续保留本项目更具体的积加同步规则。
+- 阶段 16AP-A 现有项目决策：按上游“现有项目”策略进行规则合并，不复制模板重写 README，不重构一级目录，不改变已验证的业务和部署方式。
+- 阶段 16AP-A 工具链决策：FastAPI、前端、Alembic、Docker、Ruff 和独立类型检查当前不属于本项目已验证基线；后续如需引入，必须单独说明影响并取得确认。
+- 阶段 16AP-A 安全决策：程序可以从 `.env` 加载凭据，但 Codex 不得打开、输出或传播真实值；真实 API、数据库写入、完整同步、迁移、部署、提交和推送继续受明确授权边界约束。
+
+- Web M4 Gate 11 调度决策：`sale_return_order_page` 由 Web scheduler 独占；所有 legacy 业务写入口必须 fail-closed，`--probe-api` 和仅写配置元数据的 `--sync-api-configs` 不属于业务数据写入，继续允许。
+- Web M4 Gate 11 归属决策：账号 0 历史归属使用独立受控 DML 命令，不并入 `0003` 或 Alembic；默认 dry-run，apply 必须显式指定目标、确认写入者停止和快照/PITR 就绪，并持有共享 named lock。
+- Web M4 Gate 11 引用决策：`failed_request_log.sync_batch_no` 和 `sync_checkpoint.last_sync_batch_no` 允许为空；只有非空引用才必须存在并属于同一纯批次，避免把合法空状态误判为损坏。
+- Web M4 Gate 11 mock 决策：历史 `mock_sync` 批次由精确固定 message 标记识别并以 `LEGACY_MOCK_BATCH_DETECTED` 阻断，不能迁移成真实业务数据，也不读取 raw 内容猜测真假。
+- Web M4 Gate 11 账号决策：历史归属只要求目标账号存在且 ID 为正数；账号是否 active 是后续 scheduler 可运行条件，两项职责分离，避免因临时停用阻止历史修复。
+- Web M4 Gate 11 性能决策：不对数百万条无关账号 0 raw 做全表快照对比；通过固定 API/账号/ID 谓词、混合批次 preflight、精确 DML 行数和事务内 postflight 证明修改范围。
+- Web M4 Gate 11 外部门禁：真实执行仍需用户给出目标账号、停止所有相关写入者、准备可恢复快照/PITR，并单独授权隔离副本操作；任一混合、mock 或目标冲突都必须停止，不能手工跳过。
+
+- Web M4 Gate 12 链式任务决策：当前窗口是否成功只由本次执行和 batch 关联决定；后续窗口属于新的写入意图，创建前必须重新满足账号 ACTIVE、策略 enabled、受控目录和官方只读条件。
+- Web M4 Gate 12 锁序决策：自动衔接与 create/retry 统一使用 `policy -> job` 锁序；目录/业务格式失效只停止衔接，数据库异常必须传播，禁止以宽泛异常捕获伪装成功。
+- Web M4 Gate 12 恢复决策：停用不取消当前窗口，也不创建后续任务；重新启用后由标准任务入口读取已提交 checkpoint，从下一连续窗口恢复，不另增暂停状态机。
+- Web M4 Gate 12 归属决策：候选 legacy 批次只要被任何 `sync_job.sync_batch_no` 反向引用就不可归属；数据库没有双向外键时必须由 preflight 显式证明无引用。
+- Web M4 Gate 12 密钥门禁决策：扫描器只用标准库，扫描所有可提交 Git 文件和实际前端发布文本制品；真实 `.env*` 与 symlink 不读取，白名单精确绑定行指纹与次数，输出不回显命中正文。
+- Web M4 Gate 12 测试决策：依赖自然日、时区或 lag 的测试必须固定业务时钟和队列时间；不同语义分别测试，不能靠运行当天偶然通过。
+
+- Web M4 Gate 13 配置真实性决策：配置项只能代表运行时已经实现并验证的行为；当前日期窗口仅支持 `checkpoint`，`lookback_days/start_date` 及其与 `checkpoint` 的混合载荷必须明确拒绝，不能返回成功后静默丢弃。
+- Web M4 Gate 13 兼容读取决策：数据库列和前端类型暂时保留旧窗口值以兼容已有数据，但 UI 统一归一为 `checkpoint` 并清空旧字段；不新增迁移，也不猜测旧值对应的抓取语义。
+- Web M4 Gate 13 SMTP 决策：生产 STARTTLS 必须使用 `ssl.create_default_context()` 验证证书和主机名，并设置有限连接超时；不为单一常量增加新配置或依赖。
+- Web M4 Gate 13 发布决策：当前大量未提交实现不属于本轮可自行处理的代码缺陷；形成可复现提交、PR 或发布制品必须取得用户明确授权，未授权前不得暂存、提交、推送或合并。
+
+- Web M4 Gate 14 时间证据决策：`0003` 对带 `ON UPDATE CURRENT_TIMESTAMP` 的既有表执行范围更新时，必须逐条使用 `updated_at=updated_at`；postflight 的历史时间边界不能被迁移动作自身改写。
+- Web M4 Gate 14 事务引擎决策：所有迁移和归属原子性承诺都以逐表 InnoDB 证据为前提；legacy 五表和目标六表任一引擎漂移必须在结构变更或业务 DML 前 fail-closed，不能只验证列和索引。
+- Web M4 Gate 14 恢复决策：连接级 `SET SESSION` 不属于结构 DDL；只有首个实际结构语句开始后失败才声明必须快照/PITR 恢复，避免把无结构变化的连接失败误报为灾难恢复事件。
+- Web M4 Gate 14 并发认证决策：登录失败计数、active admin 最小数量和邀请令牌轮换都是数据库串行化不变量，必须使用确定锁序的锁定读；内存计数和先检查后更新不能证明并发安全。
+- Web M4 Gate 14 邀请决策：低频邀请重发在持有用户/邀请行锁期间发送有界 SMTP，成功后提交，以保证最后送达邮件对应最终有效令牌；当前不为该低频路径引入 outbox、队列或新迁移。
+- Web M4 Gate 14 前端状态决策：路由资源和异步结果必须以资源 ID 与请求代次双重绑定；退出失败不能以清空本地状态伪装服务端会话已撤销，只有成功或明确 401 才完成退出。
+- Web M4 Gate 14 审计决策：安全审计是业务事务的一部分，生产者只 `add`、由原业务提交统一落库；提交失败或业务拒绝不能留下成功审计，已提交的账号验证失败必须留下 failure 审计。变化内容只允许脱敏枚举、布尔和空值。
+- Web M4 Gate 15 账号验证裁决：外部 Token 调用前冻结账号密文凭据和状态并结束读事务，调用期间不持数据库锁；调用后重新锁行核对。凭据或状态变化时以 `ACCOUNT_VERIFY_STALE` fail-closed，不写策略、状态或验证审计。
+- Web M4 Gate 15 邀请锁序裁决：注册、重发和撤销统一锁定用户行后，再按主键升序锁定该用户全部邀请；无锁定位只用于找到锁域，锁后必须重新确认目标。注册仍以条件 UPDATE 和 `rowcount == 1` 证明令牌只消费一次。
+- Web M4 Gate 15 前端写入裁决：业务写入成功与后续列表刷新是两个事实；前者成功后不得因后者失败改写成操作失败。弹窗和写请求必须绑定实例代次，旧 success/catch/finally 与卸载后的结果都不能影响当前实例。
+- Web M4 Gate 15 读取裁决：可并行且能独立呈现的成员数据、邀请数据、原始详情和版本历史必须独立结算；一个请求失败不能抹掉另一个请求已经取得的排障证据。
+- Web M4 Gate 15 完成裁决：本地反证审计已闭合所有可由当前代码与离线测试证明的 P0/P1/P2；后续不以新增本地功能替代真实 MySQL/PolarDB、SMTP、HTTPS、systemd/Nginx 和 ECS 证据。
+
 - Web M1 隔离决策：现有同步程序继续由 `app/` 和 `sql/init_tables.sql` 管理；FastAPI/React 与身份域迁移独立放在 `backend/`、`frontend/`，不修改同步入口和业务表。
 - Web M1 认证决策：浏览器只持有 HttpOnly Session Cookie；服务端仅保存 Session 哈希，CSRF 令牌只在响应体和请求头之间传递，不写 localStorage。
 - Web M1 权限决策：只提供 Admin、Operator、Viewer 三个固定角色；成员与邀请接口仅 Admin 可访问，并在服务端禁止降级或停用最后一名可用管理员。
 - Web M1 邮件决策：本地允许 Console/Fake，生产只允许 SMTP；Console 只输出到进程终端，不写业务表或日志文件。
 - Web M1 迁移决策：Alembic `0001` 只拥有三张身份域表，downgrade 只删除这三张表；不接管既有同步表，不自动执行生产迁移。
 - Web M1 范围决策：按用户确认不提前实现密码重置、积加账号、同步策略、sync_job、Worker、多账号历史迁移、Redis、Celery 或第三方登录。
+
+- Web M2 里程碑决策：`jijia_account` 和 `account_api_policy` 由 Alembic `0002` 管理；现有同步表继续由 `sql/init_tables.sql` 管理，M2 不改同步核心或既有同步表。
+- Web M2 凭证决策：appId/appKey 只以密文保存，API 和页面只返回脱敏 appId；验证只请求 Token 且禁用文件 Token cache，不启动业务同步。
+- Web M2 策略决策：官方接口路径、方法、分页和限流继续由 YAML/官方目录控制；用户只可按账号修改启停、计划、时区和受支持的日期窗口，验证成功后默认策略全部关闭。
+- Web M2 权限决策：Admin/Operator 可维护账号和策略，Viewer 只读；所有写操作继续要求有效 CSRF，并以账号外键与 `(jijia_account_id, api_code)` 唯一键隔离策略。
+- Web M2 审计归属裁决：`audit_log` 仍按实施计划归属 M3，不提前塞入 `0002`；M3 实现账号/策略写审计后才满足上线审计要求，M2 本地代码验收不据此阻断。
+- Web M2 调度边界：Cron 最小 15 分钟只是 M2 自动调度前的临时安全限制；在 M3 Worker 启用前必须由用户确认或调整，不能把临时值当成业务最终规则。
+- Web M3 数据边界：多账号同步前必须给 `raw_api_data`、`sync_checkpoint`、批次和日志增加 `jijia_account_id` 并重建账号级唯一键；在完成迁移演练前不得让多个积加账号写入现有同步表。
+
+- Web M3 MVP 架构决策：先使用数据库队列和单 Worker 完成可靠闭环，不引入 Redis、Celery 和自动调度；并发扩展必须以真实运行证据为前提。
+- Web M3 历史任务决策：`sale_return_order_page` 从 `2020-01-01` 起按 31 天窗口回填；一次任务只执行一个窗口，成功后自动创建连续下一窗口，冻结任务创建时的历史结束日期。
+- Web M3 版本决策：保留完整业务历史和内容变化版本，以账号、接口、业务主键和内容哈希判断变化；完全相同的重复抓取不新增版本。
+- Web M3 接口决策：写接口返回 `202 {jobId}`，列表统一返回 `{items,nextCursor}`，游标由时间和 id 组成；Dashboard 只提供 MVP 运行指标。
+- Web M3 权限决策：Admin/Operator 可创建和重试任务，Viewer 只读且查询投影不包含 `raw_json`；原文访问仅 Admin/Operator，访问行为必须审计。
+- Web M3 上线门禁：真实多账号同步前必须先在 MySQL/PolarDB 副本演练 `0003`，核对数据库会话 UTC、旧快照基线归属和账号级唯一键；未经确认不得执行生产迁移或真实历史回填。
+- Web M3 Gate 2 扫描决策：完整历史不能用二分法跳过区间，因为稀疏数据无法证明被跳过区间为空；使用上游已验证的最大 31 天闭区间连续扫描，比逐日扫描请求更少，同时不牺牲完整性。
+- Web M3 Gate 2 增量决策：历史回填完成后从 T0 使用官方 `updateTimeBegin/updateTimeEnd` 追赶变化；目标日只按账号策略时区和 `lag_days` 计算一次，并冻结到任务上下文。
+- Web M3 Gate 2 调度决策：保持数据库队列和单 Worker，不引入 Redis/Celery；活动任务不消费计划槽，已追平视为成功空操作并推进下次计划，避免热循环。
+- Web M3 Gate 2 互斥决策：CLI 与 Web 共用 `jijia_polardb_sync_task` named lock；返回 0 才表示锁忙，`NULL` 或非法结果按数据库错误终止，不能无限重新排队。
+- Web M3 Gate 2 恢复决策：普通任务默认最多尝试 2 次，代表首次执行加一次“未创建批次”的失联恢复；一旦已创建批次，不自动重跑以避免重复外部执行。
+- Web M3 Gate 2 发布裁决：M3 代码 MVP 可进入副本验收，但真实发布仍未批准；`0003` preflight、legacy 数据账号映射、真实 MySQL UTC、升级与快照/PITR 恢复必须先在隔离副本证明。
+- Web M3 Gate 2 浏览器裁决：三角色保护页已在隔离 SQLite/Fake 环境通过，不再作为本地代码闸门；临时免输密码登录入口仅用于仓库外 QA，不能进入应用代码或部署环境。
+- Web M3 Gate 2 下一步裁决：继续坚持 MVP，只处理唯一剩余发布门禁——隔离 MySQL/PolarDB 副本的 `0003` preflight、升级、快照/PITR 恢复及 legacy 数据归属；在取得环境和授权前不扩展接口、不引入 Redis/Celery、不启动真实 Worker。
+- Web M3 Gate 3 回滚裁决：MySQL DDL 禁止执行会删除 `jijia_account_id`、`sync_job_id` 或 `checkpoint_kind` 的破坏性 down；应用回滚继续兼容扩展表，数据库失败使用切换前快照/PITR 恢复。
+- Web M3 Gate 3 preflight 裁决：`PREFLIGHT_PASSED` 仅表示获准的隔离副本静态检查通过；实际升级仍须停 worker/cron、同一迁移会话持有 `jijia_polardb_sync_task` 并持锁重跑关键检查。
+- Web M3 Gate 4 迁移裁决：只允许通过受控执行器升级 `0003`；隔离副本和快照就绪必须双确认，同一连接必须验证 named lock 所有权，任一 DDL、后检或释放锁失败都不得报告成功。
+- Web M3 Gate 4 数据裁决：迁移旧快照时必须用 `updated_at = updated_at` 抑制 MySQL 自动更新时间，保留原 `last_observed_at`；升级后必须核对旧表数量/时间边界、空历史表以及历史表完整字段、索引和自动属性。
+- Web M3 Gate 4 重试裁决：失败任务重试以当前 checkpoint 为事实来源；checkpoint 已推进时从下一连续窗口恢复，未推进时保持原窗口，不重复已完成区间。
+- Web M3 Gate 4 进度裁决：只有 `commit_per_page` 的页事务成功提交后才更新任务分页进度；整接口事务在最终提交前不得对外展示虚假已完成页。
+- Web M3 Gate 4 范围裁决：继续保持单 Worker、数据库队列和现有同步核心，不引入 Redis/Celery；真实副本迁移、legacy 正数账号映射和首次版本基线仍需单独授权或确认。
+- Web M3 Gate 5 领取裁决：数据库队列只领取 `attempt_count < max_attempts` 的任务；耗尽任务不得自动执行，正常失败仍通过显式重试创建新任务。
+- Web M3 Gate 5 追溯裁决：任务通过同账号、同 job 的 `syncRunId` 进入运行详情；raw 的 `batchNo` 只表示当前快照最后批次，旧批次的事实来源是 `raw_api_data_history.sync_batch_no`，禁止把快照过滤表述为完整历史查询。
+- Web M3 Gate 5 日志裁决：生产日志可保留固定动作、业务状态、HTTP 状态和异常类型，但不得记录任意异常正文；即使旧测试依赖异常消息，也应修改测试而不是恢复潜在敏感信息。
+- Web M3 Gate 5 数据库裁决：本地 metadata、初始化 SQL 和迁移后检查必须对六张同步表全量命名索引相等；迁移前后必须通过 `column_type` 区分 signed 与 unsigned BIGINT，子集测试不得作为结构一致证据。
+- Web M3 Gate 5 readiness 裁决：liveness 只证明进程存活，readiness 必须真实执行数据库 `SELECT 1`；失败统一返回脱敏 503，不检查外部积加 API，避免健康检查产生业务调用。
+- Web M4 部署基线裁决：旧实施方案中的 Docker/Compose 条目已被现行项目规范废止；后续只按阿里云 ECS 原生 systemd/cron、Nginx 和现有 Python/前端构建方式推进，改变部署方式必须重新取得用户批准。
+- Web M4 MVP 裁决：FastAPI 仅监听回环地址且固定单进程；Worker 固定单实例并叠加 `flock`，继续使用 MySQL 队列，不引入 Redis、Celery 或容器运行时。
+- Web M4 凭据裁决：API/Worker 只读取最小权限运行 `.env`；迁移账号只存在 `.env.migration`，不得进入 systemd `EnvironmentFile`，生产缺少任一 `MIGRATION_DB_*` 时拒绝 fallback。
+- Web M4 启动裁决：API 和 Worker 直启时都必须先解析完整 API YAML；生产还必须校验 Alembic `0003`、六张核心表精确结构和运行库可写，失败只输出稳定错误码且不得开始服务或领取任务。
+- Web M4 健康裁决：生产 readiness 仅检查数据库连接及 `@@GLOBAL.read_only`，不重复扫描 schema、不调用积加 API；完整结构检查只放在启动和发布 preflight。
+- Web M4 退出裁决：Worker 收到 SIGTERM/SIGINT 后不领取新任务，等待当前任务完成；systemd 最多等待 3 小时后强制终止，失联任务由后续循环按既有规则恢复。
+- Web M4 前端裁决：Nginx 先匹配 `/api/` 和 `/health/` 再执行 SPA fallback；哈希静态资源长期缓存，HTML 不缓存；任意 API 401 都清理前端会话，初始会话的 5xx/网络错误不得伪装成未登录。
+- Web M4 Gate 7 隔离裁决：浏览器 E2E 必须由显式开关和至少 12 位合成密码启用，并从不含 `.env` 的新进程、临时目录启动；只允许内存 SQLite、FakeMail 和本地合成数据，不导入 Worker、不调用真实积加 API。
+- Web M4 Gate 7 数据裁决：账号隔离测试必须让两个账号共享同一接口、业务主键和记录身份，才能捕获漏写账号条件；Viewer 的 current/history 响应必须完全省略 `rawJson`，不能仅返回 `null`。
+- Web M4 Gate 7 前端裁决：`DEV_PROXY_TARGET` 只覆盖 Vite 开发代理且默认仍为 `127.0.0.1:8000`，不得写入客户端配置或生产产物。
+- Web M4 Gate 7 会话裁决：认证请求更新活动时间使用按会话主键且 `last_seen_at <= now` 的原子 UPDATE；Core UPDATE 避免同秒 0 行触发 ORM `StaleDataError`，时间条件保证乱序提交也只能向前推进。
+- Web M4 Gate 7 范围裁决：本地 E2E 只证明 UI、API、RBAC、会话和合成 raw/history 闭环；真实 MySQL 行为、迁移、Worker、积加 API、SMTP、HTTPS Cookie、Nginx/systemd 和 ECS 仍属于外部门禁。
+- Web M4 Gate 8 批次语义裁决：`raw_api_data.sync_batch_no` 和查询响应 `batchNo` 表示当前记录最后观察批次，不是记录形成批次，也不代表该批次的全部历史；完整形成与变化事实继续以 `raw_api_data_history` 为准。
+- Web M4 Gate 8 合成任务裁决：成功的 history job 必须符合真实 Worker 水位，包括连续 31 天窗口、完成数、冻结截止、T0、策略时区、lag 和 checkpoint；不能用空 progress 或与业务日期混淆的冻结日替代。
+- Web M4 Gate 8 读链裁决：任务、运行详情、日志、checkpoint 和 raw/history 的本地合成链继续属于 MVP 验证；不为浏览器验收启动 Worker，也不连接真实积加 API 或数据库。
+- Web M4 Gate 8 前端竞态裁决：generation 必须同时保护 success、catch 和 finally；测试必须让旧运行的 failed load-more 请求 reject 与新运行请求 pending 并发，确认旧请求既不能写入错误，也不能结束新请求的 loading。
+- Web M4 Gate 9 迁移裁决：`0003 downgrade` 不再提供破坏性逆向 DDL；失败恢复只允许迁移前快照/PITR，应用版本回滚必须兼容已扩展 schema。
+- Web M4 Gate 9 结构裁决：迁移前后都按完整列、默认值、自动属性和索引做精确匹配；额外列、额外索引和默认值漂移同样阻断，不能只验证所需结构是子集。
+- Web M4 Gate 9 并发裁决：创建任务以账号接口策略行作为串行化锁，并锁定活动任务查询；前端所有可重叠请求采用最新代次写入，轮询不得在上一次请求未完成时继续叠加。
+- Web M4 Gate 9 重试裁决：同窗口重试复用冻结边界和内部 checkpoint 水位，但 UI 分页进度必须从 `0/0` 重新开始，不能展示上一失败尝试的当前页。
+- Web M4 Gate 9 批次查询裁决：`sync_batch_no` 继续筛当前快照最后观察批次；`observed_sync_batch_no` 筛选指定批次曾观察的记录并返回其当前快照，完整版本仍以 history 表为准。
+- Web M4 Gate 9 发布裁决：前端发布产物必须包含非空 module JS 入口且所有本地资源真实存在；仅有 `index.html` 不得通过发布 preflight。
+- Web M4 Gate 9 认证裁决：会话恢复、登录、注册和退出都会推进认证代次；旧代次的延迟 401 不得清除新会话，当前代次的 401 仍须失效登录态。
+- Web M4 Gate 10 完成度裁决：继续按 MVP 只修审计证明的发布、迁移证据和前端恢复缺口；没有运行证据支撑的功能、组件和抽象不进入本轮。
+- Web M4 Gate 10 发布路径裁决：Nginx 与发布 preflight 必须从同一 `PROJECT_ROOT/frontend/dist` 提供并校验前端产物；禁止独立前端目录占位符产生双重事实来源。
+- Web M4 Gate 10 迁移证据裁决：`0003` 升级前后除行数和 ID 摘要外，必须精确比较五张 legacy 表的 `created_at/updated_at` 最小、最大时间；任一漂移都要求恢复，不输出具体时间或业务值。
+- Web M4 Gate 10 轮询裁决：活动任务使用单链延迟轮询，只有上一请求完成后才等待下一次 3 秒；切任务、卸载或进入终态立即停止，禁止请求叠加。
+- Web M4 Gate 10 账号恢复裁决：创建账号与 Token 验证是两个已提交阶段；创建成功后验证失败不得伪装成创建失败，必须引导到既有账号恢复，重新验证失败后刷新服务端状态。
+- Web M4 Gate 10 健康语义裁决：只读 readiness 查询只能证明数据库可连接且实例未全局只读，不能声称运行用户 DML 权限已验证；DML 权限属于隔离副本/ECS 外部门禁。
+- Web M4 Gate 10 调度归属裁决：同一积加账号和 API 只能由 legacy cron 或 Web Worker scheduler 中一个负责；named lock 只提供互斥，不提供漏跑补偿或调度所有权。
+- Web M4 Gate 11 事实裁决：legacy CLI 当前默认写入账号 0；在没有同步修改或退役 cron 前，不允许把全部 legacy 行归属到正数账号后恢复原 cron，否则数据会再次分裂。
+- Web M4 Gate 11 MVP 推荐：优先接口只迁移 `sale_return_order_page` 的完整关联链，并在真实副本严格证明每个相关批次都是单接口批次；混合批次不得拆分、复制或重写审计事实。该推荐等待用户确认后才实施。
+- Web M4 Gate 11 数据命令裁决：账号归属和历史基线是业务 DML，不进入 Alembic 或固定结构 `0003`；确认后使用独立受控命令完成 dry-run、持锁、单事务、幂等和 postflight。
+- Web M4 Gate 11 基线推荐：补种 current 快照时保留原 identity、hash、JSON、批次和时间，`observed_at` 使用 `last_observed_at`；完全相同内容由账号级版本唯一键继续去重。该推荐等待用户确认。
+- Web M4 Gate 11 调度推荐：`sale_return_order_page` 由 Web scheduler 独占且实际部署 YAML 必须保持 disabled；其他既有接口暂由 legacy cron 负责。发布门禁和 legacy 单接口写入口必须 fail-closed，不能只靠人工约定。
+- Web M4 Gate 11 前端裁决：现有角色、账号策略、任务、运行、raw/history、审计和成员页面已覆盖 MVP；隔离副本后剩余的是 ECS/SMTP/HTTPS/systemd 真实证据，不新增运维页面或其他 UI。
+- 接口配置运行时裁决：数据库 `api_config` 是唯一运行时事实源；YAML 和官方目录生成物只参与开发、审核和发布，任何运行模块都不得静默回退 YAML。
+- 接口开关裁决：`enabled` 保留 legacy `--sync-enabled`/cron 语义；`platform_enabled` 负责 Web 全局准入；账号策略负责单账号准入，三者不得混为一个状态。
+- 接口安全裁决：只有能按官方目录路径匹配且核验为只读的配置，才能设置 legacy 或平台启用；网页不提供底层路径、分页和安全分类编辑能力。
+- 配置一致性裁决：发布使用规范化 JSON 哈希和递增版本；新任务保存单接口快照，配置更新只影响新任务，恢复、重试和自动衔接继续使用原任务快照。
+- 接口目录裁决：官方路径与本地配置是一对多关系，目录必须返回全部映射编码；接口中心分别呈现官方存在、系统配置、平台允许、账号启用和已有数据，不再用单一 enabled 冒充闭环。
+- 数据库边界裁决：同步核心 `api_config` 由 `sql/init_tables.sql` 和 `sql/migrations/0004_api_config_runtime.sql` 管理；Alembic `0007` 只管理 Web `sync_job` 快照字段，不接管既有同步表。
+
+## 2026-09-08 最终项目定位决策
+
+- 项目只有两个宏观阶段：第一阶段“积加 API 同步工具”是历史基础，第二阶段“积加数据同步管理平台”是当前且唯一目标；M1～M4、Gate 和接口接入编号均为阶段内部记录。
+- 最终生产业务只允许通过 Web、Scheduler、数据库任务队列和 Worker 发起同步；`--sync-enabled` 与 legacy cron 在全部接口割接后退出生产日常运行。
+- 第一阶段 `app/` 不作为独立产品继续发展，只作为平台内部同步内核复用；配置校验、连接检查、只读探测、迁移和必要诊断命令可以作为受控运维能力保留。
+- 当前混合调度仅是迁移状态。同一积加账号和 API 在任何时刻只能有一个调度所有者，全部割接完成后 Web Scheduler 是唯一生产定时任务来源。
+- M4 统一表述为“发布准备”；只有真实 MySQL/PolarDB 迁移、数据归属、SMTP、HTTPS、systemd/Nginx、ECS 和完整调度周期验证通过后，才能声明平台生产完成。
+
+## Seekway Codex V1.5.0 规范接入决策
+
+- 采用差异化合并，不覆盖项目已有业务规则；上游通用规则放入 `docs/codex/`，积加同步契约集中在 `docs/codex/sync-project.md`。
+- 既有同步表继续由 `sql/init_tables.sql` 和 `sql/migrations/` 管理；Alembic 只覆盖 Web 身份域及已确认的 Web 增量表，避免两个迁移体系争夺同一结构。
+- Web 主题沿用当前绿色品牌和现有 CSS 组件，通过语义 token 与旧变量别名渐进接入；现有 `900px` 顶部导航规则优先于上游模板的通用侧栏断点。
+- ESLint 使用 React Hooks 的稳定基础规则，并把 `exhaustive-deps` 和 Fast Refresh 设为告警；现有异步请求逻辑不因规范接入被批量改写，新增代码不得增加错误。
+- Prettier、ESLint、Knip、jscpd 和 Vulture 都作为开发与门禁工具；不新增生产依赖，不改变数据库、认证、权限、部署方式或同步运行时。

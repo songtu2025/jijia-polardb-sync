@@ -1,6 +1,32 @@
 # jijia-polardb-sync
 
-这是“积加开放平台 -> 阿里云 PolarDB MySQL”的 Python 数据同步项目。当前阶段已支持 dry-run、mock 落库验证、accessToken 获取，以及多个已验证接口的同步。
+这是公司内部使用的积加数据同步管理平台。平台通过 Web 管理积加账号、接口策略、定时任务、运行记录和数据查询，并由 Scheduler、数据库任务队列和单 Worker 将积加开放平台数据同步到 PolarDB MySQL。
+
+## 项目定位与阶段
+
+项目按两个宏观阶段演进：
+
+1. **积加 API 同步工具（历史基础）**：最初通过 CLI 和 cron 调用积加 API，形成了鉴权、分页、限流、重试、原始数据落库、日志和 checkpoint 等同步能力。该阶段不再是最终产品和生产日常入口。
+2. **积加数据同步管理平台（当前且唯一目标）**：在第一阶段同步能力之上增加多账号、数据库接口目录、账号级策略、Web Scheduler、任务队列、Worker、权限、审计和运行追踪。生产同步最终只允许通过平台发起。
+
+第一阶段的 `app/` 继续作为平台内部同步内核，并暂时保留受控的配置校验、连接检查、只读探测、迁移和故障诊断命令；`--sync-enabled` 与 legacy cron 必须在平台完成割接后退出生产日常运行。第二阶段内部仍使用 M1～M4 描述“可登录、可配置、可同步、发布准备”，它们不是新的宏观产品阶段。
+
+当前状态是第二阶段本地 MVP 已形成，但尚未完成真实 MySQL/PolarDB 迁移、legacy 数据归属、生产调度割接、SMTP 和 ECS 验收，因此不能表述为已生产上线。
+
+## 规范基线
+
+- 公司规范：[SEEKWAY Codex 开发规范 V1.5.0](https://github.com/songtu2025/seekway-codex-standards/)
+- 上游基准提交：`f3bd25e2f134414a8b0348b7c7681aef312b7b0f`
+- 接入日期：2026-09-08
+- 项目专项规则：`docs/codex/sync-project.md`
+- Web 界面规范：`docs/web-ui-standard.md`
+- 运行时主题入口：`frontend/src/styles/seekway-theme.css`
+
+本项目是既有项目，按差异合并方式接入规范。保留 `app/` 同步核心和独立的
+`backend/`、`frontend/` Web 服务；既有同步表继续由 `sql/init_tables.sql` 和
+`sql/migrations/` 管理，Alembic 只管理 Web 身份域及已确认的 Web 增量表；部署继续使用
+阿里云 ECS、systemd 和 Nginx，不引入 Docker；cron 仅用于尚未完成的平台割接过渡期，不属于最终生产架构。完整规则按根目录 `AGENTS.md` 的
+触发条件读取，项目事实优先于公司新项目默认模板，安全、权限和生产边界不得放宽。
 
 ## 目录结构
 
@@ -47,7 +73,19 @@ jijia-polardb-sync/
 | `DB_NAME` | 数据库名 |
 | `DB_USER` | 数据库用户 |
 | `DB_PASSWORD` | 数据库密码 |
-| `API_CONFIG_PATH` | API YAML 配置路径 |
+| `API_CONFIG_PATH` | API YAML 发布输入路径，运行时不直接读取 |
+| `API_CATALOG_PATH` | 由官方文档生成的接口目录路径 |
+| `PUBLIC_WEB_URL` | Web 服务对外 HTTPS 地址，用于生成邀请链接 |
+| `SESSION_COOKIE_NAME`、`SESSION_COOKIE_SECURE` | Session Cookie 名称与 HTTPS 安全开关；生产必须启用 Secure |
+| `SESSION_ABSOLUTE_HOURS`、`SESSION_IDLE_MINUTES` | Session 绝对有效期与空闲有效期 |
+| `INVITATION_TTL_HOURS`、`PASSWORD_MIN_LENGTH`、`LOGIN_MAX_FAILURES`、`LOGIN_LOCK_MINUTES` | 邀请、密码和登录锁定策略 |
+| `MAIL_PROVIDER`、`SMTP_*` | 邮件适配器与生产 SMTP 参数；生产不能使用 console/fake |
+| `CREDENTIAL_ENCRYPTION_KEY` | 积加账号凭证加密密钥，必须独立生成、保管和轮换 |
+| `WORKER_POLL_SECONDS`、`WORKER_HEARTBEAT_SECONDS`、`WORKER_STALE_MINUTES` | Worker 轮询、心跳与失联判定参数 |
+
+`.env.example` 是主要运行变量的示例清单。legacy CLI、Web API 和 Worker 共用最小权限
+运行 `.env`；受控迁移只读取独立的 `.env.migration`，不能把迁移高权限凭据配置给
+API、Worker 或日常 cron。
 
 ## PolarDB 初始化
 
@@ -68,16 +106,36 @@ mysql -h <POLARDB_HOST> -P 3306 -u <DB_USER> -p <DB_NAME> < sql/init_tables.sql
 
 其中 `raw_api_data.raw_json` 使用 MySQL `JSON` 类型，用来保存原始 API 返回。
 
+已有数据库升级时，由部署负责人先执行
+`sql/migrations/0004_api_config_runtime.sql`，再执行
+`python -m alembic -c backend/alembic.ini upgrade head`。前者只扩展同步核心的
+`api_config`，后者只增加 Web 任务的配置快照字段；应用不会自动执行生产迁移。
+
 ## API 配置
 
-示例文件在 `config/api_config.example.yaml`。该文件当前同时包含少量占位示例和已按积加开放平台文档验证过的真实接口配置；新增或调整接口时仍需以真实文档和单接口验证结果为准。
+`api_config` 数据库表是 Web、调度器、Worker 和 legacy CLI 的唯一运行时接口配置源。
+`config/api_config.example.yaml` 只用于开发、评审和受控发布；
+`config/jijia_api_catalog.generated.json` 保存官方文档证据。运行时不会在数据库读取失败时回退到 YAML。
+
+登录 Web 后打开 `/api-catalog` 的“接口中心”，可以查看：
+
+- “已接入接口”：接口路径、版本、可获取的数据、分页/主键/日期规则、平台与账号启用状态、最近运行和原始数据量。
+- “官方接口目录”：官方文档中的接口，以及哪些接口尚未接入、哪些路径对应多个本地业务配置。
+
+接口的三个开关职责不同：YAML `enabled` 决定是否进入 legacy `--sync-enabled`；
+`platform_enabled` 是 Web 平台全局开关；`account_api_policy.enabled` 决定某个积加账号是否启用。
+Web 任务只有在官方只读已核验、平台允许、账号启用且账号有效时才能创建。
 
 新增 API 的基本步骤：
 
-1. 在 YAML 的 `apis` 下新增一项。
-2. 设置唯一的 `api_code`。
-3. 填写真实 `path`、分页字段、主键字段和日期字段。
-4. 如果接口没有稳定业务主键，将由后续同步逻辑使用 `data_hash` 去重。
+1. 实时核对积加官方接口详情，确认请求方法、路径、参数、分页、限流、响应结构、读写性质和敏感字段；刷新官方目录生成物。
+2. 在 YAML 的 `apis` 下新增唯一 `api_code`，先设置 `enabled: false` 和 `platform_enabled: false`，再填写真实请求、分页、主键、日期和存储规则。
+3. 运行 `python -m app.main --validate-api-configs`，只读校验 YAML 与官方只读证据。
+4. 由有权限人员运行 `python -m app.main --publish-api-configs`，原子发布到 `api_config`；已有账号会补一条默认关闭的策略。
+5. 用 `python -m app.main --test-api <API_CODE>` 做受控单接口验证，并核对 `sync_api_log`、`raw_api_data`、`sync_checkpoint` 和 `failed_request_log`。
+6. 验证通过后再按调度归属修改 `enabled` 或 `platform_enabled`、重新发布；Web 模式还需在账号同步配置页显式启用。
+
+如果接口没有稳定业务主键，同步逻辑使用 `data_hash` 去重。任何写入类或未核验为只读的接口，即使手工设置平台开关，也会在发布阶段被拒绝。
 
 对需要滚动日期窗口的接口，`params` 支持少量日期占位符：`{{ today }}`、`{{ yesterday }}` 和 `{{ days_ago:7 }}`。程序会在发起请求前展开为 `YYYY-MM-DD`。
 
@@ -101,7 +159,7 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-执行第一阶段 dry-run：
+执行无副作用 dry-run：
 
 ```bash
 python -m app.main
@@ -147,7 +205,7 @@ python -m app.main --sync-api amazon_shop_page
 
 依赖上游参数的接口也先用 `--sync-api` 做小样本验证。例如 `product_detail` 会从已入库的 `product_page` 原始数据中取少量产品 ID 请求详情；`market_inventory_query` 会从已入库的 `product_inventory_page.raw_json` 提取 `sku` 和 `warehouseId` 请求站点库存分布；`procure_detail` 会从已入库的 `lot_no_page.raw_json` 提取少量 `poCode` 请求采购订单详情。参数来源也支持单层数组展开，例如 `raw_json.marketListVos[].marketId`；当公开文档要求数组入参而单次只传一个来源值时，可以在字段配置中设置 `wrap_in_list: true`。这类接口在证明缺失扫描或日增量边界前默认保持 `enabled: false`，不进入每天的 enabled 批量同步。文档 1177 的店铺名称查询使用该数组形态真实请求后仍返回 HTTP 400，已登记为 `defer_runtime_rejected`，在有新官方证据前不重复探测。
 
-同步 YAML 中已启用的真实业务 API：
+同步数据库中已发布且 `enabled=true` 的真实业务 API：
 
 分页接口在扩大首次同步范围前，可先执行只读预检：
 
@@ -155,7 +213,7 @@ python -m app.main --sync-api amazon_shop_page
 python -m app.main --probe-api supplier_sku_quote_page
 ```
 
-`--probe-api` 只请求首页并输出总数、页大小、所需页数和实际请求次数；不创建数据库引擎，不写入同步表。
+`--probe-api` 从数据库读取已发布配置，只请求首页并输出总数、页大小、所需页数和实际请求次数；不写入同步表。
 
 官方 `detail` 明确返回有效 `total` 且没有规定总页数上限时，可以省略 `page.max_pages`；同步引擎会在每页响应后按最新 `total` 继续分页，因此后续业务增长不需要人工修改页数。已有 `max_pages` 的接口继续保留原容量保护；省略上限的接口若缺失有效 `total`，会在首页 raw 写入前失败。
 
@@ -163,9 +221,16 @@ python -m app.main --probe-api supplier_sku_quote_page
 python -m app.main --sync-enabled
 ```
 
-`--sync-enabled` 会读取 `config/api_config.example.yaml` 中 `enabled: true` 的接口，并在同一个 `sync_batch` 下逐个写入 `sync_api_log`。批次头会先提交，每个 API 使用独立事务提交 raw、log 和 checkpoint，最后再提交批次汇总状态，便于长任务运行时查看已完成接口。当前启用了 `amazon_shop_page`、`org_manage_query`、`role_list`、`dictionary_query`、`rate_page`、`continent_country_tree`、`ship_transport_list`、`country_tree`、`category_page`、`brand_page`、`product_page`、`amazon_msku_page`、`parent_product_page`、`kb_product_page`、`fba_warehouse_page`、`store_location_page`、`multi_shop_query`、`platform_msku_page`、`crm_tags_page`、`inventory_team_query`、`fba_inventory_page`、`fba_inventory_v2_page`、`inventory_adjustments_page`、`product_inventory_page`、`storage_inbound_page`、`transfer_page`、`lot_no_page`、`procure_detail`、`storage_return_page`、`strategy_template_page`、`traffic_analysis_page`、`traffic_page`、`traffic_sku_page`、`shipment_data_page`、`storage_ledger_page`、`storage_ledger_detail_page`、`storage_ledger_month_page`、`inventory_receipts_page`、`purchase_sale_storage_fba_page`、`purchase_plan_page`、`product_detail`、`country_province_query`、`transfer_detail`、`lot_no_detail` 和 `base_currency_query`。
+`--sync-enabled` 是第一阶段遗留批量入口，仅用于平台割接前的受控过渡和回归验证，不得作为最终生产调度方式。它会读取 `api_config` 中已发布且 `enabled=true` 的接口，并在同一个
+`sync_batch` 下逐个写入 `sync_api_log`。批次头会先提交，每个 API 使用独立事务提交
+raw、log 和 checkpoint，最后提交批次汇总状态。当前清单和版本以“接口中心”及数据库
+发布状态为准，不再在 README 固化容易过期的数量。
 
-会写数据库的入口会先获取 MySQL named lock `jijia_polardb_sync_task`，包括 `--mock-sync`、`--test-api`、`--sync-api`、`--sync-enabled` 和 `--sync-api-configs`。只读 `--probe-api` 不创建数据库连接，也不使用该互斥锁。
+会写数据库的入口会先获取 MySQL named lock `jijia_polardb_sync_task`，包括
+`--mock-sync`、`--test-api`、`--sync-api`、`--sync-enabled`、
+`--publish-api-configs` 和兼容别名 `--sync-api-configs`。只读的
+`--validate-api-configs` 不连接数据库；`--probe-api` 会读取数据库配置，但不会写同步表，
+二者都不使用该互斥锁。
 
 生成积加公开文档 API 覆盖矩阵：
 
@@ -187,21 +252,24 @@ python -m app.doc_catalog --review-config config/api_review_overrides.yaml --out
 2. 拉取或上传项目代码。
 3. 创建虚拟环境并安装依赖。
 4. 根据 `.env.example` 创建 `.env`。
-5. 在 PolarDB 执行 `sql/init_tables.sql`。
-6. 先运行 `python -m app.main` 确认配置文件可读取。
-7. 先运行 `python -m app.main --sync-api amazon_shop_page` 验证真实单接口同步。
-8. 再运行 `python -m app.main --sync-enabled` 验证启用接口批量同步。
-9. 验证通过后再加入定时任务。
+5. 新库执行 `sql/init_tables.sql`；已有库按变更顺序执行受控 SQL 和 Alembic 迁移。
+6. 运行 `python -m app.main --validate-api-configs` 校验发布输入。
+7. 由部署负责人运行 `python -m app.main --publish-api-configs` 发布运行时配置。
+8. 在隔离环境运行受控单接口验证，确认平台 Worker 可复用同步核心。
+9. 核对 legacy 数据归属并停止目标接口的 legacy 调度。
+10. 通过 Web 策略启用目标接口，观察至少两个完整运行周期后再迁移下一个接口。
 
-## cron 示例
+## Legacy cron 退役边界
 
-当前启用接口同步可以用 cron 每天执行一次：
+第一阶段曾使用以下 cron 执行批量同步，仅作为历史示例保留：
 
 ```cron
 0 2 * * * cd /path/to/jijia-polardb-sync && /path/to/.venv/bin/python -m app.main --sync-enabled >> logs/cron.log 2>&1
 ```
 
-当前 enabled 批量属于长任务，最近一次 45 个接口完整同步耗时 6924 秒。ECS 上的 cron 窗口应避免和其他重写入任务重叠。
+最终生产环境禁止通过该 cron 执行日常同步。平台割接期间可以暂时保留尚未迁移接口的 legacy 调度，但必须逐账号、逐 API 建立归属清单，并在启用对应 Web 策略前先停止 legacy 调度。
+
+过渡期内，同一积加账号、同一 API 只能有一个定时调度所有者。named lock 只能阻止同时写入，不能替代调度归属；启用 Web 策略前必须将目标接口从 legacy 调度范围移除。全部接口完成割接后，Web Scheduler 是唯一生产定时任务来源。
 
 ## 查看日志
 
@@ -239,7 +307,9 @@ logs/sync.log
 
 ### 当前接入了哪个业务 API？
 
-当前 enabled 清单与“当前支持哪些真实积加 API？”一致，共 46 个。各接口的文档 id、路径、分页和执行分层以 `config/api_config.example.yaml` 与 `config/jijia_api_catalog.generated.json` 为准。
+登录 Web 后打开 `/api-catalog`。默认页展示数据库中已发布的接口、可获取的数据规则、
+平台/账号状态、最近运行和数据量；切换“官方接口目录”可查看尚未接入的官方接口。
+CLI 批量范围以 `api_config.enabled` 为准，不能用 README 中的历史数量判断当前状态。
 
 ### 如何运行测试？
 
@@ -338,15 +408,18 @@ probe 现已安全记录包装内的原始异常类型和 HTTP 状态码；异�
 
 ## 销售退货订单运行终态
 
-阶段 16AO-A 按实时官方文档 9 审核 `POST /operation/sale/returnOrder/page`：只使用必填 `page/pagesize=1/100`，响应约定为 `data.rows/data.total`，官方单页上限 100、默认每秒 5 次；订单号、退货原因、买家备注和商品字段按敏感 raw-only 边界审核。
+阶段 16AO-C 已按实时官方文档 9 正式接入 `POST /operation/sale/returnOrder/page`。配置保持 `enabled=false`，使用 `returnStartDate/returnEndDate` 31 天窗口、`pagesize=100`、实时 `data.total` 分页和按页短事务，不设置猜测性固定页数上限；订单号、退货原因、买家备注和商品字段只保存到敏感 raw。
 
-唯一一次无数据库首页预检在 1.154 秒后返回 HTTP 400，没有取得 `total` 或所需页数。没有重试、猜测筛选条件、改换请求编码或输出响应内容，因此不进入真实同步阶段。
+首个正式窗口为 `2026-01-01` 至 `2026-01-31`，批次 `sync_20260825_170357_498282` 成功完成 416 次请求并处理 41,557 个返回行。上游包含完全相同的重复行，按官方 `id` 幂等后保留 38,198 条唯一 raw；主键、hash 和 `returnDateTime -> data_date` 均完整，checkpoint 已推进到 `2026-02-01`。
 
-文档 9 已登记为 `defer_runtime_rejected`，临时业务配置已清理。YAML/DB 均保持 83 个配置、47 个 enabled，catalog 为 189/75/47；销售板块为 0 个已配置、2 个终态暂缓、13 个待审。latest batch 仍为 `sync_20260731_105320_767996` success，目标五张表均为 0。
+YAML/DB 均为 84 个配置、47 个 enabled，code/enabled/method/path 差异为 0；catalog 为 189/76/47。目标接口没有失败请求，named lock、外部事务、活动会话和同步进程均为空。当前只完成首个历史窗口验证，尚未继续后续窗口或加入 daily enabled。
 
-## Web 服务：阶段 0 + M1
+## 数据同步管理平台
 
-Web 管理服务独立位于 `backend/` 和 `frontend/`，不会启动或改写现有同步任务。当前支持受邀注册、邮箱密码登录、服务端 Session Cookie、CSRF、退出、Admin/Operator/Viewer 固定角色、成员管理，以及 SMTP/Console/Fake 邮件适配器。
+Web 管理服务独立位于 `backend/` 和 `frontend/`。当前支持受邀注册、邮箱密码登录、
+服务端 Session Cookie、CSRF、退出、Admin/Operator/Viewer 固定角色、成员管理、账号与
+同步策略、任务、运行、原始数据，以及 `/api-catalog` 接口中心。接口中心只展示和引导，
+不允许在网页直接修改路径、分页或安全分类等底层配置。
 
 Windows PowerShell 本地启动：
 
@@ -367,4 +440,139 @@ Windows PowerShell 本地启动：
 .\scripts\check.ps1
 ```
 
-本阶段不包含密码重置、积加账号管理、同步策略、Worker、Redis、Celery 或第三方登录。
+该入口覆盖 Ruff 格式与静态检查、Mypy、pytest、同步核心 unittest、compileall、
+pip check、前端 Prettier/ESLint/TypeScript/Vitest/Vite build、重复代码、前后端死代码、
+敏感字面量和 `git diff --check`。命令只做本地离线验证，不执行真实积加 API、数据库迁移、
+生产数据库写入或部署。
+
+Linux/CI 使用以下等价检查；执行前应已按 `requirements.txt`、`requirements-dev.txt`、
+根目录和 `frontend/` 的 lockfile 安装依赖：
+
+```bash
+python -m ruff format --check backend
+python -m ruff check backend
+python -m mypy backend/app
+python -m pytest tests/test_e2e_app.py -q
+python -m pytest backend/tests --cov=backend.app --cov-report=term-missing
+python -m unittest discover -s tests -p "test_*.py"
+python -m compileall -q app backend tests
+python -m pip check
+
+cd frontend
+npm run format:check
+npm run lint:eslint
+npm run typecheck
+npm run test -- --run
+npm run build
+cd ..
+
+npm run check:duplicates
+npm run check:unused
+python -m vulture backend/app --min-confidence 100
+python scripts/check_sensitive_literals.py
+git diff --check
+```
+
+需要做浏览器冒烟时，使用仓库内的 fail-closed 合成应用。它只使用内存 SQLite、
+Fake 邮件和虚构账号，不启动 Worker，也不会调用积加 API；必须从不含 `.env` 的临时目录
+启动。先在一个 PowerShell 窗口运行：
+
+```powershell
+$projectRoot = (Get-Location).Path
+$e2eRoot = New-Item -ItemType Directory -Path `
+  (Join-Path ([System.IO.Path]::GetTempPath()) ("jijia-e2e-" + [guid]::NewGuid().ToString("N")))
+$env:PYTHONPATH = $projectRoot
+$env:JIJIA_E2E_ENABLED = "1"
+$env:JIJIA_E2E_PASSWORD = "请替换为至少12位合成密码"
+Set-Location -LiteralPath $e2eRoot
+& "$projectRoot\.venv\Scripts\python.exe" -m uvicorn `
+  backend.tests.e2e_app:create_e2e_app --factory --host 127.0.0.1 --port 8003
+```
+
+再开一个 PowerShell 窗口启动前端：
+
+```powershell
+$env:DEV_PROXY_TARGET = "http://127.0.0.1:8003"
+Set-Location -LiteralPath .\frontend
+npm run dev -- --port 5181
+```
+
+管理员、操作员和只读账号分别为 `admin@e2e.example.com`、
+`operator@e2e.example.com`、`viewer@e2e.example.com`，密码使用上面设置的合成密码。
+这套环境只证明浏览器、API、角色权限和合成数据闭环，不代表 MySQL/PolarDB、真实积加 API、
+SMTP 或 ECS 已验证。
+
+M3 既有同步表升级前，只能对已经获准只读扫描的隔离 MySQL/PolarDB 副本执行：
+
+```powershell
+.\.venv\Scripts\python.exe -m backend.app.migration_preflight `
+  --confirm-isolated-replica
+```
+
+命令只读取元数据、Session 时区、同步锁状态和迁移后身份冲突汇总，不执行 DDL，
+也不会输出数据库连接串或业务记录。返回 `PREFLIGHT_PASSED` 只表示技术前置条件通过；
+执行 `0003` 前仍须单独批准，并确认已停止写入、创建可恢复快照，以及 legacy 数据归属
+和首次历史基线方案。真正执行时必须停止 worker/cron，由同一迁移会话持有
+`jijia_polardb_sync_task` named lock；持锁后重跑身份、NULL 和 checkpoint 冲突检查，再
+立即执行迁移。副本上的瞬时空闲不代表主库已经停写。MySQL DDL 不执行破坏性 down；
+失败时使用副本快照或 PITR 恢复。
+
+仅在上述业务门禁和数据库审批完成后，使用受控入口在隔离副本执行：
+
+```powershell
+.\.venv\Scripts\python.exe -m backend.app.migration_0003 `
+  --confirm-isolated-replica `
+  --confirm-snapshot-ready
+```
+
+该入口在一个数据库连接内完成持锁、复检、顺序 DDL、升级后检查和释放锁。任何 DDL
+失败都会停止后续语句并返回 `restoreRequired=true`；输出不包含 SQL、异常文本、连接串
+或业务记录。它不会映射 legacy 账号，也不会补种首次历史基线。
+
+Web API 提供两个公开健康检查：`GET /health/live` 只证明进程存活；
+`GET /health/ready` 在生产会检查运行数据库可连接且实例未处于全局只读状态，数据库
+不可用或只读时返回脱敏 503，供 ECS/Nginx 决定是否导流。该只读查询不证明运行账号
+拥有 DML 权限，真实权限仍须在隔离副本和 ECS 发布演练中验证。M3 Worker 已使用数据库队列和单执行器实现；密码重置、Redis、Celery 和
+第三方登录继续不属于当前 MVP。
+
+任务详情中的批次号可直接进入对应运行详情和日志。原始数据列表支持按
+`sync_batch_no` 查询，该字段的精确语义是“当前记录最后观察批次”，不是记录形成批次，
+也不表示该批次曾出现的全部历史。运行详情使用 `observed_sync_batch_no` 查询“该批次
+曾观察过的业务记录”，列表返回这些业务记录的当前快照，因此条目上的 `batchNo` 可能
+晚于所查批次。完整形成与变化历史仍从 `raw_api_data_history.sync_batch_no` 追溯。
+
+## Web 服务 ECS 原生部署
+
+Web 第一版直接使用 ECS 上的 systemd、Nginx 和静态前端产物，不使用 Docker。仓库提供：
+
+- `config/ecs/jijia-api.service.example`：单进程 FastAPI，仅监听 `127.0.0.1:8000`。
+- `config/ecs/jijia-worker.service.example`：单 Worker，使用 `flock` 防止重复实例。
+- `config/ecs/nginx.conf.example`：TLS、SPA 静态资源、API/健康检查代理和登录限流。
+
+生产运行凭据放在仅服务用户可读的 `.env`；迁移高权限凭据单独放在 `.env.migration`，
+只能由获批迁移命令读取，不能配置到 API 或 Worker 的 `EnvironmentFile`。两个文件都不得提交。
+
+发布负责人在 ECS 上替换模板中的双下划线占位符后，按以下最短链路验证：
+
+```bash
+cd /path/to/jijia-polardb-sync
+python3 -m venv .venv
+./.venv/bin/python -m pip install -r requirements.txt
+cd frontend && npm ci && npm run build && cd ..
+
+# 只执行配置、前端产物和运行库 SELECT 检查，不执行迁移或业务 API。
+./.venv/bin/python -m backend.app.release_preflight --confirm-read-only-database
+
+sudo systemd-analyze verify /etc/systemd/system/jijia-api.service
+sudo systemd-analyze verify /etc/systemd/system/jijia-worker.service
+sudo nginx -t
+sudo systemctl daemon-reload
+sudo systemctl enable --now jijia-api jijia-worker nginx
+curl --fail https://sync.example.com/health/ready
+```
+
+`release_preflight` 通过只代表当前运行配置、前端产物、YAML 和数据库目标符合启动条件，
+不代表批准迁移或部署。`0003` 仍必须先在隔离副本完成演练，并由部署负责人单独授权。
+服务日志进入 journald，可用 `journalctl -u jijia-api` 和 `journalctl -u jijia-worker` 查看；
+日志只保留稳定错误码和异常类型。Worker 收到停止信号后不再领取新任务，并给当前长任务最多
+3 小时完成。当前仓库只完成本地部署就绪验证，尚未在真实 ECS、Nginx 或 PolarDB 上执行。
