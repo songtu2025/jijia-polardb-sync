@@ -1,24 +1,54 @@
-import logging
 import hashlib
 import json
+import logging
 import re
 import time
+from collections.abc import Callable
 from copy import deepcopy
-from datetime import date, datetime, timedelta
+from dataclasses import dataclass
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import text
+from sqlalchemy import bindparam, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import DBAPIError
 
+from app.raw_json_param_source import (
+    RawJsonParamSource,
+    array_rows_to_params,
+    build_raw_json_array_query,
+    build_raw_json_field_query,
+    field_rows_to_params,
+)
 from app.retry import retry_call
-
+from app.sale_return_projection import SALE_RETURN_API_CODE, project_sale_return_orders
+from app.sync_context import (
+    DATE_WINDOW,
+    HISTORY_BACKFILL,
+    HISTORY_ON_CHANGE,
+    UPDATE_INCREMENTAL,
+    SyncContext,
+)
 
 logger = logging.getLogger(__name__)
-RAW_JSON_FIELD_PATTERN = re.compile(r"^[A-Za-z0-9_.]+$")
 DATE_PARAM_TEMPLATE_PATTERN = re.compile(r"^\{\{\s*(today|yesterday|days_ago:(\d+))\s*\}\}$")
 SENSITIVE_RESPONSE_ERROR_MESSAGE = "sensitive response details redacted"
+
+
+@dataclass(frozen=True)
+class _SyncBatchCompletion:
+    """保存一次同步批次的终态字段。"""
+
+    status: str
+    success_api_count: int
+    failed_api_count: int
+    message: str
+
+
+def _utc_now() -> datetime:
+    """返回兼容 MySQL DATETIME 的无时区 UTC 时间。"""
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 class ApiRequestError(Exception):
@@ -49,6 +79,7 @@ class ApiRequestError(Exception):
         """返回失败前已经发生的重试次数。"""
         return max(self.attempt_count - 1, 0)
 
+
 class InvalidatedApiTransactionError(Exception):
     """携带失效事务外层收尾所需的最小执行状态。"""
 
@@ -66,7 +97,6 @@ class InvalidatedApiTransactionError(Exception):
         self.api_started_at = api_started_at
 
 
-
 class SyncEngine:
     """同步调度核心。
 
@@ -74,13 +104,24 @@ class SyncEngine:
     JSON 为主，不在这里做复杂字段转换，确保备份链路简单可靠。
     """
 
-    def __init__(self, api_configs: list[dict[str, Any]], engine: Engine | None = None):
+    def __init__(
+        self,
+        api_configs: list[dict[str, Any]],
+        engine: Engine | None = None,
+        sync_context: SyncContext | None = None,
+        progress_callback: Callable[[int, int | None], None] | None = None,
+        pause_callback: Callable[[], bool] | None = None,
+    ):
         """保存接口配置和可选数据库引擎。
 
         dry-run 不需要数据库；mock、单接口测试和真实同步都需要 engine。
         """
         self.api_configs = api_configs
         self.engine = engine
+        self.sync_context = sync_context or SyncContext()
+        self.progress_callback = progress_callback
+        self.pause_callback = pause_callback
+        self._sync_started_at = _utc_now()
 
     def dry_run(self) -> None:
         """只检查已启用的 API 配置能否被加载。
@@ -143,146 +184,66 @@ class SyncEngine:
 
         enabled_apis = self._enabled_apis()
         batch_no = self._new_batch_no()
-        started_at = datetime.now()
+        started_at = _utc_now()
         success_api_count = 0
         failed_api_count = 0
 
         with self.engine.begin() as connection:
-            connection.execute(
-                text(
-                    """
-                    INSERT INTO sync_batch (
-                      sync_batch_no, status, started_at, total_api_count
-                    ) VALUES (
-                      :sync_batch_no, 'running', :started_at, :total_api_count
-                    )
-                    """
-                ),
-                {
-                    "sync_batch_no": batch_no,
-                    "started_at": started_at,
-                    "total_api_count": len(enabled_apis),
-                },
+            self._insert_sync_batch(
+                connection,
+                batch_no,
+                started_at,
+                len(enabled_apis),
             )
 
             for api in enabled_apis:
                 # mock 模式也按真实同步的日志粒度写入，方便验证排障链路。
                 api_code = api.get("api_code")
-                api_started_at = datetime.now()
+                api_started_at = _utc_now()
                 try:
                     items = self._mock_items(api)
                     for item in items:
                         self._insert_raw_item(connection, api, item, batch_no)
 
-                    connection.execute(
-                        text(
-                            """
-                            INSERT INTO sync_api_log (
-                              sync_batch_no, api_code, status, request_count,
-                              success_count, failed_count, started_at, finished_at
-                            ) VALUES (
-                              :sync_batch_no, :api_code, 'success', 1,
-                              :success_count, 0, :started_at, :finished_at
-                            )
-                            """
-                        ),
-                        {
-                            "sync_batch_no": batch_no,
-                            "api_code": api_code,
-                            "success_count": len(items),
-                            "started_at": api_started_at,
-                            "finished_at": datetime.now(),
-                        },
+                    self._insert_api_log(
+                        connection,
+                        batch_no,
+                        str(api_code),
+                        "success",
+                        1,
+                        len(items),
+                        0,
+                        api_started_at,
                     )
                     success_api_count += 1
                 except Exception as error:
                     failed_api_count += 1
-                    connection.execute(
-                        text(
-                            """
-                            INSERT INTO sync_api_log (
-                              sync_batch_no, api_code, status, request_count,
-                              success_count, failed_count, started_at,
-                              finished_at, error_message
-                            ) VALUES (
-                              :sync_batch_no, :api_code, 'failed', 1,
-                              0, 1, :started_at, :finished_at, :error_message
-                            )
-                            """
-                        ),
-                        {
-                            "sync_batch_no": batch_no,
-                            "api_code": api_code,
-                            "started_at": api_started_at,
-                            "finished_at": datetime.now(),
-                            "error_message": str(error),
-                        },
+                    self._insert_api_log(
+                        connection,
+                        batch_no,
+                        str(api_code),
+                        "failed",
+                        1,
+                        0,
+                        1,
+                        api_started_at,
+                        str(error),
                     )
 
             status = "success" if failed_api_count == 0 else "partial_failed"
-            connection.execute(
-                text(
-                    """
-                    UPDATE sync_batch
-                    SET status = :status,
-                        finished_at = :finished_at,
-                        success_api_count = :success_api_count,
-                        failed_api_count = :failed_api_count,
-                        message = :message
-                    WHERE sync_batch_no = :sync_batch_no
-                    """
+            self._finish_sync_batch(
+                connection,
+                batch_no,
+                _SyncBatchCompletion(
+                    status=status,
+                    success_api_count=success_api_count,
+                    failed_api_count=failed_api_count,
+                    message="mock sync finished",
                 ),
-                {
-                    "status": status,
-                    "finished_at": datetime.now(),
-                    "success_api_count": success_api_count,
-                    "failed_api_count": failed_api_count,
-                    "message": "mock sync finished",
-                    "sync_batch_no": batch_no,
-                },
             )
 
         logger.info("mock sync finished: %s", batch_no)
         return batch_no
-
-    def sync_api_configs(self) -> int:
-        """把 YAML API 配置同步到 api_config 表。
-
-        这是配置快照命令，不请求任何积加业务接口。重复执行按 api_code
-        upsert，方便数据库侧查看当前项目认定的接口配置。
-        """
-        if self.engine is None:
-            raise ValueError("sync api configs requires database engine")
-
-        with self.engine.begin() as connection:
-            for api in self.api_configs:
-                connection.execute(
-                    text(
-                        """
-                        INSERT INTO api_config (
-                          api_code, api_name, enabled, method, path, config_json
-                        ) VALUES (
-                          :api_code, :api_name, :enabled, :method, :path, :config_json
-                        )
-                        ON DUPLICATE KEY UPDATE
-                          api_name = VALUES(api_name),
-                          enabled = VALUES(enabled),
-                          method = VALUES(method),
-                          path = VALUES(path),
-                          config_json = VALUES(config_json)
-                        """
-                    ),
-                    {
-                        "api_code": api["api_code"],
-                        "api_name": api.get("name") or api["api_code"],
-                        "enabled": 1 if api["enabled"] is True else 0,
-                        "method": str(api.get("method", "POST")).upper(),
-                        "path": api["path"],
-                        "config_json": json.dumps(api, ensure_ascii=False, sort_keys=True, default=str),
-                    },
-                )
-
-        return len(self.api_configs)
 
     def test_api_once(self, api_code: str, api_client: Any, token: Any) -> dict[str, Any]:
         """执行单个真实 API 并写入数据库。
@@ -294,50 +255,29 @@ class SyncEngine:
             raise ValueError("test api requires database engine")
 
         api = self._api_by_code(api_code)
+        self._ensure_execution_allowed(api)
         if api.get("commit_per_page"):
             return self._test_api_once_commit_per_page(api, api_client, token)
 
         batch_no = self._new_batch_no()
-        started_at = datetime.now()
+        started_at = _utc_now()
 
         with self.engine.begin() as connection:
-            connection.execute(
-                text(
-                    """
-                    INSERT INTO sync_batch (
-                      sync_batch_no, status, started_at, total_api_count
-                    ) VALUES (
-                      :sync_batch_no, 'running', :started_at, 1
-                    )
-                    """
-                ),
-                {"sync_batch_no": batch_no, "started_at": started_at},
-            )
+            self._insert_sync_batch(connection, batch_no, started_at, 1)
 
         result = self._sync_api_with_transaction(api, batch_no, api_client, token)
 
         status = "success" if result["failed_count"] == 0 else "failed"
         with self.engine.begin() as connection:
-            connection.execute(
-                text(
-                    """
-                    UPDATE sync_batch
-                    SET status = :status,
-                        finished_at = :finished_at,
-                        success_api_count = :success_api_count,
-                        failed_api_count = :failed_api_count,
-                        message = :message
-                    WHERE sync_batch_no = :sync_batch_no
-                    """
+            self._finish_sync_batch(
+                connection,
+                batch_no,
+                _SyncBatchCompletion(
+                    status=status,
+                    success_api_count=1 if result["failed_count"] == 0 else 0,
+                    failed_api_count=result["failed_count"],
+                    message="test api finished",
                 ),
-                {
-                    "status": status,
-                    "finished_at": datetime.now(),
-                    "success_api_count": 1 if result["failed_count"] == 0 else 0,
-                    "failed_api_count": result["failed_count"],
-                    "message": "test api finished",
-                    "sync_batch_no": batch_no,
-                },
             )
 
         return {
@@ -347,7 +287,9 @@ class SyncEngine:
             "failed_count": result["failed_count"],
         }
 
-    def _test_api_once_commit_per_page(self, api: dict[str, Any], api_client: Any, token: Any) -> dict[str, Any]:
+    def _test_api_once_commit_per_page(
+        self, api: dict[str, Any], api_client: Any, token: Any
+    ) -> dict[str, Any]:
         """用短事务验证单个宽表分页接口。
 
         销售表现这类接口单页字段很宽、页间还要限流。如果把 HTTP 请求、sleep
@@ -358,44 +300,27 @@ class SyncEngine:
             raise ValueError("test api requires database engine")
 
         batch_no = self._new_batch_no()
-        started_at = datetime.now()
+        started_at = _utc_now()
         with self.engine.begin() as connection:
-            connection.execute(
-                text(
-                    """
-                    INSERT INTO sync_batch (
-                      sync_batch_no, status, started_at, total_api_count
-                    ) VALUES (
-                      :sync_batch_no, 'running', :started_at, 1
-                    )
-                    """
-                ),
-                {"sync_batch_no": batch_no, "started_at": started_at},
-            )
+            self._insert_sync_batch(connection, batch_no, started_at, 1)
 
         result = self._sync_api_with_page_transactions(api, batch_no, api_client, token)
-        status = "success" if result["failed_count"] == 0 else "failed"
+        if result["failed_count"]:
+            status = "failed"
+        elif result.get("paused"):
+            status = "paused"
+        else:
+            status = "success"
         with self.engine.begin() as connection:
-            connection.execute(
-                text(
-                    """
-                    UPDATE sync_batch
-                    SET status = :status,
-                        finished_at = :finished_at,
-                        success_api_count = :success_api_count,
-                        failed_api_count = :failed_api_count,
-                        message = :message
-                    WHERE sync_batch_no = :sync_batch_no
-                    """
+            self._finish_sync_batch(
+                connection,
+                batch_no,
+                _SyncBatchCompletion(
+                    status=status,
+                    success_api_count=1 if result["failed_count"] == 0 else 0,
+                    failed_api_count=result["failed_count"],
+                    message="test api finished",
                 ),
-                {
-                    "status": status,
-                    "finished_at": datetime.now(),
-                    "success_api_count": 1 if result["failed_count"] == 0 else 0,
-                    "failed_api_count": result["failed_count"],
-                    "message": "test api finished",
-                    "sync_batch_no": batch_no,
-                },
             )
 
         return {
@@ -403,6 +328,7 @@ class SyncEngine:
             "item_count": result["item_count"],
             "request_count": result["request_count"],
             "failed_count": result["failed_count"],
+            "paused": bool(result.get("paused")),
         }
 
     def sync_enabled_apis(self, api_client: Any, token: Any) -> dict[str, Any]:
@@ -415,30 +341,22 @@ class SyncEngine:
             raise ValueError("sync enabled requires database engine")
 
         enabled_apis = self._enabled_apis()
+        for api in enabled_apis:
+            self._ensure_execution_allowed(api)
         # 一个 sync_batch 表示一次调度运行；批次头先提交，避免长任务运行中外部完全看不到 batch。
         batch_no = self._new_batch_no()
-        started_at = datetime.now()
+        started_at = _utc_now()
         total_item_count = 0
         total_request_count = 0
         success_api_count = 0
         failed_api_count = 0
 
         with self.engine.begin() as connection:
-            connection.execute(
-                text(
-                    """
-                    INSERT INTO sync_batch (
-                      sync_batch_no, status, started_at, total_api_count
-                    ) VALUES (
-                      :sync_batch_no, 'running', :started_at, :total_api_count
-                    )
-                    """
-                ),
-                {
-                    "sync_batch_no": batch_no,
-                    "started_at": started_at,
-                    "total_api_count": len(enabled_apis),
-                },
+            self._insert_sync_batch(
+                connection,
+                batch_no,
+                started_at,
+                len(enabled_apis),
             )
 
         # 普通 API 仍按接口提交；显式 commit_per_page 的宽表接口由其内部按页开启短事务。
@@ -462,26 +380,15 @@ class SyncEngine:
             status = "failed"
 
         with self.engine.begin() as connection:
-            connection.execute(
-                text(
-                    """
-                    UPDATE sync_batch
-                    SET status = :status,
-                        finished_at = :finished_at,
-                        success_api_count = :success_api_count,
-                        failed_api_count = :failed_api_count,
-                        message = :message
-                    WHERE sync_batch_no = :sync_batch_no
-                    """
+            self._finish_sync_batch(
+                connection,
+                batch_no,
+                _SyncBatchCompletion(
+                    status=status,
+                    success_api_count=success_api_count,
+                    failed_api_count=failed_api_count,
+                    message="sync enabled finished",
                 ),
-                {
-                    "status": status,
-                    "finished_at": datetime.now(),
-                    "success_api_count": success_api_count,
-                    "failed_api_count": failed_api_count,
-                    "message": "sync enabled finished",
-                    "sync_batch_no": batch_no,
-                },
             )
 
         return {
@@ -526,7 +433,6 @@ class SyncEngine:
                     str(error.original_error),
                 )
             return {"item_count": 0, "request_count": error.request_count, "failed_count": 1}
-
 
     def _record_api_failure_in_transaction(
         self,
@@ -575,7 +481,6 @@ class SyncEngine:
             raise
         return request_count
 
-
     def _sync_api_in_batch(
         self,
         connection: Any,
@@ -591,19 +496,24 @@ class SyncEngine:
         failed_count 判断接口是否成功。
         """
         api_code = api["api_code"]
+        self._ensure_execution_allowed(api)
         item_count = 0
         request_count = 0
         failed_count = 0
         last_page = 0
         total_count: int | None = None
-        api_started_at = datetime.now()
+        api_started_at = _utc_now()
 
         if api.get("param_source"):
-            return self._sync_api_from_param_source_in_batch(connection, api, batch_no, api_client, token)
+            return self._sync_api_from_param_source_in_batch(
+                connection, api, batch_no, api_client, token
+            )
 
         try:
             date_window_caught_up = self._date_window_caught_up(api, connection)
-            for page_no, payload, attempt_count in self._paged_payloads(api, api_client, token, connection):
+            for page_no, payload, attempt_count in self._paged_payloads(
+                api, api_client, token, connection
+            ):
                 # request_count 统计真实 HTTP 尝试次数，包含失败后的重试次数。
                 request_count += attempt_count
                 last_page = page_no
@@ -618,7 +528,11 @@ class SyncEngine:
             if date_window_caught_up:
                 checkpoint_extra = self._date_window_caught_up_checkpoint_extra(api, connection)
             else:
-                checkpoint_extra = self._date_window_checkpoint_extra(api, self._request_params(api, connection))
+                checkpoint_extra = self._date_window_checkpoint_extra(
+                    api,
+                    self._request_params(api, connection),
+                    connection,
+                )
             self._update_checkpoint(
                 connection,
                 api_code,
@@ -629,7 +543,16 @@ class SyncEngine:
                 total_count,
                 extra=checkpoint_extra,
             )
-            self._insert_api_log(connection, batch_no, api_code, "success", request_count, item_count, 0, api_started_at)
+            self._insert_api_log(
+                connection,
+                batch_no,
+                api_code,
+                "success",
+                request_count,
+                item_count,
+                0,
+                api_started_at,
+            )
         except Exception as error:
             failed_count = 1
             request_count = self._record_api_failure_in_transaction(
@@ -642,7 +565,11 @@ class SyncEngine:
                 api_started_at,
             )
 
-        return {"item_count": item_count, "request_count": request_count, "failed_count": failed_count}
+        return {
+            "item_count": item_count,
+            "request_count": request_count,
+            "failed_count": failed_count,
+        }
 
     def _sync_api_with_page_transactions(
         self,
@@ -662,12 +589,14 @@ class SyncEngine:
             raise ValueError("commit_per_page does not support param_source APIs")
 
         api_code = api["api_code"]
+        self._ensure_execution_allowed(api)
         item_count = 0
         request_count = 0
         failed_count = 0
+        paused = False
         last_page = 0
         total_count: int | None = None
-        api_started_at = datetime.now()
+        api_started_at = _utc_now()
 
         try:
             date_window_caught_up, base_params = self._short_transaction_base_params(api)
@@ -690,27 +619,50 @@ class SyncEngine:
                         data_date_override=self._data_date_from_params(api, base_params),
                     )
                     item_count += len(items)
+                    self._notify_page_progress(api, page_no, total_count)
+                    if self.pause_callback is not None and self.pause_callback():
+                        paused = True
+                        break
                     self._sleep_between_pages(api, page_no, total_count)
 
-            self._ensure_pagination_not_truncated(api, item_count, total_count)
-            if date_window_caught_up:
-                checkpoint_extra = self._date_window_caught_up_checkpoint_extra(api, None)
-            else:
-                checkpoint_extra = self._date_window_checkpoint_extra(api, base_params)
+            if not paused:
+                self._ensure_pagination_not_truncated(api, item_count, total_count)
             with self.engine.begin() as connection:
-                self._update_checkpoint(
+                if not paused and self.sync_context.advance_checkpoint:
+                    if date_window_caught_up:
+                        checkpoint_extra = self._date_window_caught_up_checkpoint_extra(
+                            api,
+                            connection,
+                        )
+                    else:
+                        checkpoint_extra = self._date_window_checkpoint_extra(
+                            api,
+                            base_params,
+                            connection,
+                        )
+                    self._update_checkpoint(
+                        connection,
+                        api_code,
+                        batch_no,
+                        item_count,
+                        request_count,
+                        last_page,
+                        total_count,
+                        extra=checkpoint_extra,
+                    )
+                self._insert_api_log(
                     connection,
-                    api_code,
                     batch_no,
-                    item_count,
+                    api_code,
+                    "paused" if paused else "success",
                     request_count,
-                    last_page,
-                    total_count,
-                    extra=checkpoint_extra,
+                    item_count,
+                    0,
+                    api_started_at,
                 )
-                self._insert_api_log(connection, batch_no, api_code, "success", request_count, item_count, 0, api_started_at)
         except Exception as error:
             failed_count = 1
+            paused = False
             if isinstance(error, ApiRequestError):
                 request_count += error.attempt_count
             with self.engine.begin() as connection:
@@ -728,7 +680,12 @@ class SyncEngine:
                     str(error),
                 )
 
-        return {"item_count": item_count, "request_count": request_count, "failed_count": failed_count}
+        return {
+            "item_count": item_count,
+            "request_count": request_count,
+            "failed_count": failed_count,
+            "paused": paused,
+        }
 
     def _insert_raw_items_in_page_transaction(
         self,
@@ -760,7 +717,9 @@ class SyncEngine:
             except DBAPIError as error:
                 if attempt == 1 or not error.connection_invalidated:
                     raise
-                logger.warning("raw page write connection invalidated; retrying api=%s", api["api_code"])
+                logger.warning(
+                    "raw page write connection invalidated; retrying api=%s", api["api_code"]
+                )
 
     def _short_transaction_base_params(self, api: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
         """为短事务同步生成本次请求参数。
@@ -798,7 +757,9 @@ class SyncEngine:
         """基于已解析参数分页请求，避免每页重新打开 checkpoint 读取事务。"""
         page_config = api.get("page") or {}
         if not page_config.get("enabled", False):
-            payload, attempt_count = self._request_with_retry(api, api_client, token, deepcopy(base_params))
+            payload, attempt_count = self._request_with_retry(
+                api, api_client, token, deepcopy(base_params)
+            )
             yield 1, payload, attempt_count
             return
 
@@ -818,6 +779,8 @@ class SyncEngine:
             pages_requested += 1
             yield page_no, payload, attempt_count
 
+            if self._short_page_complete(api, payload):
+                break
             total = self._response_total(payload, api)
             if total is None:
                 break
@@ -844,7 +807,7 @@ class SyncEngine:
         request_count = 0
         failed_count = 0
         total_count = 0
-        api_started_at = datetime.now()
+        api_started_at = _utc_now()
 
         try:
             if self._date_window_caught_up(api, connection):
@@ -869,7 +832,11 @@ class SyncEngine:
                     0,
                     api_started_at,
                 )
-                return {"item_count": item_count, "request_count": request_count, "failed_count": failed_count}
+                return {
+                    "item_count": item_count,
+                    "request_count": request_count,
+                    "failed_count": failed_count,
+                }
 
             param_source = api.get("param_source") or {}
             param_limit = int(param_source.get("limit") or 10)
@@ -897,7 +864,11 @@ class SyncEngine:
                 "param_limit": param_limit,
                 "next_param_offset": param_offset + total_count,
             }
-            date_window_extra = self._date_window_checkpoint_extra(api, self._request_params(api, connection))
+            date_window_extra = self._date_window_checkpoint_extra(
+                api,
+                self._request_params(api, connection),
+                connection,
+            )
             if date_window_extra:
                 checkpoint_extra.update(date_window_extra)
 
@@ -911,7 +882,16 @@ class SyncEngine:
                 total_count,
                 extra=checkpoint_extra,
             )
-            self._insert_api_log(connection, batch_no, api_code, "success", request_count, item_count, 0, api_started_at)
+            self._insert_api_log(
+                connection,
+                batch_no,
+                api_code,
+                "success",
+                request_count,
+                item_count,
+                0,
+                api_started_at,
+            )
         except Exception as error:
             failed_count = 1
             request_count = self._record_api_failure_in_transaction(
@@ -924,7 +904,11 @@ class SyncEngine:
                 api_started_at,
             )
 
-        return {"item_count": item_count, "request_count": request_count, "failed_count": failed_count}
+        return {
+            "item_count": item_count,
+            "request_count": request_count,
+            "failed_count": failed_count,
+        }
 
     def _enabled_apis(self) -> list[dict[str, Any]]:
         """返回 YAML 中启用的接口配置。"""
@@ -936,6 +920,42 @@ class SyncEngine:
             if api.get("api_code") == api_code:
                 return api
         raise ValueError(f"API config not found: {api_code}")
+
+    def _checkpoint_kind(self, api: dict[str, Any]) -> str:
+        """确定当前接口使用的 checkpoint 类型。"""
+        if self.sync_context.checkpoint_kind != DATE_WINDOW:
+            return self.sync_context.checkpoint_kind
+        return str(api.get("checkpoint_kind") or DATE_WINDOW)
+
+    def _checkpoint_kind_by_api_code(self, api_code: str) -> str:
+        """兼容测试和内部临时接口未注册到配置清单的场景。"""
+        api = next(
+            (item for item in self.api_configs if item.get("api_code") == api_code),
+            None,
+        )
+        if api is None:
+            return self.sync_context.checkpoint_kind
+        return self._checkpoint_kind(api)
+
+    def _ensure_execution_allowed(self, api: dict[str, Any]) -> None:
+        """只有官方文档已冻结的 updateTime 配置才能执行变化增量。"""
+        if self._checkpoint_kind(api) != UPDATE_INCREMENTAL:
+            return
+        window_config = self._active_window_config(api)
+        if not (
+            window_config.get("enabled")
+            and window_config.get("verified_doc_id")
+            and window_config.get("start_field")
+            and window_config.get("end_field")
+            and window_config.get("value_format") == "datetime"
+        ):
+            raise ValueError("update_incremental requires a verified updateTime contract")
+
+    def _active_window_config(self, api: dict[str, Any]) -> dict[str, Any]:
+        """按任务阶段选择退货日期窗口或修改时间窗口。"""
+        if self._checkpoint_kind(api) == UPDATE_INCREMENTAL:
+            return api.get("update_window") or {}
+        return api.get("date_window") or {}
 
     def _insert_raw_item(
         self,
@@ -958,54 +978,161 @@ class SyncEngine:
     ) -> None:
         """把接口原始数据批量写入 raw_api_data。
 
-        幂等策略分两层：如果配置了业务主键，就用 `api_code + source_primary_key`
-        覆盖更新；无稳定主键时，`api_code + data_hash` 可以避免同一份 JSON
-        重复插入。raw_json 始终保存完整原始数据。
+        快照统一使用账号、接口和 record_identity 幂等。显式启用
+        history_on_change 的接口先写内容版本，再更新最新快照和观察次数。
         """
         if not items:
             return
 
         api_code = api["api_code"]
         primary_key_field = (api.get("primary_key") or {}).get("field")
+        observed_at = _utc_now()
         rows = []
         for item in items:
             item_primary_key = self._normalize_source_primary_key(source_primary_key)
             if item_primary_key is None and primary_key_field:
                 item_primary_key = self._normalize_source_primary_key(item.get(primary_key_field))
+            data_hash = self._data_hash(item)
             rows.append(
                 {
+                    "jijia_account_id": self.sync_context.jijia_account_id,
                     "api_code": api_code,
+                    "record_identity": self._record_identity(
+                        item_primary_key,
+                        data_hash,
+                    ),
                     "source_primary_key": item_primary_key,
-                    "data_hash": self._data_hash(item),
+                    "data_hash": data_hash,
                     "raw_json": json.dumps(item, ensure_ascii=False, sort_keys=True, default=str),
-                    "data_date": self._coerce_data_date(data_date_override) or self._data_date(api, item),
+                    "data_date": self._coerce_data_date(data_date_override)
+                    or self._data_date(api, item),
                     "sync_batch_no": batch_no,
+                    "first_observed_at": observed_at,
+                    "last_observed_at": observed_at,
+                    "observation_count": 1,
                 }
             )
 
-        statement = text(
-            """
-            INSERT INTO raw_api_data (
-              api_code, source_primary_key, data_hash, raw_json,
-              data_date, sync_batch_no
-            ) VALUES (
-              :api_code, :source_primary_key, :data_hash, :raw_json,
-              :data_date, :sync_batch_no
-            )
-            ON DUPLICATE KEY UPDATE
+        storage_mode = str(api.get("storage_mode") or "latest_snapshot")
+        snapshot_update = """
               data_hash = VALUES(data_hash),
               raw_json = VALUES(raw_json),
               data_date = VALUES(data_date),
-              sync_batch_no = VALUES(sync_batch_no)
+        """
+        if storage_mode == HISTORY_ON_CHANGE:
+            # 回填和变化追赶串行；额外比较官方 updateTime，避免旧任务重放覆盖新快照。
+            replace_snapshot = """
+              NULLIF(JSON_UNQUOTE(JSON_EXTRACT(raw_json, '$.updateTime')), '') IS NULL
+              OR (
+                NULLIF(JSON_UNQUOTE(JSON_EXTRACT(VALUES(raw_json), '$.updateTime')), '') IS NOT NULL
+                AND JSON_UNQUOTE(JSON_EXTRACT(VALUES(raw_json), '$.updateTime')) >=
+                    JSON_UNQUOTE(JSON_EXTRACT(raw_json, '$.updateTime'))
+              )
+            """
+            snapshot_update = f"""
+              data_hash = IF({replace_snapshot}, VALUES(data_hash), data_hash),
+              raw_json = IF({replace_snapshot}, VALUES(raw_json), raw_json),
+              data_date = IF({replace_snapshot}, VALUES(data_date), data_date),
+            """
+
+        snapshot_statement = text(
+            f"""
+            INSERT INTO raw_api_data (
+              jijia_account_id, api_code, record_identity,
+              source_primary_key, data_hash, raw_json,
+              data_date, sync_batch_no, first_observed_at,
+              last_observed_at, observation_count
+            ) VALUES (
+              :jijia_account_id, :api_code, :record_identity,
+              :source_primary_key, :data_hash, :raw_json,
+              :data_date, :sync_batch_no, :first_observed_at,
+              :last_observed_at, :observation_count
+            )
+            ON DUPLICATE KEY UPDATE
+              {snapshot_update}
+              sync_batch_no = VALUES(sync_batch_no),
+              last_observed_at = VALUES(last_observed_at),
+              observation_count = observation_count + 1
+            """
+        )
+        history_statement = text(
+            """
+            INSERT INTO raw_api_data_history (
+              jijia_account_id, api_code, record_identity,
+              source_primary_key, data_hash, raw_json, data_date,
+              sync_batch_no, observed_at
+            ) VALUES (
+              :jijia_account_id, :api_code, :record_identity,
+              :source_primary_key, :data_hash, :raw_json, :data_date,
+              :sync_batch_no, :last_observed_at
+            )
+            ON DUPLICATE KEY UPDATE
+              record_identity = VALUES(record_identity)
+            """
+        )
+        existing_identities_statement = text(
+            """
+            SELECT record_identity
+            FROM raw_api_data
+            WHERE jijia_account_id = :jijia_account_id
+              AND api_code = :api_code
+              AND record_identity IN :record_identities
+            """
+        ).bindparams(bindparam("record_identities", expanding=True))
+        stat_statement = text(
+            """
+            INSERT INTO raw_api_data_stat (
+              jijia_account_id, api_code, record_count
+            ) VALUES (
+              :jijia_account_id, :api_code, :record_count
+            )
+            ON DUPLICATE KEY UPDATE
+              record_count = record_count + VALUES(record_count),
+              updated_at = CURRENT_TIMESTAMP
             """
         )
         write_batch_size = int(api.get("write_batch_size") or len(rows))
         write_batch_size = max(write_batch_size, 1)
         for start in range(0, len(rows), write_batch_size):
-            # 销售表现这类宽表 raw_json 很大，分块写入可以避免单次 executemany 过大导致远程连接中断。
-            connection.execute(statement, rows[start : start + write_batch_size])
+            # 宽表 raw_json 很大，分块写入可避免单次 executemany 过大。
+            chunk = rows[start : start + write_batch_size]
+            chunk_identities = {str(row["record_identity"]) for row in chunk}
+            existing_identities = {
+                str(row["record_identity"])
+                for row in connection.execute(
+                    existing_identities_statement,
+                    {
+                        "jijia_account_id": self.sync_context.jijia_account_id,
+                        "api_code": api_code,
+                        "record_identities": sorted(chunk_identities),
+                    },
+                )
+                .mappings()
+                .all()
+            }
+            if storage_mode == HISTORY_ON_CHANGE:
+                connection.execute(history_statement, chunk)
+            connection.execute(snapshot_statement, chunk)
+            new_record_count = len(chunk_identities - existing_identities)
+            if new_record_count:
+                # 统计与 raw 快照共用当前事务；重复观察和内容更新不会增加计数。
+                connection.execute(
+                    stat_statement,
+                    {
+                        "jijia_account_id": self.sync_context.jijia_account_id,
+                        "api_code": api_code,
+                        "record_count": new_record_count,
+                    },
+                )
+            if api_code == SALE_RETURN_API_CODE:
+                project_sale_return_orders(
+                    connection,
+                    [str(row["record_identity"]) for row in chunk],
+                )
 
-    def _source_primary_key_from_params(self, api: dict[str, Any], params: dict[str, Any]) -> str | None:
+    def _source_primary_key_from_params(
+        self, api: dict[str, Any], params: dict[str, Any]
+    ) -> str | None:
         """从请求参数提取 raw 主键。
 
         参数型详情接口的稳定业务键有时只存在于请求参数中，例如采购订单详情的
@@ -1022,9 +1149,80 @@ class SyncEngine:
         """把缺失主键规范为 SQL NULL，同时保留数值零。"""
         if isinstance(value, list) and len(value) == 1:
             value = value[0]
-        if value is None or str(value) == "":
+        if value is None or str(value).strip() == "":
             return None
-        return str(value)
+        return str(value).strip()
+
+    @staticmethod
+    def _record_identity(
+        source_primary_key: str | None,
+        data_hash: str,
+    ) -> str:
+        """按业务主键优先、内容哈希兜底生成稳定记录身份。"""
+        identity_source = (
+            f"pk:{source_primary_key}" if source_primary_key is not None else f"hash:{data_hash}"
+        )
+        return hashlib.sha256(identity_source.encode("utf-8")).hexdigest()
+
+    def _insert_sync_batch(
+        self,
+        connection: Any,
+        batch_no: str,
+        started_at: datetime,
+        total_api_count: int,
+    ) -> None:
+        """使用调用方事务创建同步批次。"""
+        connection.execute(
+            text(
+                """
+                INSERT INTO sync_batch (
+                  sync_batch_no, jijia_account_id, sync_job_id,
+                  status, started_at, total_api_count
+                ) VALUES (
+                  :sync_batch_no, :jijia_account_id, :sync_job_id,
+                  'running', :started_at, :total_api_count
+                )
+                """
+            ),
+            {
+                "sync_batch_no": batch_no,
+                "jijia_account_id": self.sync_context.jijia_account_id,
+                "sync_job_id": self.sync_context.sync_job_id,
+                "started_at": started_at,
+                "total_api_count": total_api_count,
+            },
+        )
+
+    def _finish_sync_batch(
+        self,
+        connection: Any,
+        batch_no: str,
+        completion: _SyncBatchCompletion,
+    ) -> None:
+        """使用调用方事务记录同步批次终态。"""
+        connection.execute(
+            text(
+                """
+                UPDATE sync_batch
+                SET status = :status,
+                    finished_at = :finished_at,
+                    success_api_count = :success_api_count,
+                    failed_api_count = :failed_api_count,
+                    message = :message
+                WHERE sync_batch_no = :sync_batch_no
+                  AND jijia_account_id = :jijia_account_id
+                """
+            ),
+            {
+                "status": completion.status,
+                "finished_at": _utc_now(),
+                "success_api_count": completion.success_api_count,
+                "failed_api_count": completion.failed_api_count,
+                "message": completion.message,
+                "sync_batch_no": batch_no,
+                "jijia_account_id": self.sync_context.jijia_account_id,
+            },
+        )
 
     def _insert_api_log(
         self,
@@ -1045,23 +1243,24 @@ class SyncEngine:
             text(
                 """
                 INSERT INTO sync_api_log (
-                  sync_batch_no, api_code, status, request_count,
+                  sync_batch_no, jijia_account_id, api_code, status, request_count,
                   success_count, failed_count, started_at, finished_at, error_message
                 ) VALUES (
-                  :sync_batch_no, :api_code, :status, :request_count,
+                  :sync_batch_no, :jijia_account_id, :api_code, :status, :request_count,
                   :success_count, :failed_count, :started_at, :finished_at, :error_message
                 )
                 """
             ),
             {
                 "sync_batch_no": batch_no,
+                "jijia_account_id": self.sync_context.jijia_account_id,
                 "api_code": api_code,
                 "status": status,
                 "request_count": request_count,
                 "success_count": success_count,
                 "failed_count": failed_count,
                 "started_at": started_at,
-                "finished_at": datetime.now(),
+                "finished_at": _utc_now(),
                 "error_message": error_message,
             },
         )
@@ -1106,7 +1305,9 @@ class SyncEngine:
             value = self._get_by_path(payload, scalar_field)
             if value is None:
                 return []
-            target_field = response_config.get("scalar_target_field") or str(scalar_field).split(".")[-1]
+            target_field = (
+                response_config.get("scalar_target_field") or str(scalar_field).split(".")[-1]
+            )
             item = {target_field: value}
             return [item] if self._has_required_primary_key(api, item) else []
 
@@ -1118,7 +1319,11 @@ class SyncEngine:
             if isinstance(item, dict):
                 return [item] if self._has_required_primary_key(api, item) else []
             if isinstance(item, list):
-                return [row for row in item if isinstance(row, dict) and self._has_required_primary_key(api, row)]
+                return [
+                    row
+                    for row in item
+                    if isinstance(row, dict) and self._has_required_primary_key(api, row)
+                ]
             raise ValueError(f"response item field is not an object or list: {item_field}")
 
         list_field = (api.get("page") or {}).get("list_field", "data.rows")
@@ -1127,7 +1332,11 @@ class SyncEngine:
             return []
         if not isinstance(items, list):
             raise ValueError(f"response list field is not a list: {list_field}")
-        return [item for item in items if isinstance(item, dict) and self._has_required_primary_key(api, item)]
+        return [
+            item
+            for item in items
+            if isinstance(item, dict) and self._has_required_primary_key(api, item)
+        ]
 
     def _has_required_primary_key(self, api: dict[str, Any], item: dict[str, Any]) -> bool:
         """按配置决定是否保留响应记录。
@@ -1155,8 +1364,8 @@ class SyncEngine:
     ) -> Any:
         """按分页配置逐页产出接口响应。
 
-        非分页接口只请求一次。分页接口会在每次请求前覆盖页码和页大小，并用
-        total 判断是否已经到最后一页；配置 max_pages 时继续把它作为保护阈值。
+        非分页接口只请求一次。分页接口会在每次请求前覆盖页码和页大小，并按
+        接口配置使用短页或 total 判断最后一页；max_pages 始终作为保护阈值。
         """
         if self._date_window_caught_up(api, connection):
             return
@@ -1185,6 +1394,8 @@ class SyncEngine:
             pages_requested += 1
             yield page_no, payload, attempt_count
 
+            if self._short_page_complete(api, payload):
+                break
             total = self._response_total(payload, api)
             if total is None:
                 break
@@ -1213,7 +1424,10 @@ class SyncEngine:
         """递归解析请求参数中的日期占位符。"""
         current_date = today or date.today()
         if isinstance(value, dict):
-            return {key: self._resolve_param_templates(item, current_date) for key, item in value.items()}
+            return {
+                key: self._resolve_param_templates(item, current_date)
+                for key, item in value.items()
+            }
         if isinstance(value, list):
             return [self._resolve_param_templates(item, current_date) for item in value]
         if not isinstance(value, str):
@@ -1239,7 +1453,7 @@ class SyncEngine:
         today: date | None = None,
     ) -> dict[str, str] | None:
         """根据 date_window 配置生成单次请求的日期窗口。"""
-        window_config = api.get("date_window") or {}
+        window_config = self._active_window_config(api)
         if not window_config.get("enabled"):
             return None
 
@@ -1250,47 +1464,105 @@ class SyncEngine:
         if not start_field or not end_field or not default_start:
             raise ValueError(f"invalid date_window config: {api.get('api_code')}")
 
-        start_date = self._date_window_start(api, connection) or date.fromisoformat(default_start)
-        end_date = start_date + timedelta(days=max(window_days, 1) - 1)
-        current_date = self._date_window_sync_until(window_config, today)
+        checkpoint_start = self._date_window_start(api, connection)
+        start_date = checkpoint_start or date.fromisoformat(default_start)
+        if self.sync_context.window_start is not None:
+            if (
+                self._checkpoint_kind(api) == HISTORY_BACKFILL
+                and self.sync_context.window_start != start_date
+            ) or (
+                self._checkpoint_kind(api) == UPDATE_INCREMENTAL
+                and checkpoint_start is not None
+                and self.sync_context.window_start != checkpoint_start
+            ):
+                raise ValueError("window must start at the current checkpoint")
+            start_date = self.sync_context.window_start
+
+        current_date = self._date_window_target_end(api, connection, today)
         if start_date > current_date:
             return None
-        if end_date > current_date:
-            end_date = current_date
+        expected_end = min(
+            start_date + timedelta(days=max(window_days, 1) - 1),
+            current_date,
+        )
+        end_date = self.sync_context.window_end or expected_end
+        if (
+            self._checkpoint_kind(api) in {HISTORY_BACKFILL, UPDATE_INCREMENTAL}
+            and end_date != expected_end
+        ):
+            raise ValueError("window must be the next continuous closed interval")
 
         window_params: dict[str, Any] = {}
-        self._set_by_path(window_params, start_field, start_date.isoformat())
-        self._set_by_path(window_params, end_field, end_date.isoformat())
+        self._set_by_path(
+            window_params,
+            start_field,
+            self._window_param_value(start_date, window_config, is_end=False),
+        )
+        self._set_by_path(
+            window_params,
+            end_field,
+            self._window_param_value(end_date, window_config, is_end=True),
+        )
         return window_params
+
+    @staticmethod
+    def _window_param_value(
+        value: date,
+        window_config: dict[str, Any],
+        *,
+        is_end: bool,
+    ) -> str:
+        """按官方字段类型输出闭区间日期或日期时间。"""
+        if window_config.get("value_format") == "datetime":
+            boundary = "23:59:59" if is_end else "00:00:00"
+            return f"{value.isoformat()} {boundary}"
+        return value.isoformat()
 
     def _date_window_start(self, api: dict[str, Any], connection: Any | None) -> date | None:
         """从 checkpoint 中读取下一次日期窗口起点。"""
-        if connection is None:
+        checkpoint = self._checkpoint_data(api, connection)
+        next_window_start = checkpoint.get("next_window_start")
+        if not next_window_start:
             return None
+        return date.fromisoformat(str(next_window_start))
 
+    def _checkpoint_data(
+        self,
+        api: dict[str, Any],
+        connection: Any | None,
+    ) -> dict[str, Any]:
+        """读取当前账号、接口和类型对应的 checkpoint JSON。"""
+        if connection is None:
+            return {}
         result = connection.execute(
             text(
                 """
                 SELECT checkpoint_value
                 FROM sync_checkpoint
-                WHERE api_code = :api_code
+                WHERE jijia_account_id = :jijia_account_id
+                  AND api_code = :api_code
+                  AND checkpoint_kind = :checkpoint_kind
                 """
             ),
-            {"api_code": api["api_code"]},
+            {
+                "jijia_account_id": self.sync_context.jijia_account_id,
+                "api_code": api["api_code"],
+                "checkpoint_kind": self._checkpoint_kind(api),
+            },
         )
         row = result.mappings().first()
         if not row or not row.get("checkpoint_value"):
-            return None
-
+            return {}
+        checkpoint_value = row["checkpoint_value"]
+        if isinstance(checkpoint_value, dict):
+            return checkpoint_value
+        if isinstance(checkpoint_value, bytes):
+            checkpoint_value = checkpoint_value.decode("utf-8")
         try:
-            checkpoint = json.loads(str(row["checkpoint_value"]))
-        except json.JSONDecodeError:
-            return None
-
-        next_window_start = checkpoint.get("next_window_start")
-        if not next_window_start:
-            return None
-        return date.fromisoformat(str(next_window_start))
+            checkpoint = json.loads(checkpoint_value)
+        except (json.JSONDecodeError, TypeError):
+            return {}
+        return checkpoint if isinstance(checkpoint, dict) else {}
 
     def _date_window_caught_up(
         self,
@@ -1299,7 +1571,7 @@ class SyncEngine:
         today: date | None = None,
     ) -> bool:
         """判断日期窗口是否已经推进到今天之后。"""
-        window_config = api.get("date_window") or {}
+        window_config = self._active_window_config(api)
         if not window_config.get("enabled"):
             return False
 
@@ -1308,10 +1580,35 @@ class SyncEngine:
             return False
 
         start_date = self._date_window_start(api, connection) or date.fromisoformat(default_start)
-        current_date = self._date_window_sync_until(window_config, today)
+        current_date = self._date_window_target_end(api, connection, today)
         return start_date > current_date
 
-    def _date_window_sync_until(self, window_config: dict[str, Any], today: date | None = None) -> date:
+    def _date_window_target_end(
+        self,
+        api: dict[str, Any],
+        connection: Any | None = None,
+        today: date | None = None,
+    ) -> date:
+        """读取任务编排阶段冻结的窗口截止日。"""
+        window_config = self._active_window_config(api)
+        checkpoint_kind = self._checkpoint_kind(api)
+        if checkpoint_kind == UPDATE_INCREMENTAL:
+            if self.sync_context.target_window_end is None:
+                raise ValueError("update_incremental requires target_window_end")
+            return self.sync_context.target_window_end
+        if checkpoint_kind != HISTORY_BACKFILL:
+            return self._date_window_sync_until(window_config, today)
+        if self.sync_context.frozen_window_end is not None:
+            return self.sync_context.frozen_window_end
+        checkpoint = self._checkpoint_data(api, connection)
+        frozen_end = checkpoint.get("frozen_window_end")
+        if frozen_end:
+            return date.fromisoformat(str(frozen_end))
+        return self._date_window_sync_until(window_config, today)
+
+    def _date_window_sync_until(
+        self, window_config: dict[str, Any], today: date | None = None
+    ) -> date:
         """计算日期窗口本次允许同步到哪一天。
 
         默认允许同步到今天；严格报表接口可配置 `lag_days`，只同步已完整
@@ -1326,7 +1623,7 @@ class SyncEngine:
         connection: Any | None = None,
     ) -> dict[str, Any] | None:
         """日期窗口追平时保留下一窗口，避免空跑后丢失推进位置。"""
-        window_config = api.get("date_window") or {}
+        window_config = self._active_window_config(api)
         if not window_config.get("enabled"):
             return None
 
@@ -1335,15 +1632,39 @@ class SyncEngine:
             return None
 
         start_date = self._date_window_start(api, connection) or date.fromisoformat(default_start)
-        return {
+        checkpoint_extra = {
             "next_window_start": start_date.isoformat(),
             "window_days": int(window_config.get("days") or 1),
             "skipped_reason": "date_window_caught_up",
         }
+        if self._checkpoint_kind(api) == HISTORY_BACKFILL:
+            previous = self._checkpoint_data(api, connection)
+            checkpoint_extra.update(
+                {
+                    "absolute_lower_bound": previous.get("absolute_lower_bound")
+                    or str(window_config.get("default_start") or ""),
+                    "frozen_window_end": self._date_window_target_end(
+                        api,
+                        connection,
+                    ).isoformat(),
+                    "backfill_started_at": previous.get("backfill_started_at")
+                    or (
+                        self.sync_context.backfill_started_at.isoformat()
+                        if self.sync_context.backfill_started_at
+                        else self._sync_started_at.isoformat()
+                    ),
+                }
+            )
+        return checkpoint_extra
 
-    def _date_window_checkpoint_extra(self, api: dict[str, Any], params: dict[str, Any]) -> dict[str, Any] | None:
+    def _date_window_checkpoint_extra(
+        self,
+        api: dict[str, Any],
+        params: dict[str, Any],
+        connection: Any | None = None,
+    ) -> dict[str, Any] | None:
         """生成写入 checkpoint 的日期窗口推进信息。"""
-        window_config = api.get("date_window") or {}
+        window_config = self._active_window_config(api)
         if not window_config.get("enabled"):
             return None
 
@@ -1357,14 +1678,35 @@ class SyncEngine:
         if not window_start_value or not window_end_value:
             return None
 
-        window_start = date.fromisoformat(str(window_start_value))
-        window_end = date.fromisoformat(str(window_end_value))
-        return {
+        window_start = date.fromisoformat(str(window_start_value)[:10])
+        window_end = date.fromisoformat(str(window_end_value)[:10])
+        checkpoint_extra = {
             "window_start": window_start.isoformat(),
             "window_end": window_end.isoformat(),
             "next_window_start": (window_end + timedelta(days=1)).isoformat(),
             "window_days": int(window_config.get("days") or 1),
         }
+        if self._checkpoint_kind(api) == HISTORY_BACKFILL:
+            previous = self._checkpoint_data(api, connection)
+            started_at = (
+                self.sync_context.backfill_started_at
+                or previous.get("backfill_started_at")
+                or self._sync_started_at
+            )
+            if isinstance(started_at, datetime):
+                started_at = started_at.isoformat()
+            checkpoint_extra.update(
+                {
+                    "absolute_lower_bound": previous.get("absolute_lower_bound")
+                    or str(window_config.get("default_start") or ""),
+                    "frozen_window_end": self._date_window_target_end(
+                        api,
+                        connection,
+                    ).isoformat(),
+                    "backfill_started_at": str(started_at),
+                }
+            )
+        return checkpoint_extra
 
     def _ensure_pagination_not_truncated(
         self,
@@ -1379,6 +1721,8 @@ class SyncEngine:
         """
         page_config = api.get("page") or {}
         if not page_config.get("enabled") or total_count is None:
+            return
+        if page_config.get("stop_on_short_page"):
             return
         if item_count >= total_count:
             return
@@ -1397,6 +1741,14 @@ class SyncEngine:
             return None
         return max(int(value), 1)
 
+    def _short_page_complete(self, api: dict[str, Any], payload: dict[str, Any]) -> bool:
+        """对 total 不是行数的接口，以响应行数不足一页作为结束条件。"""
+        page_config = api.get("page") or {}
+        if not page_config.get("stop_on_short_page"):
+            return False
+        page_size = int(page_config.get("page_size") or 20)
+        return len(self._response_items(payload, api)) < page_size
+
     def _required_page_count(self, api: dict[str, Any], total_count: int | None) -> int | None:
         """根据响应总数计算完成本次分页至少需要的请求页数。"""
         page_config = api.get("page") or {}
@@ -1405,10 +1757,26 @@ class SyncEngine:
         page_size = int(page_config.get("page_size") or 20)
         return max(1, (total_count + page_size - 1) // page_size)
 
+    def _notify_page_progress(
+        self,
+        api: dict[str, Any],
+        page_no: int,
+        total_count: int | None,
+    ) -> None:
+        """每页写入成功后通知外层任务更新只读进度。"""
+        if self.progress_callback is None:
+            return
+        self.progress_callback(
+            page_no,
+            self._required_page_count(api, total_count),
+        )
+
     def _ensure_pagination_capacity(self, api: dict[str, Any], total_count: int | None) -> None:
         """在写入首页 raw 前确认固定上限足够，或实时 total 有效。"""
         page_config = api.get("page") or {}
         if not page_config.get("enabled"):
+            return
+        if page_config.get("stop_on_short_page"):
             return
 
         max_pages = self._pagination_max_pages(api)
@@ -1452,21 +1820,24 @@ class SyncEngine:
             param_source.get("exclude_existing_target")
             and param_source.get("refresh_after_days") is not None
         ):
-            refresh_before = datetime.now() - timedelta(
+            refresh_before = _utc_now() - timedelta(
                 days=max(int(param_source["refresh_after_days"]), 0)
             )
 
         if fields:
             return self._source_param_sets_from_raw_json_fields(
                 connection,
-                api["api_code"],
-                source_api_code,
-                fields,
-                param_source.get("filters") or [],
-                limit,
-                offset,
-                bool(param_source.get("exclude_existing_target")),
-                refresh_before,
+                RawJsonParamSource(
+                    account_id=self.sync_context.jijia_account_id,
+                    target_api_code=api["api_code"],
+                    source_api_code=source_api_code,
+                    fields=tuple(fields),
+                    filters=tuple(param_source.get("filters") or []),
+                    limit=limit,
+                    offset=offset,
+                    exclude_existing_target=bool(param_source.get("exclude_existing_target")),
+                    refresh_before=refresh_before,
+                ),
             )
 
         source_field = param_source.get("source_field")
@@ -1481,6 +1852,7 @@ class SyncEngine:
             target_condition = "target_data.id IS NULL"
             order_clause = "source_data.source_primary_key"
             query_params: dict[str, Any] = {
+                "jijia_account_id": self.sync_context.jijia_account_id,
                 "source_api_code": source_api_code,
                 "target_api_code": api["api_code"],
                 "limit": limit,
@@ -1498,9 +1870,11 @@ class SyncEngine:
                     SELECT source_data.source_primary_key AS source_value
                     FROM raw_api_data source_data
                     LEFT JOIN raw_api_data target_data
-                      ON target_data.api_code = :target_api_code
+                      ON target_data.jijia_account_id = :jijia_account_id
+                     AND target_data.api_code = :target_api_code
                      AND target_data.source_primary_key = source_data.source_primary_key
-                    WHERE source_data.api_code = :source_api_code
+                    WHERE source_data.jijia_account_id = :jijia_account_id
+                      AND source_data.api_code = :source_api_code
                       AND source_data.source_primary_key IS NOT NULL
                       AND source_data.source_primary_key <> ''
                       AND {target_condition}
@@ -1518,7 +1892,8 @@ class SyncEngine:
                 """
                 SELECT source_primary_key AS source_value
                 FROM raw_api_data
-                WHERE api_code = :source_api_code
+                WHERE jijia_account_id = :jijia_account_id
+                  AND api_code = :source_api_code
                   AND source_primary_key IS NOT NULL
                   AND source_primary_key <> ''
                 ORDER BY source_primary_key
@@ -1526,7 +1901,12 @@ class SyncEngine:
                 OFFSET :offset
                 """
             ),
-            {"source_api_code": source_api_code, "limit": limit, "offset": offset},
+            {
+                "jijia_account_id": self.sync_context.jijia_account_id,
+                "source_api_code": source_api_code,
+                "limit": limit,
+                "offset": offset,
+            },
         )
         return [{target_field: str(row["source_value"])} for row in result.mappings().all()]
 
@@ -1544,23 +1924,8 @@ class SyncEngine:
         if not param_source.get("auto_advance"):
             return base_offset
 
-        result = connection.execute(
-            text(
-                """
-                SELECT checkpoint_value
-                FROM sync_checkpoint
-                WHERE api_code = :api_code
-                """
-            ),
-            {"api_code": api["api_code"]},
-        )
-        row = result.mappings().first()
-        if not row or not row.get("checkpoint_value"):
-            return base_offset
-
-        try:
-            checkpoint = json.loads(str(row["checkpoint_value"]))
-        except json.JSONDecodeError:
+        checkpoint = self._checkpoint_data(api, connection)
+        if not checkpoint:
             return base_offset
 
         if checkpoint.get("next_param_offset") is not None:
@@ -1574,123 +1939,22 @@ class SyncEngine:
     def _source_param_sets_from_raw_json_fields(
         self,
         connection: Any,
-        target_api_code: str,
-        source_api_code: str | None,
-        fields: list[dict[str, Any]],
-        filters: list[dict[str, Any]],
-        limit: int,
-        offset: int,
-        exclude_existing_target: bool = False,
-        refresh_before: datetime | None = None,
+        source: RawJsonParamSource,
     ) -> list[dict[str, Any]]:
         """从上游 raw_json 顶层字段生成请求参数。"""
-        if not source_api_code:
-            raise ValueError("invalid param_source config: missing source_api_code")
-        if any("[]" in str(field.get("source_field") or "") for field in fields):
+        if source.uses_array_field:
             return self._source_param_sets_from_raw_json_array_field(
                 connection,
-                source_api_code,
-                fields,
-                filters,
-                limit,
-                offset,
+                source,
             )
-
-        select_parts = []
-        select_expressions = []
-        where_parts = []
-        query_params: dict[str, Any] = {"source_api_code": source_api_code, "limit": limit, "offset": offset}
-        target_fields = []
-        wrap_in_list_fields = []
-        raw_json_column = "source_data.raw_json" if exclude_existing_target else "raw_json"
-        from_clause = "raw_api_data source_data" if exclude_existing_target else "raw_api_data"
-        api_code_column = "source_data.api_code" if exclude_existing_target else "api_code"
-        for index, field in enumerate(fields):
-            source_field = str(field.get("source_field") or "")
-            target_field = str(field.get("target_field") or "")
-            if not source_field.startswith("raw_json.") or not target_field:
-                raise ValueError(f"invalid raw_json param field: {source_field}")
-
-            raw_json_path = source_field.removeprefix("raw_json.")
-            if not RAW_JSON_FIELD_PATTERN.match(raw_json_path):
-                raise ValueError(f"invalid raw_json param field: {source_field}")
-
-            expression = f"JSON_UNQUOTE(JSON_EXTRACT({raw_json_column}, '$.{raw_json_path}'))"
-            alias = f"source_{index}"
-            select_parts.append(f"{expression} AS {alias}")
-            select_expressions.append(expression)
-            where_parts.append(f"{expression} IS NOT NULL AND {expression} <> ''")
-            target_fields.append(target_field)
-            wrap_in_list_fields.append(bool(field.get("wrap_in_list")))
-
-        for index, filter_config in enumerate(filters):
-            source_field = str(filter_config.get("source_field") or "")
-            if not source_field.startswith("raw_json."):
-                raise ValueError(f"invalid raw_json param filter: {source_field}")
-
-            raw_json_path = source_field.removeprefix("raw_json.")
-            if not RAW_JSON_FIELD_PATTERN.match(raw_json_path):
-                raise ValueError(f"invalid raw_json param filter: {source_field}")
-            if "equals" not in filter_config:
-                raise ValueError(f"invalid raw_json param filter: {source_field}")
-
-            expression = f"JSON_UNQUOTE(JSON_EXTRACT({raw_json_column}, '$.{raw_json_path}'))"
-            param_name = f"filter_{index}"
-            where_parts.append(f"{expression} = :{param_name}")
-            query_params[param_name] = str(filter_config["equals"])
-
-        join_clause = ""
-        if exclude_existing_target:
-            # 目标表缺失扫描用第一个来源字段作为目标 source_primary_key，对应 transfer_detail 的 code。
-            join_clause = f"""
-            LEFT JOIN raw_api_data target_data
-              ON target_data.api_code = :target_api_code
-             AND target_data.source_primary_key = {select_expressions[0]}
-            """
-            if refresh_before is None:
-                where_parts.append("target_data.id IS NULL")
-            else:
-                where_parts.append(
-                    "(target_data.id IS NULL OR target_data.updated_at < :refresh_before)"
-                )
-                query_params["refresh_before"] = refresh_before
-            query_params["target_api_code"] = target_api_code
-
-        aliases = [f"source_{index}" for index in range(len(fields))]
-        order_clause = ", ".join(aliases)
-        if refresh_before is not None:
-            order_clause = f"MIN(target_data.updated_at), {order_clause}"
-        sql = f"""
-            SELECT {", ".join(select_parts)}
-            FROM {from_clause}
-            {join_clause}
-            WHERE {api_code_column} = :source_api_code
-              AND {" AND ".join(where_parts)}
-            GROUP BY {", ".join(aliases)}
-            ORDER BY {order_clause}
-            LIMIT :limit
-            OFFSET :offset
-        """
-        result = connection.execute(text(sql), query_params)
-        rows = []
-        for row in result.mappings().all():
-            params = {}
-            for index, target_field in enumerate(target_fields):
-                value = str(row[f"source_{index}"])
-                params[target_field] = (
-                    [value] if wrap_in_list_fields[index] else value
-                )
-            rows.append(params)
-        return rows
+        query = build_raw_json_field_query(source)
+        result = connection.execute(text(query.sql), query.parameters)
+        return field_rows_to_params(result.mappings().all(), query)
 
     def _source_param_sets_from_raw_json_array_field(
         self,
         connection: Any,
-        source_api_code: str,
-        fields: list[dict[str, Any]],
-        filters: list[dict[str, Any]],
-        limit: int,
-        offset: int,
+        source: RawJsonParamSource,
     ) -> list[dict[str, Any]]:
         """从上游 raw_json 的单层数组展开请求参数。
 
@@ -1698,68 +1962,12 @@ class SyncEngine:
         这是为了覆盖店铺授权信息里的站点列表，同时避免把数组 join、复杂过滤
         和多字段同位绑定一次性做复杂。
         """
-        if filters:
-            raise ValueError("raw_json array param source does not support filters")
-        if len(fields) != 1:
-            raise ValueError("raw_json array param source supports exactly one field")
-
-        field = fields[0]
-        source_field = str(field.get("source_field") or "")
-        target_field = str(field.get("target_field") or "")
-        wrap_in_list = bool(field.get("wrap_in_list"))
-        if not source_field.startswith("raw_json.") or not target_field:
-            raise ValueError(f"invalid raw_json param field: {source_field}")
-
-        raw_json_path = source_field.removeprefix("raw_json.")
-        if raw_json_path.count("[]") != 1:
-            raise ValueError(f"invalid raw_json array param field: {source_field}")
-
-        array_path, value_path = raw_json_path.split("[]", 1)
-        value_path = value_path.removeprefix(".")
-        if not RAW_JSON_FIELD_PATTERN.match(array_path) or not value_path or not RAW_JSON_FIELD_PATTERN.match(value_path):
-            raise ValueError(f"invalid raw_json array param field: {source_field}")
-
+        query = build_raw_json_array_query(source)
         result = connection.execute(
-            text(
-                """
-                SELECT raw_json
-                FROM raw_api_data
-                WHERE api_code = :source_api_code
-                  AND raw_json IS NOT NULL
-                ORDER BY id
-                """
-            ),
-            {"source_api_code": source_api_code},
+            text(query.sql),
+            query.parameters,
         )
-
-        values = set()
-        for row in result.mappings().all():
-            raw_json = row.get("raw_json")
-            if isinstance(raw_json, str):
-                try:
-                    item = json.loads(raw_json)
-                except json.JSONDecodeError:
-                    continue
-            elif isinstance(raw_json, dict):
-                item = raw_json
-            else:
-                continue
-
-            array_items = self._get_by_path(item, array_path)
-            if not isinstance(array_items, list):
-                continue
-            for array_item in array_items:
-                if not isinstance(array_item, dict):
-                    continue
-                value = self._get_by_path(array_item, value_path)
-                if value is not None and str(value) != "":
-                    values.add(str(value))
-
-        selected_values = sorted(values)[offset : offset + limit]
-        return [
-            {target_field: [value] if wrap_in_list else value}
-            for value in selected_values
-        ]
+        return array_rows_to_params(result.mappings().all(), query, self._get_by_path)
 
     def _request_with_retry(
         self,
@@ -1785,9 +1993,13 @@ class SyncEngine:
 
         try:
             # retry_call 只负责重试；attempt_count 用来给 sync_api_log 和失败日志做可追踪记录。
-            return retry_call(request_once, retries=retries, delay_seconds=delay_seconds), attempt_count
+            return retry_call(
+                request_once, retries=retries, delay_seconds=delay_seconds
+            ), attempt_count
         except Exception as error:
-            request_url = api_client.request_url(api) if hasattr(api_client, "request_url") else None
+            request_url = (
+                api_client.request_url(api) if hasattr(api_client, "request_url") else None
+            )
             method = str(api.get("method", "POST")).upper()
             raise ApiRequestError(error, request_url, method, params, attempt_count) from error
 
@@ -1804,7 +2016,9 @@ class SyncEngine:
             return None
         return int(total)
 
-    def _sleep_between_pages(self, api: dict[str, Any], page_no: int, total_count: int | None) -> None:
+    def _sleep_between_pages(
+        self, api: dict[str, Any], page_no: int, total_count: int | None
+    ) -> None:
         """在分页请求之间按配置限流。
 
         只有确认还有下一页时才 sleep，避免最后一页无意义等待。
@@ -1817,7 +2031,9 @@ class SyncEngine:
         if sleep_seconds > 0:
             time.sleep(sleep_seconds)
 
-    def _sleep_between_param_requests(self, api: dict[str, Any], index: int, total_count: int) -> None:
+    def _sleep_between_param_requests(
+        self, api: dict[str, Any], index: int, total_count: int
+    ) -> None:
         """依赖参数接口逐个请求时复用同一套限流配置。"""
         if index >= total_count:
             return
@@ -1841,6 +2057,8 @@ class SyncEngine:
         默认记录分页执行摘要；依赖参数接口可以额外写入参数窗口，后续运行据此
         自动推进下一批 offset。
         """
+        if not self.sync_context.advance_checkpoint:
+            return
         # checkpoint_value 暂存分页摘要，后续接入增量接口时再替换为业务时间或游标。
         checkpoint_data = {
             "last_page": last_page,
@@ -1859,9 +2077,11 @@ class SyncEngine:
             text(
                 """
                 INSERT INTO sync_checkpoint (
-                  api_code, checkpoint_value, checkpoint_time, last_sync_batch_no
+                  jijia_account_id, api_code, checkpoint_kind,
+                  checkpoint_value, checkpoint_time, last_sync_batch_no
                 ) VALUES (
-                  :api_code, :checkpoint_value, :checkpoint_time, :last_sync_batch_no
+                  :jijia_account_id, :api_code, :checkpoint_kind,
+                  :checkpoint_value, :checkpoint_time, :last_sync_batch_no
                 )
                 ON DUPLICATE KEY UPDATE
                   checkpoint_value = VALUES(checkpoint_value),
@@ -1870,9 +2090,11 @@ class SyncEngine:
                 """
             ),
             {
+                "jijia_account_id": self.sync_context.jijia_account_id,
                 "api_code": api_code,
+                "checkpoint_kind": self._checkpoint_kind_by_api_code(api_code),
                 "checkpoint_value": checkpoint_value,
-                "checkpoint_time": datetime.now(),
+                "checkpoint_time": _utc_now(),
                 "last_sync_batch_no": batch_no,
             },
         )
@@ -1893,10 +2115,12 @@ class SyncEngine:
         # request_params 是业务请求体，不包含 accessToken；鉴权头不落库。
         response = getattr(error.original_error, "response", None)
         status_code = getattr(response, "status_code", None)
-        response_body = getattr(response, "text", None)
+        response_body: str | None = getattr(response, "text", None)
         error_message = str(error.original_error)
-        request_params = json.dumps(
-            error.request_params, ensure_ascii=False, default=str
+        request_params: str | None = json.dumps(
+            error.request_params,
+            ensure_ascii=False,
+            default=str,
         )
         if self._has_sensitive_response(api_code):
             # 人员等敏感响应只允许成功时进入 raw_json，失败链路保留状态但不保存正文。
@@ -1907,11 +2131,13 @@ class SyncEngine:
             text(
                 """
                 INSERT INTO failed_request_log (
-                  sync_batch_no, api_code, request_url, request_method,
+                  sync_batch_no, jijia_account_id, api_code,
+                  request_url, request_method,
                   request_params, response_status_code, response_body,
                   error_message, retry_count
                 ) VALUES (
-                  :sync_batch_no, :api_code, :request_url, :request_method,
+                  :sync_batch_no, :jijia_account_id, :api_code,
+                  :request_url, :request_method,
                   :request_params, :response_status_code, :response_body,
                   :error_message, :retry_count
                 )
@@ -1919,6 +2145,7 @@ class SyncEngine:
             ),
             {
                 "sync_batch_no": batch_no,
+                "jijia_account_id": self.sync_context.jijia_account_id,
                 "api_code": api_code,
                 "request_url": error.request_url,
                 "request_method": error.request_method,
@@ -1993,4 +2220,4 @@ class SyncEngine:
 
     def _new_batch_no(self) -> str:
         """生成本次同步批次号。"""
-        return datetime.now().strftime("sync_%Y%m%d_%H%M%S_%f")
+        return _utc_now().strftime("sync_%Y%m%d_%H%M%S_%f")

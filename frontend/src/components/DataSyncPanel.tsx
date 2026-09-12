@@ -1,0 +1,330 @@
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Alert, Button, Spin, Tag } from "antd";
+import { Link, useLocation } from "react-router-dom";
+
+import { api } from "../api/client";
+import type { ApiCatalogItem, JijiaAccount, SyncJob, WorkerRuntime } from "../api/types";
+import { useAuth } from "../auth/AuthContext";
+import { formatDate, getApiErrorMessage, statusLabel } from "../pages/m3Utils";
+
+const ACTIVE_JOB_STATUSES = new Set(["queued", "running", "pause_requested"]);
+const JOB_POLL_INTERVAL_MS = 5000;
+const STATUS_POLL_INTERVAL_MS = 15000;
+
+interface DataSyncPanelProps {
+  apiCode: string;
+  accounts: JijiaAccount[];
+  selectedAccountId: string;
+  loadedCount: number;
+  onSynced: () => void;
+}
+
+export function DataSyncPanel({
+  apiCode,
+  accounts,
+  selectedAccountId,
+  loadedCount,
+  onSynced,
+}: DataSyncPanelProps) {
+  const location = useLocation();
+  const sourceState = {
+    from: `${location.pathname}${location.search}`,
+    backLabel: "返回业务数据",
+    returnState: location.state,
+  };
+  const { csrfToken, user } = useAuth();
+  const [runtime, setRuntime] = useState<WorkerRuntime | null>(null);
+  const [catalogItem, setCatalogItem] = useState<ApiCatalogItem | null>(null);
+  const [latestJob, setLatestJob] = useState<SyncJob | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const trackedJobIdRef = useRef<string | null>(null);
+  const refreshedJobIdRef = useRef<string | null>(null);
+  const requestGenerationRef = useRef(0);
+  const onSyncedRef = useRef(onSynced);
+
+  useEffect(() => {
+    onSyncedRef.current = onSynced;
+  }, [onSynced]);
+
+  const activeAccounts = accounts.filter((account) => account.status === "active");
+  const selectedAccount = activeAccounts.find(
+    (account) => String(account.id) === selectedAccountId,
+  );
+  const effectiveAccount =
+    selectedAccount ??
+    (selectedAccountId ? null : activeAccounts.length === 1 ? activeAccounts[0] : null);
+  const requestContextKey = `${effectiveAccount?.id ?? "none"}:${apiCode}`;
+  const activeContextKeyRef = useRef(requestContextKey);
+  activeContextKeyRef.current = requestContextKey;
+  const [stateContextKey, setStateContextKey] = useState(requestContextKey);
+  const stateMatchesContext = stateContextKey === requestContextKey;
+  const currentRuntime = stateMatchesContext ? runtime : null;
+  const currentCatalogItem = stateMatchesContext ? catalogItem : null;
+  const currentLatestJob = stateMatchesContext ? latestJob : null;
+  const currentLoading = stateMatchesContext ? loading : true;
+  const currentCreating = stateMatchesContext ? creating : false;
+  const currentMessage = stateMatchesContext ? message : "";
+  const currentError = stateMatchesContext ? error : "";
+  const activeJob =
+    currentLatestJob && ACTIVE_JOB_STATUSES.has(currentLatestJob.status) ? currentLatestJob : null;
+  const pollInterval = activeJob ? JOB_POLL_INTERVAL_MS : STATUS_POLL_INTERVAL_MS;
+  const canOperate = user?.role === "admin" || user?.role === "operator";
+  const catalogReady = Boolean(currentCatalogItem);
+  const accountEnabled = currentCatalogItem?.accountEnabled === true;
+  const canCreateJob = Boolean(
+    canOperate &&
+    csrfToken &&
+    effectiveAccount &&
+    catalogReady &&
+    accountEnabled &&
+    !activeJob &&
+    !currentLoading &&
+    !currentCreating,
+  );
+  const statusTone = currentRuntime?.availability ?? "unknown";
+
+  useEffect(() => {
+    requestGenerationRef.current += 1;
+    setStateContextKey(requestContextKey);
+    setRuntime(null);
+    setCatalogItem(null);
+    setLatestJob(null);
+    setLoading(true);
+    setCreating(false);
+    setMessage("");
+    setError("");
+    trackedJobIdRef.current = null;
+    refreshedJobIdRef.current = null;
+  }, [requestContextKey]);
+
+  const loadStatus = useCallback(
+    async (source: "auto" | "manual" = "manual") => {
+      const requestGeneration = ++requestGenerationRef.current;
+      const contextKey = requestContextKey;
+      const isCurrentRequest = () =>
+        requestGenerationRef.current === requestGeneration &&
+        activeContextKeyRef.current === contextKey;
+      if (source === "manual") setLoading(true);
+      try {
+        const accountId = effectiveAccount?.id;
+        const [nextRuntime, catalog, jobs] = await Promise.all([
+          api.getWorkerRuntime(),
+          accountId ? api.getApiCatalog(accountId) : Promise.resolve([]),
+          accountId
+            ? api.listSyncJobs({ jijiaAccountId: accountId, apiCode, limit: 1 })
+            : Promise.resolve({ items: [] }),
+        ]);
+        const nextCatalogItem = catalog.find((item) => item.apiCode === apiCode) ?? null;
+        const nextLatestJob = jobs.items[0] ?? null;
+        if (!isCurrentRequest()) return;
+        setRuntime(nextRuntime);
+        setCatalogItem(nextCatalogItem);
+        setLatestJob(nextLatestJob);
+        setError("");
+
+        const trackedJobId = trackedJobIdRef.current;
+        if (
+          trackedJobId &&
+          nextLatestJob &&
+          String(nextLatestJob.id) === trackedJobId &&
+          nextLatestJob.status === "success" &&
+          refreshedJobIdRef.current !== trackedJobId
+        ) {
+          refreshedJobIdRef.current = trackedJobId;
+          setMessage("同步完成，数据已刷新");
+          onSyncedRef.current();
+        }
+      } catch (caught) {
+        if (isCurrentRequest()) setError(getApiErrorMessage(caught, "同步状态加载失败"));
+      } finally {
+        if (source === "manual" && isCurrentRequest()) setLoading(false);
+      }
+    },
+    [apiCode, effectiveAccount?.id, requestContextKey],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    let timer: number | undefined;
+
+    const tick = async (source: "auto" | "manual") => {
+      await loadStatus(source);
+      if (cancelled) return;
+      timer = window.setTimeout(() => void tick("auto"), pollInterval);
+    };
+
+    void tick("manual");
+    return () => {
+      cancelled = true;
+      requestGenerationRef.current += 1;
+      if (timer !== undefined) window.clearTimeout(timer);
+    };
+  }, [loadStatus, pollInterval]);
+
+  async function createJob() {
+    if (!canCreateJob || !effectiveAccount || !csrfToken) return;
+    const contextKey = requestContextKey;
+    setCreating(true);
+    setError("");
+    setMessage("");
+    try {
+      const result = await api.createSyncJob(
+        {
+          jijiaAccountId: effectiveAccount.id,
+          apiCode,
+          rangeMode: "checkpoint",
+        },
+        csrfToken,
+      );
+      if (activeContextKeyRef.current !== contextKey) return;
+      trackedJobIdRef.current = String(result.jobId);
+      refreshedJobIdRef.current = null;
+      setMessage(
+        currentRuntime?.availability === "offline"
+          ? "任务已排队，执行服务启动后会处理"
+          : "同步任务已排队",
+      );
+      await loadStatus("manual");
+    } catch (caught) {
+      if (activeContextKeyRef.current === contextKey) {
+        setError(getApiErrorMessage(caught, "同步任务创建失败"));
+      }
+    } finally {
+      if (activeContextKeyRef.current === contextKey) setCreating(false);
+    }
+  }
+
+  function disabledReason(): string {
+    if (!canOperate) return "当前账号无同步权限";
+    if (!csrfToken) return "登录状态缺少操作凭证";
+    if (currentLoading) return "正在检查同步状态";
+    if (!effectiveAccount) return "请选择一个积加账号后同步";
+    if (!catalogReady) return "当前接口不在已接入目录中";
+    if (!accountEnabled) return "该账号未启用当前接口策略";
+    if (activeJob) return "已有任务处理中";
+    return "";
+  }
+
+  const syncDescription =
+    currentRuntime?.availability === "busy"
+      ? "执行服务正在处理其他任务，新任务会进入队列。"
+      : currentRuntime?.availability === "offline"
+        ? "可先创建同步任务，服务恢复后会自动处理。"
+        : currentRuntime
+          ? "将从已保存的同步进度继续。"
+          : "正在检查执行服务状态。";
+  const actionTitle =
+    disabledReason() ||
+    (currentRuntime?.availability === "busy"
+      ? "执行服务忙碌，新任务会进入队列"
+      : currentRuntime?.availability === "offline"
+        ? "创建任务并等待执行服务恢复"
+        : "从已保存进度创建同步任务");
+  const actionLabel = currentCreating
+    ? "创建中"
+    : activeJob
+      ? "任务处理中"
+      : currentRuntime?.availability === "busy"
+        ? "加入同步队列"
+        : "按进度同步";
+
+  return (
+    <section className={`data-sync-panel data-sync-panel--${statusTone}`} aria-live="polite">
+      <header className="data-sync-header">
+        <div className="data-sync-title">
+          <span>同步控制</span>
+          <strong>{currentCatalogItem?.name ?? apiCode}</strong>
+        </div>
+        <div className="data-sync-worker">
+          <span>执行服务</span>
+          {currentRuntime ? (
+            <Tag color={runtimeTagColor(currentRuntime.availability)}>
+              {runtimeLabel(currentRuntime)}
+            </Tag>
+          ) : (
+            <Spin size="small" />
+          )}
+        </div>
+      </header>
+      <dl className="data-sync-metrics">
+        <div>
+          <dt>账号</dt>
+          <dd>{effectiveAccount?.name ?? "未选择"}</dd>
+        </div>
+        <div>
+          <dt>当前加载</dt>
+          <dd>{loadedCount}</dd>
+        </div>
+        <div>
+          <dt>原始记录</dt>
+          <dd>{currentCatalogItem?.rawRecordCount ?? "—"}</dd>
+        </div>
+        <div>
+          <dt>最近同步</dt>
+          <dd>{formatDate(currentCatalogItem?.recentRunAt)}</dd>
+        </div>
+      </dl>
+      <footer className="data-sync-footer">
+        <div className="data-sync-guidance">
+          <small>{syncDescription}</small>
+          <div className="data-sync-links">
+            {canOperate ? (
+              <Link
+                className="m3-link"
+                to={`/jobs/new?${new URLSearchParams({ apiCode, ...(selectedAccountId || effectiveAccount ? { accountId: selectedAccountId || String(effectiveAccount?.id) } : {}) })}`}
+                state={sourceState}
+              >
+                自定义同步范围
+              </Link>
+            ) : null}
+            {currentLatestJob ? (
+              <Link className="m3-link" to={`/jobs/${currentLatestJob.id}`} state={sourceState}>
+                最近任务：{statusLabel(currentLatestJob.status)}
+              </Link>
+            ) : (
+              <span>暂无任务</span>
+            )}
+          </div>
+          {currentMessage ? <Alert title={currentMessage} type="success" /> : null}
+          {currentError ? <Alert title={currentError} type="error" /> : null}
+          {!currentLoading && disabledReason() && !activeJob ? (
+            <small>{disabledReason()}</small>
+          ) : null}
+        </div>
+        <div className="data-sync-actions">
+          <Button
+            className="data-sync-primary-action"
+            color="primary"
+            disabled={!canCreateJob}
+            loading={currentCreating}
+            variant="outlined"
+            onClick={() => void createJob()}
+            title={actionTitle}
+          >
+            {actionLabel}
+          </Button>
+          {currentLoading ? (
+            <small>
+              <Spin size="small" /> 正在检查同步状态
+            </small>
+          ) : null}
+        </div>
+      </footer>
+    </section>
+  );
+}
+
+function runtimeLabel(runtime: WorkerRuntime): string {
+  if (runtime.availability === "offline") return "离线";
+  if (runtime.availability === "busy") return "忙碌";
+  return "在线";
+}
+
+function runtimeTagColor(availability: WorkerRuntime["availability"]) {
+  if (availability === "offline") return "error";
+  if (availability === "busy") return "processing";
+  return "success";
+}

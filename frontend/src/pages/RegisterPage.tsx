@@ -1,11 +1,17 @@
-import { type FormEvent, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import { Alert, Button, Form, Input, Spin } from "antd";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 
 import { api, ApiError } from "../api/client";
 import type { InvitationValidation, UserRole } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import { BrandPanel } from "../components/BrandPanel";
-import { FormField } from "../components/FormField";
+import { PasswordFields, type NewPasswordValues } from "../components/PasswordFields";
+import { usePasswordPolicy } from "../hooks/usePasswordPolicy";
+
+interface RegisterValues extends NewPasswordValues {
+  displayName: string;
+}
 
 const roleNames: Record<UserRole, string> = {
   admin: "管理员",
@@ -18,11 +24,10 @@ export function RegisterPage() {
   const token = new URLSearchParams(hash.slice(1)).get("token") ?? "";
   const { register, user } = useAuth();
   const navigate = useNavigate();
+  const [form] = Form.useForm<RegisterValues>();
+  const policy = usePasswordPolicy();
   const [invitation, setInvitation] = useState<InvitationValidation | null>(null);
   const [loading, setLoading] = useState(true);
-  const [displayName, setDisplayName] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -42,26 +47,15 @@ export function RegisterPage() {
   }, [token]);
 
   if (user) {
-    return <Navigate replace to={user.role === "admin" ? "/members" : "/"} />;
+    return <Navigate replace to="/" />;
   }
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function handleSubmit(values: RegisterValues) {
     setError("");
-    if (password !== confirmPassword) {
-      setError("两次输入的密码不一致");
-      return;
-    }
-    if (password.length < 12) {
-      setError("密码至少需要 12 位");
-      return;
-    }
     setSubmitting(true);
     try {
-      const registeredUser = await register(token, displayName, password);
-      navigate(registeredUser.role === "admin" ? "/members" : "/", {
-        replace: true,
-      });
+      await register(token, values.displayName, values.newPassword);
+      navigate("/", { replace: true });
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : "注册失败，请稍后重试");
     } finally {
@@ -71,66 +65,72 @@ export function RegisterPage() {
 
   return (
     <main className="auth-layout" data-node-id="120:433">
-      <BrandPanel mode="register" />
-      <section className="auth-main auth-main--register">
+      <BrandPanel />
+      <section className="auth-main">
         <div className="auth-top-note auth-top-note--link">
           已有账号？<Link to="/login">返回登录</Link>
         </div>
-        <form className="auth-form auth-form--register" onSubmit={handleSubmit}>
-          <h2>完成账号注册</h2>
-          <p className="auth-description">确认邀请信息，并设置用于后续登录的密码。</p>
-          {loading ? <div className="invitation-card">正在验证邀请…</div> : null}
-          {invitation ? (
+        <Form<RegisterValues>
+          className="auth-form"
+          disabled={submitting}
+          form={form}
+          layout="vertical"
+          requiredMark={false}
+          validateTrigger="onBlur"
+          scrollToFirstError={{ focus: true }}
+          onFinish={(values) => void handleSubmit(values)}
+        >
+          <h1>完成账号注册</h1>
+          {loading || policy.loading ? (
             <div className="invitation-card">
-              <strong>受邀邮箱</strong><span>{invitation.email}</span>
-              <strong>固定角色</strong><span>{roleNames[invitation.role]}</span>
+              <Spin size="small" /> 正在加载注册信息…
             </div>
           ) : null}
-          {!loading && invitation ? (
+          {invitation ? (
+            <div className="invitation-card">
+              <strong>受邀邮箱</strong>
+              <span>{invitation.email}</span>
+              <strong>固定角色</strong>
+              <span>{roleNames[invitation.role]}</span>
+            </div>
+          ) : null}
+          {policy.error ? (
+            <Alert
+              action={<Button onClick={policy.retry}>重试</Button>}
+              title={policy.error}
+              type="error"
+              showIcon
+            />
+          ) : null}
+          {!loading && invitation && policy.minimumLength !== null ? (
             <>
               <div className="auth-fields auth-fields--register">
-                <FormField
-                  autoComplete="name"
-                  id="display-name"
+                <Form.Item
                   label="姓名"
-                  placeholder="请输入你的姓名"
-                  required
-                  value={displayName}
-                  onChange={(event) => setDisplayName(event.target.value)}
-                />
-                <FormField
-                  autoComplete="new-password"
-                  id="new-password"
-                  label="密码"
-                  minLength={12}
-                  placeholder="至少 12 位"
-                  required
-                  type="password"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                />
-                <FormField
-                  autoComplete="new-password"
-                  id="confirm-password"
-                  label="确认密码"
-                  minLength={12}
-                  placeholder="再次输入密码"
-                  required
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(event) => setConfirmPassword(event.target.value)}
-                />
+                  name="displayName"
+                  rules={[{ required: true, whitespace: true, message: "请输入姓名" }]}
+                >
+                  <Input autoComplete="name" placeholder="请输入你的姓名" />
+                </Form.Item>
+                <PasswordFields minimumLength={policy.minimumLength} />
               </div>
-              <p className="password-hint">密码至少 12 位；请勿使用与其他系统相同的密码。</p>
             </>
           ) : null}
-          {error ? <div className="form-alert" role="alert">{error}</div> : null}
-          {invitation ? (
-            <button className="primary-button auth-submit" disabled={submitting} type="submit">
+          {error ? <Alert title={error} type="error" /> : null}
+          {invitation && policy.minimumLength !== null ? (
+            <Button
+              autoInsertSpace={false}
+              block
+              className="auth-submit"
+              disabled={submitting}
+              htmlType="submit"
+              loading={submitting}
+              type="primary"
+            >
               {submitting ? "注册中…" : "完成注册"}
-            </button>
+            </Button>
           ) : null}
-        </form>
+        </Form>
       </section>
     </main>
   );

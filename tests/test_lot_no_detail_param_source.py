@@ -27,7 +27,9 @@ class FakeConnection:
 
 class LotNoDetailParamSourceTest(unittest.TestCase):
     def setUp(self):
-        self.apis = {api["api_code"]: api for api in load_api_configs("config/api_config.example.yaml")}
+        self.apis = {
+            api["api_code"]: api for api in load_api_configs("config/api_config.example.yaml")
+        }
 
     def test_lot_no_detail_uses_missing_lot_no_fcodes_and_is_enabled(self):
         self.assertIn("lot_no_detail", self.apis)
@@ -72,6 +74,7 @@ class LotNoDetailParamSourceTest(unittest.TestCase):
         self.assertEqual(
             connection.calls[0][1],
             {
+                "jijia_account_id": 0,
                 "source_api_code": "storage_inbound_page",
                 "limit": 200,
                 "offset": 0,
@@ -103,6 +106,7 @@ class LotNoDetailParamSourceTest(unittest.TestCase):
         self.assertEqual(
             connection.calls[0][1],
             {
+                "jijia_account_id": 0,
                 "source_api_code": "storage_inbound_page",
                 "limit": 200,
                 "offset": 0,
@@ -112,7 +116,11 @@ class LotNoDetailParamSourceTest(unittest.TestCase):
         )
         sql = str(connection.calls[0][0])
         self.assertIn("LEFT JOIN raw_api_data target_data", sql)
-        self.assertIn("target_data.source_primary_key = JSON_UNQUOTE(JSON_EXTRACT(source_data.raw_json, '$.fcode'))", sql)
+        self.assertIn(
+            "target_data.source_primary_key = "
+            "JSON_UNQUOTE(JSON_EXTRACT(source_data.raw_json, '$.fcode'))",
+            sql,
+        )
         self.assertIn("target_data.id IS NULL", sql)
 
     def test_exclude_existing_target_ignores_checkpoint_offset(self):

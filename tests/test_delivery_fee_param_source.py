@@ -27,7 +27,9 @@ class FakeConnection:
 
 class DeliveryFeeParamSourceTest(unittest.TestCase):
     def setUp(self):
-        self.apis = {api["api_code"]: api for api in load_api_configs("config/api_config.example.yaml")}
+        self.apis = {
+            api["api_code"]: api for api in load_api_configs("config/api_config.example.yaml")
+        }
 
     def test_delivery_fee_uses_outbound_fcodes_and_stays_disabled(self):
         self.assertIn("delivery_fee_query", self.apis)
@@ -77,6 +79,7 @@ class DeliveryFeeParamSourceTest(unittest.TestCase):
         self.assertEqual(
             connection.calls[0][1],
             {
+                "jijia_account_id": 0,
                 "source_api_code": "storage_inbound_page",
                 "limit": 3,
                 "offset": 0,

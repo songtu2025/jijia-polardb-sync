@@ -9,7 +9,7 @@
 - 开发环境：Windows
 - 代码托管：GitHub
 - 生产环境：阿里云 ECS
-- 前端：React、TypeScript、Vite
+- 前端：React 19、TypeScript、Vite；保留项目现有基础组件和主题，不因公司新项目默认值迁移 Ant Design
 - 后端：Python、FastAPI、Pydantic、SQLAlchemy、Alembic、pytest、Ruff，以及项目选择的 Mypy 或 Pyright
 - 新项目默认部署：Docker、Docker Compose、Nginx；本项目按已确认差异使用 ECS、systemd 和 Nginx，不引入 Docker
 
@@ -107,7 +107,7 @@ project-name/
 
 Codex 当前默认最多组合 32 KiB 项目规则。接近限制时应优先减少重复、缩小始终加载范围或使用合理的目录分层，不得默认提高限制掩盖上下文膨胀；加载行为以 [Codex 官方说明](https://learn.chatgpt.com/docs/agent-configuration/agents-md) 为准。
 
-项目 README 必须记录公司规范基线版本、接入日期和项目差异。公司规范升级时，应将变更分类为适用、不适用、已存在和冲突，只合并适用且缺失的内容；完成后更新基线版本，不得重新复制覆盖。
+项目 README 必须记录公司规范基线版本、接入日期和项目差异。公司规范升级时，应将变更分类为适用、不适用、已存在和冲突，只合并适用且缺失的内容；完成后更新基线版本，不得重新复制覆盖。规范版本使用语义化版本，已经发布的版本不得原地改写。
 
 ## 4. 开始开发前
 
@@ -122,7 +122,7 @@ Codex 当前默认最多组合 32 KiB 项目规则。接近限制时应优先减
 7. 识别风险和回滚方式，给出测试与验证方案。
 8. 非简单任务在获得用户确认前不得开始修改。
 
-涉及 Web 界面时，还必须读取 `docs/codex/frontend.md` 和项目的 `docs/web-ui-standard.md`；后者不存在时读取 `templates/web-ui-standard-template.md` 并报告缺失。随后检查已有设计令牌、组件库、页面布局和相似页面，并明确设计来源、目标视口及各页面状态。
+涉及 Web 界面时，还必须读取 `docs/codex/frontend.md` 和项目的 `docs/web-ui-standard.md`。本项目继续由该单文件维护布局、表单和数据展示规则，不因 V1.7.0 自动拆分。随后检查已有设计令牌、基础组件、页面布局和相似页面，并明确设计来源、目标视口及各页面状态。
 
 ## 5. 修改范围
 

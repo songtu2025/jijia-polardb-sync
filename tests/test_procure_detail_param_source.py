@@ -27,7 +27,9 @@ class FakeConnection:
 
 class ProcureDetailParamSourceTest(unittest.TestCase):
     def setUp(self):
-        self.apis = {api["api_code"]: api for api in load_api_configs("config/api_config.example.yaml")}
+        self.apis = {
+            api["api_code"]: api for api in load_api_configs("config/api_config.example.yaml")
+        }
 
     def test_procure_detail_uses_lot_no_po_codes_with_missing_target_scan_and_is_enabled(self):
         self.assertIn("procure_detail", self.apis)
@@ -69,6 +71,7 @@ class ProcureDetailParamSourceTest(unittest.TestCase):
         self.assertEqual(
             connection.calls[0][1],
             {
+                "jijia_account_id": 0,
                 "source_api_code": "lot_no_page",
                 "limit": 3,
                 "offset": 0,
@@ -77,7 +80,9 @@ class ProcureDetailParamSourceTest(unittest.TestCase):
         sql = str(connection.calls[0][0])
         self.assertIn("JSON_EXTRACT(raw_json, '$.poCode')", sql)
 
-    def test_insert_procure_detail_can_use_request_po_code_as_primary_key_without_changing_raw_json(self):
+    def test_insert_procure_detail_can_use_request_po_code_as_primary_key_without_changing_raw_json(
+        self,
+    ):
         engine = SyncEngine([])
         connection = FakeConnection([])
         api = {
@@ -87,9 +92,19 @@ class ProcureDetailParamSourceTest(unittest.TestCase):
         }
         item = {"warehouseProcureItemVos": [{"procureItemVos": [{"code": "PO2209200001"}]}]}
 
-        engine._insert_raw_items(connection, api, [item], "batch-001", source_primary_key="PO2209200001")
+        engine._insert_raw_items(
+            connection,
+            api,
+            [item],
+            "batch-001",
+            source_primary_key="PO2209200001",
+        )
 
-        rows = connection.calls[0][1]
+        rows = next(
+            params
+            for statement, params in connection.calls
+            if "INSERT INTO raw_api_data (" in str(statement)
+        )
         self.assertEqual(rows[0]["source_primary_key"], "PO2209200001")
         self.assertNotIn("poCode", rows[0]["raw_json"])
 

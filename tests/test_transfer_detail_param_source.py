@@ -1,7 +1,6 @@
 import unittest
 from datetime import datetime
 
-
 from app.config import load_api_configs
 from app.sync_engine import SyncEngine
 
@@ -29,7 +28,9 @@ class FakeConnection:
 
 class TransferDetailParamSourceTest(unittest.TestCase):
     def setUp(self):
-        self.apis = {api["api_code"]: api for api in load_api_configs("config/api_config.example.yaml")}
+        self.apis = {
+            api["api_code"]: api for api in load_api_configs("config/api_config.example.yaml")
+        }
 
     def test_transfer_detail_uses_transfer_fcodes_and_is_enabled(self):
         self.assertIn("transfer_detail", self.apis)
@@ -57,7 +58,9 @@ class TransferDetailParamSourceTest(unittest.TestCase):
 
     def test_source_param_sets_filter_transfer_fcodes_by_op_type(self):
         engine = SyncEngine([])
-        connection = FakeConnection([{"source_0": "TF20230616000001"}, {"source_0": "TF20230616000002"}])
+        connection = FakeConnection(
+            [{"source_0": "TF20230616000001"}, {"source_0": "TF20230616000002"}]
+        )
         api = {
             "api_code": "transfer_detail",
             "param_source": {
@@ -74,6 +77,7 @@ class TransferDetailParamSourceTest(unittest.TestCase):
         self.assertEqual(
             connection.calls[0][1],
             {
+                "jijia_account_id": 0,
                 "source_api_code": "storage_inbound_page",
                 "limit": 3,
                 "offset": 0,
@@ -105,6 +109,7 @@ class TransferDetailParamSourceTest(unittest.TestCase):
         self.assertEqual(
             connection.calls[0][1],
             {
+                "jijia_account_id": 0,
                 "source_api_code": "storage_inbound_page",
                 "limit": 200,
                 "offset": 0,
@@ -114,7 +119,11 @@ class TransferDetailParamSourceTest(unittest.TestCase):
         )
         sql = str(connection.calls[0][0])
         self.assertIn("LEFT JOIN raw_api_data target_data", sql)
-        self.assertIn("target_data.source_primary_key = JSON_UNQUOTE(JSON_EXTRACT(source_data.raw_json, '$.fcode'))", sql)
+        self.assertIn(
+            "target_data.source_primary_key = "
+            "JSON_UNQUOTE(JSON_EXTRACT(source_data.raw_json, '$.fcode'))",
+            sql,
+        )
         self.assertIn("target_data.id IS NULL", sql)
 
     def test_exclude_existing_target_ignores_checkpoint_offset(self):
@@ -145,12 +154,8 @@ class TransferDetailParamSourceTest(unittest.TestCase):
             "param_source": {
                 "source_api_code": "storage_inbound_page",
                 "limit": 200,
-                "fields": [
-                    {"source_field": "raw_json.fcode", "target_field": "code"}
-                ],
-                "filters": [
-                    {"source_field": "raw_json.opType", "equals": "TFOutbound"}
-                ],
+                "fields": [{"source_field": "raw_json.fcode", "target_field": "code"}],
+                "filters": [{"source_field": "raw_json.opType", "equals": "TFOutbound"}],
                 "exclude_existing_target": True,
                 "refresh_after_days": 7,
             },

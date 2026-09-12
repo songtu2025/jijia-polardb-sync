@@ -1,0 +1,174 @@
+@font-face {
+  font-family: "SEEKWAY Inter";
+  src: url("./assets/inter-latin-500-normal.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* 登录品牌画面专用令牌，不改变业务页面或全局侧栏主题。 */
+.seekway-login {
+  --login-page: var(--color-surface-page);
+  --login-text: var(--color-text-primary);
+  --login-muted: var(--color-text-secondary);
+  --login-font: var(--font-family-sans);
+  --login-brand-start: #0b2e22;
+  --login-brand-end: #0d503d;
+  --login-art-ink: #f8f8ed;
+  --login-brand-meaning: rgb(255 255 255 / 72%);
+  display: grid;
+  grid-template-columns: 47fr 53fr;
+  min-height: 100svh;
+  font-family: var(--login-font);
+  color: var(--login-text);
+  background: var(--login-page);
+}
+
+.seekway-login__brand {
+  position: relative;
+  min-width: 0;
+  background: linear-gradient(140deg, var(--login-brand-start), var(--login-brand-end));
+}
+
+.seekway-login__signature {
+  position: absolute;
+  z-index: 1;
+  top: 3.2vh;
+  left: 5.7%;
+}
+
+.seekway-login__logo {
+  display: flex;
+  align-items: center;
+  gap: clamp(14px, 1.18vw, 19px);
+  color: var(--color-text-inverse);
+  font-family: "SEEKWAY Inter", sans-serif;
+  font-size: clamp(24px, 2.02vw, 32px);
+  font-weight: 500;
+  letter-spacing: 0.12em;
+}
+
+.seekway-login__logo img {
+  width: clamp(48px, 4.04vw, 64px);
+  height: clamp(48px, 4.04vw, 64px);
+  flex: none;
+}
+
+.seekway-login__brand-meaning {
+  margin: clamp(10px, 1.1vh, 14px) 0 0;
+  color: var(--login-brand-meaning);
+  font-size: clamp(13px, 0.95vw, 15px);
+  line-height: 1.5;
+  letter-spacing: 0.16em;
+}
+
+.seekway-login__art {
+  position: sticky;
+  top: 0;
+  display: flex;
+  align-items: center;
+  height: 100svh;
+  box-sizing: border-box;
+  padding: 112px 24px 24px;
+}
+
+.seekway-login__entry {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  padding: 48px 32px;
+}
+
+.seekway-login__form {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 536px;
+  padding: 68px 46px 48px;
+}
+
+.seekway-login__heading {
+  text-align: left;
+  margin-bottom: 42px;
+}
+.seekway-login__heading h1 {
+  margin: 0 0 12px;
+  font-size: 36px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.seekway-login__heading p,
+.seekway-login__help {
+  margin: 0;
+  color: var(--login-muted);
+  font-size: 18px;
+  line-height: 1.6;
+}
+.seekway-login__help {
+  margin-top: 22px;
+  font-size: 15px;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.seekway-login__feedback {
+  margin-top: 20px;
+}
+.seekway-login__feedback--before-form {
+  margin: 0 0 20px;
+}
+.seekway-login__password-help {
+  margin: -14px 0 18px;
+  text-align: right;
+}
+
+.seekway-login .ant-input-password-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  min-height: 24px;
+}
+
+.seekway-login .ant-input-password-icon:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+@media (max-width: 1100px) {
+  .seekway-login__entry {
+    padding: 32px 24px;
+  }
+  .seekway-login__form {
+    padding: 40px 28px 32px;
+  }
+}
+@media (max-width: 760px) {
+  .seekway-login {
+    grid-template-columns: 1fr;
+  }
+  .seekway-login__brand {
+    padding: 24px;
+  }
+  .seekway-login__signature {
+    position: static;
+  }
+  .seekway-login__logo {
+    width: fit-content;
+    height: auto;
+  }
+  .seekway-login__brand-meaning {
+    margin-top: 10px;
+    font-size: 13px;
+  }
+  .seekway-login__art {
+    position: static;
+    height: auto;
+    padding: 20px 0 0;
+  }
+  .seekway-login__entry {
+    padding: 24px 16px;
+  }
+  .seekway-login__form {
+    padding: 36px 24px;
+  }
+}

@@ -7,7 +7,7 @@
     "tree_api_count": 189,
     "detail_success_count": 189,
     "detail_error_count": 0,
-    "configured_real_api_count": 75,
+    "configured_real_api_count": 76,
     "configured_enabled_real_api_count": 47,
     "classification_counts": {
       "direct_read_candidate": 58,
@@ -16,14 +16,14 @@
       "write_or_mutation": 28
     },
     "execution_bucket_counts": {
-      "configured": 75,
-      "defer_or_review": 45,
+      "configured": 76,
+      "defer_or_review": 44,
       "needs_sensitive_review": 14,
       "needs_upstream_params": 43,
       "terminal_deferred": 12
     },
     "execution_stage_counts": {
-      "configured_disabled": 28,
+      "configured_disabled": 29,
       "configured_enabled": 47,
       "defer_no_param_source": 4,
       "defer_runtime_rejected": 4,
@@ -32,7 +32,7 @@
       "framework_auth_only": 1,
       "needs_param_source": 43,
       "needs_sensitive_review": 14,
-      "risk_review_before_probe": 17
+      "risk_review_before_probe": 16
     },
     "menu_counts": {
       "产品": 18,
@@ -157,10 +157,10 @@
       },
       "销售": {
         "total": 15,
-        "configured": 0,
+        "configured": 1,
         "enabled": 0,
         "terminal_deferred": 1,
-        "pending_review": 14,
+        "pending_review": 13,
         "closed": false
       }
     }
@@ -4411,11 +4411,31 @@
       "has_page_response": true,
       "has_list_response": false,
       "has_sensitive_response_fields": false,
-      "configured_api_code": "",
+      "configured_api_code": "sale_return_order_page",
       "configured_enabled": false,
-      "execution_bucket": "defer_or_review",
-      "execution_stage": "risk_review_before_probe",
-      "execution_reason": "接口位于订单、财务、客服、物流或销售等高风险域，需先人工确认字段和调用边界。"
+      "verified_request_contract": [
+        {
+          "name": "updateTimeBegin",
+          "type": "datetime",
+          "must": false,
+          "description": "修改开始时间 [yyyy-MM-dd HH:mm:ss]"
+        },
+        {
+          "name": "updateTimeEnd",
+          "type": "datetime",
+          "must": false,
+          "description": "修改结束时间 [yyyy-MM-dd HH:mm:ss]"
+        },
+        {
+          "name": "marketIds",
+          "type": "array<int>",
+          "must": false,
+          "description": "站点ID集合"
+        }
+      ],
+      "execution_bucket": "configured",
+      "execution_stage": "configured_disabled",
+      "execution_reason": "已配置但默认关闭，需按数据量、窗口和批量耗时评估后再启用。"
     },
     {
       "doc_id": 10,

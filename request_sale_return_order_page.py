@@ -10,7 +10,7 @@ import requests
 from app.api_client import JijiaApiClient
 from app.auth import JijiaAuthClient
 from app.config import load_settings
-
+from app.sale_return_discovery import discover_earliest_date
 
 API_PATH = "/operation/sale/returnOrder/page"
 
@@ -42,6 +42,11 @@ def parse_args() -> argparse.Namespace:
         "--all-pages",
         action="store_true",
         help="根据每页实时 total 拉取完整日期窗口，只输出汇总",
+    )
+    parser.add_argument(
+        "--discover-earliest",
+        action="store_true",
+        help="按31天窗口粗扫，并在首个非空窗口内二分定位最早数据日期",
     )
     return parser.parse_args()
 
@@ -177,15 +182,31 @@ def main() -> int:
     try:
         args = parse_args()
         request_body = build_request_body(args)
+        if args.all_pages and args.discover_earliest:
+            raise ValueError("all-pages 和 discover-earliest 不能同时使用")
+        if (args.all_pages or args.discover_earliest) and args.page != 1:
+            raise ValueError("完整分页或历史发现模式必须从第 1 页开始")
+        if args.discover_earliest:
+            # 发现阶段只依赖 total，单条响应可以降低敏感业务数据的传输量。
+            request_body["pagesize"] = 1
+
         settings = load_settings()
         auth_client = JijiaAuthClient(settings, timeout_seconds=args.timeout_seconds)
         token = auth_client.get_access_token()
         api_client = JijiaApiClient(settings, timeout_seconds=args.timeout_seconds)
         url = api_client.request_url({"path": API_PATH})
 
-        if args.all_pages:
-            if args.page != 1:
-                raise ValueError("all-pages 模式必须从第 1 页开始")
+        if args.discover_earliest:
+            response_summary = {
+                "discovery": discover_earliest_date(
+                    url,
+                    date.fromisoformat(args.return_start_date),
+                    date.fromisoformat(args.return_end_date),
+                    token.value,
+                    args.timeout_seconds,
+                )
+            }
+        elif args.all_pages:
             response_summary = request_all_pages(
                 url,
                 request_body,
@@ -209,10 +230,10 @@ def main() -> int:
         # ASCII JSON 可避免 PowerShell 终端再次破坏中文错误信息。
         print(json.dumps(result, ensure_ascii=True))
         successful = result.get("business_code") in (0, 200)
-        if args.all_pages:
-            successful = successful and bool(
-                (result.get("data_summary") or {}).get("complete")
-            )
+        if args.discover_earliest:
+            successful = bool((result.get("discovery") or {}).get("complete"))
+        elif args.all_pages:
+            successful = successful and bool((result.get("data_summary") or {}).get("complete"))
         return 0 if successful else 1
     except (ValueError, requests.RequestException) as error:
         print(

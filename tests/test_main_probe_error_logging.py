@@ -28,13 +28,15 @@ class MainProbeErrorLoggingTest(unittest.TestCase):
         auth_client.get_access_token.return_value = object()
 
         with (
+            patch.object(main_module, "create_db_engine", return_value=object()),
+            patch.object(main_module, "load_published_api_configs", return_value=[]),
             patch.object(main_module, "JijiaAuthClient", return_value=auth_client),
             patch.object(main_module, "JijiaApiClient", return_value=object()),
             patch.object(main_module, "SyncEngine", return_value=sync_engine),
             self.assertLogs("app.main", level="ERROR") as logs,
             self.assertRaises(SystemExit) as raised,
         ):
-            main_module._probe_single_api(object(), [], "placeholder_api")
+            main_module._probe_single_api(object(), "placeholder_api")
 
         self.assertEqual(raised.exception.code, 1)
         message = "\n".join(logs.output)
@@ -59,13 +61,15 @@ class MainProbeErrorLoggingTest(unittest.TestCase):
         auth_client.get_access_token.return_value = object()
 
         with (
+            patch.object(main_module, "create_db_engine", return_value=object()),
+            patch.object(main_module, "load_published_api_configs", return_value=[]),
             patch.object(main_module, "JijiaAuthClient", return_value=auth_client),
             patch.object(main_module, "JijiaApiClient", return_value=object()),
             patch.object(main_module, "SyncEngine", return_value=sync_engine),
             self.assertLogs("app.main", level="ERROR") as logs,
             self.assertRaises(SystemExit) as raised,
         ):
-            main_module._probe_single_api(object(), [], "placeholder_api")
+            main_module._probe_single_api(object(), "placeholder_api")
 
         self.assertEqual(raised.exception.code, 1)
         message = "\n".join(logs.output)

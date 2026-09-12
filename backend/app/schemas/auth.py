@@ -20,6 +20,24 @@ class RegisterRequest(BaseModel):
     password: str = Field(min_length=1, max_length=200)
 
 
+class PasswordChangeRequest(BaseModel):
+    current_password: str = Field(min_length=1, max_length=200)
+    new_password: str = Field(min_length=1, max_length=200)
+
+
+class PasswordResetRequest(BaseModel):
+    email: EmailStr
+
+
+class PasswordResetValidateRequest(BaseModel):
+    token: str = Field(min_length=20, max_length=500)
+
+
+class PasswordResetCompleteRequest(BaseModel):
+    token: str = Field(min_length=20, max_length=500)
+    new_password: str = Field(min_length=1, max_length=200)
+
+
 class InvitationCreateRequest(BaseModel):
     email: EmailStr
     role: UserRole

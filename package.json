@@ -1,0 +1,10 @@
+{
+  "scripts": {
+    "check:duplicates": "jscpd",
+    "check:unused": "knip --directory frontend"
+  },
+  "devDependencies": {
+    "jscpd": "^5.1.1",
+    "knip": "^6.34.0"
+  }
+}

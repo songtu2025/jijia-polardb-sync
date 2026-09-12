@@ -1,5 +1,5 @@
-import unittest
 import json
+import unittest
 from datetime import date
 
 from app.sync_engine import SyncEngine
@@ -14,6 +14,9 @@ class FakeResult:
 
     def first(self):
         return self.rows[0] if self.rows else None
+
+    def all(self):
+        return self.rows
 
 
 class FakeCheckpointConnection:
@@ -74,6 +77,16 @@ class GrowingTotalApiClient:
         page = int(params["page"])
         total = 2 if page == 1 else 3
         return {"data": {"rows": [{"id": page}], "total": total}}
+
+
+class NestedItemTotalApiClient:
+    def __init__(self):
+        self.calls = []
+
+    def request(self, api, token, params):
+        self.calls.append((api, token, params))
+        rows = [{"id": item_id, "marketListVos": [{"marketId": item_id}]} for item_id in range(17)]
+        return {"data": {"rows": rows, "total": 55}}
 
 
 class SyncEngineParamTemplatesTest(unittest.TestCase):
@@ -214,7 +227,9 @@ class SyncEngineParamTemplatesTest(unittest.TestCase):
             json.dumps({"next_window_start": "2999-01-01"}, ensure_ascii=False)
         )
 
-        payloads = list(engine._paged_payloads(api, api_client, token="token", connection=connection))
+        payloads = list(
+            engine._paged_payloads(api, api_client, token="token", connection=connection)
+        )
 
         self.assertEqual(payloads, [])
         self.assertEqual(api_client.calls, [])
@@ -272,13 +287,9 @@ class SyncEngineParamTemplatesTest(unittest.TestCase):
         result = engine._sync_api_in_batch(connection, api, "batch-001", api_client, token="token")
 
         self.assertEqual(result, {"item_count": 0, "request_count": 1, "failed_count": 1})
-        raw_writes = [
-            call for call in connection.calls if "INSERT INTO raw_api_data" in call[0]
-        ]
+        raw_writes = [call for call in connection.calls if "INSERT INTO raw_api_data" in call[0]]
         checkpoint_writes = [
-            call
-            for call in connection.calls
-            if "INSERT INTO sync_checkpoint" in call[0]
+            call for call in connection.calls if "INSERT INTO sync_checkpoint" in call[0]
         ]
         api_log_params = connection.calls[-1][1]
         self.assertEqual(raw_writes, [])
@@ -320,13 +331,9 @@ class SyncEngineParamTemplatesTest(unittest.TestCase):
             {"item_count": 0, "request_count": 1, "failed_count": 1},
         )
         self.assertEqual([call[2]["page"] for call in client.calls], [1])
-        raw_writes = [
-            call for call in connection.calls if "INSERT INTO raw_api_data" in call[0]
-        ]
+        raw_writes = [call for call in connection.calls if "INSERT INTO raw_api_data" in call[0]]
         checkpoint_writes = [
-            call
-            for call in connection.calls
-            if "INSERT INTO sync_checkpoint" in call[0]
+            call for call in connection.calls if "INSERT INTO sync_checkpoint" in call[0]
         ]
         self.assertEqual(raw_writes, [])
         self.assertEqual(checkpoint_writes, [])
@@ -376,6 +383,48 @@ class SyncEngineParamTemplatesTest(unittest.TestCase):
         self.assertEqual(checkpoint_value["last_page"], 3)
         self.assertEqual(checkpoint_value["total_count"], 3)
 
+    def test_short_page_pagination_ignores_nested_item_total(self):
+        engine = SyncEngine([])
+        connection = FakeCheckpointConnection()
+        api = {
+            "api_code": "amazon_shop_page",
+            "params": {"page": 1, "pagesize": 20},
+            "page": {
+                "enabled": True,
+                "page_no_field": "page",
+                "page_size_field": "pagesize",
+                "page_size": 20,
+                "max_pages": 5,
+                "list_field": "data.rows",
+                "total_field": "data.total",
+                "stop_on_short_page": True,
+            },
+            "primary_key": {"field": "id"},
+            "date_field": "",
+        }
+        client = NestedItemTotalApiClient()
+
+        result = engine._sync_api_in_batch(
+            connection,
+            api,
+            "batch-nested-total",
+            client,
+            token="token",
+        )
+
+        self.assertEqual(
+            result,
+            {"item_count": 17, "request_count": 1, "failed_count": 0},
+        )
+        self.assertEqual([call[2]["page"] for call in client.calls], [1])
+        checkpoint_params = next(
+            params
+            for statement, params in connection.calls
+            if "INSERT INTO sync_checkpoint" in statement
+        )
+        self.assertEqual(json.loads(checkpoint_params["checkpoint_value"])["item_count"], 17)
+        self.assertEqual(connection.calls[-1][1]["status"], "success")
+
     def test_total_driven_pagination_requires_valid_total_before_raw_write(self):
         engine = SyncEngine([])
         connection = FakeCheckpointConnection()
@@ -406,9 +455,7 @@ class SyncEngineParamTemplatesTest(unittest.TestCase):
             result,
             {"item_count": 0, "request_count": 1, "failed_count": 1},
         )
-        raw_writes = [
-            call for call in connection.calls if "INSERT INTO raw_api_data" in call[0]
-        ]
+        raw_writes = [call for call in connection.calls if "INSERT INTO raw_api_data" in call[0]]
         self.assertEqual(raw_writes, [])
         api_log_params = connection.calls[-1][1]
         self.assertIn(
@@ -477,9 +524,7 @@ class SyncEngineParamTemplatesTest(unittest.TestCase):
             {"item_count": 1, "request_count": 1, "failed_count": 0},
         )
         checkpoint_writes = [
-            call
-            for call in connection.calls
-            if "INSERT INTO sync_checkpoint" in call[0]
+            call for call in connection.calls if "INSERT INTO sync_checkpoint" in call[0]
         ]
         self.assertEqual(len(checkpoint_writes), 1)
         self.assertEqual(connection.calls[-1][1]["status"], "success")
@@ -501,7 +546,11 @@ class SyncEngineParamTemplatesTest(unittest.TestCase):
         base_params = {"pageInfo": {"page": 1, "pagesize": 10}}
         api_client = FakeApiClient()
 
-        list(engine._paged_payloads_from_params(api, api_client, token="token", base_params=base_params))
+        list(
+            engine._paged_payloads_from_params(
+                api, api_client, token="token", base_params=base_params
+            )
+        )
         params = api_client.calls[0][2]
 
         self.assertEqual(params, {"pageInfo": {"page": 1, "pagesize": 100}})

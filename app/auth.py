@@ -1,6 +1,6 @@
-from dataclasses import dataclass
 import json
 import time
+from dataclasses import dataclass, field
 from urllib.parse import urljoin
 
 import requests
@@ -21,13 +21,30 @@ class AccessToken:
     expires_out: int | None = None
 
 
+@dataclass(frozen=True)
+class JijiaCredentials:
+    """只在请求执行期间保存一组积加账号凭证。"""
+
+    app_id: str = field(repr=False)
+    app_key: str = field(repr=False)
+
+
 class JijiaAuthClient:
     """负责向积加开放平台换取 accessToken。"""
 
-    def __init__(self, settings: AppSettings, timeout_seconds: int = 30):
+    def __init__(
+        self,
+        settings: AppSettings,
+        timeout_seconds: int = 30,
+        credentials: JijiaCredentials | None = None,
+        use_token_cache: bool = True,
+    ):
         """保存认证所需配置和 HTTP 超时时间。"""
         self.settings = settings
         self.timeout_seconds = timeout_seconds
+        self.credentials = credentials
+        # Web 账号凭据不得与旧 CLI 共享磁盘 Token，显式凭据始终禁用缓存。
+        self.use_token_cache = use_token_cache and credentials is None
 
     def get_access_token(self, force_refresh: bool = False) -> AccessToken:
         """获取积加开放平台 accessToken。
@@ -37,7 +54,9 @@ class JijiaAuthClient:
         还要检查响应体里的 code，并从 data.accessToken 提取真正的令牌。
         """
         self._validate_settings()
-        cached_token = None if force_refresh else self._read_cached_token()
+        cached_token = (
+            None if force_refresh or not self.use_token_cache else self._read_cached_token()
+        )
         if cached_token is not None:
             return cached_token
 
@@ -61,7 +80,8 @@ class JijiaAuthClient:
             expires_in=data.get("expiresIn"),
             expires_out=data.get("expiresOut"),
         )
-        self._write_cached_token(access_token)
+        if self.use_token_cache:
+            self._write_cached_token(access_token)
         return access_token
 
     def _read_cached_token(self) -> AccessToken | None:
@@ -110,9 +130,11 @@ class JijiaAuthClient:
 
     def _validate_settings(self) -> None:
         """在发起请求前检查必要凭证是否仍是占位符。"""
-        if not self.settings.jijia_app_id or self.settings.jijia_app_id == "your_app_id":
+        app_id = self.credentials.app_id if self.credentials else self.settings.jijia_app_id
+        app_key = self.credentials.app_key if self.credentials else self.settings.jijia_app_key
+        if not app_id or app_id == "your_app_id":
             raise ValueError("JIJIA_APP_ID is not configured")
-        if not self.settings.jijia_app_key or self.settings.jijia_app_key == "your_app_key":
+        if not app_key or app_key == "your_app_key":
             raise ValueError("JIJIA_APP_KEY is not configured")
 
     def _token_payload(self) -> dict[str, str]:
@@ -120,6 +142,8 @@ class JijiaAuthClient:
 
         当前积加 token 接口只发送文档要求的 appId 和 appKey。
         """
+        if self.credentials:
+            return {"appId": self.credentials.app_id, "appKey": self.credentials.app_key}
         return {"appId": self.settings.jijia_app_id, "appKey": self.settings.jijia_app_key}
 
     def _open_api_url(self, path: str) -> str:

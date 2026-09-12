@@ -1,0 +1,95 @@
+.job-failure-recommendation {
+  margin: 8px 0 0;
+  font-weight: 600;
+}
+
+.job-lifecycle ol {
+  display: grid;
+  gap: 0;
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.job-lifecycle-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.job-lifecycle-heading span {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.job-lifecycle li {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) auto;
+  gap: 4px 16px;
+  border-left: 2px solid var(--brand-action);
+  padding: 0 0 18px 16px;
+}
+
+.job-lifecycle li:last-child {
+  padding-bottom: 0;
+}
+
+.job-lifecycle li span,
+.job-lifecycle li small {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.job-lifecycle li small {
+  grid-column: 1 / -1;
+}
+
+.job-lifecycle-pagination {
+  justify-content: flex-end;
+  margin-top: var(--space-4);
+  border-top: 1px solid var(--color-border-soft);
+  padding-top: var(--space-4);
+}
+
+@media (max-width: 760px) {
+  .job-lifecycle li {
+    grid-template-columns: 1fr;
+  }
+
+  .job-lifecycle-pagination {
+    justify-content: center;
+  }
+}
+
+/* 执行状态新增运维事实时换行，避免挤压窄屏操作。 */
+.worker-status {
+  flex-wrap: wrap;
+  scroll-margin-top: var(--space-4);
+}
+.worker-status dl {
+  flex-wrap: wrap;
+}
+.worker-status > p {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+/* 标签与下拉框占两行，筛选栏需随内容撑高，避免被后续表格遮挡。 */
+#scheduled-plans .policy-toolbar {
+  height: auto;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+  padding: var(--space-3);
+}
+#scheduled-plans .policy-toolbar label {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 160px;
+}
+#scheduled-plans .policy-toolbar .ant-select {
+  min-width: 160px;
+}

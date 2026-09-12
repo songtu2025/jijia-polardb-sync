@@ -71,6 +71,7 @@ def invite_user(
         context.user.id,
         settings,
         mail_sender,
+        request.state.request_id,
     )
     user = db.get(AppUser, invitation.user_id)
     if user is None:
@@ -93,6 +94,7 @@ def resend(
         context.user.id,
         settings,
         mail_sender,
+        request.state.request_id,
     )
     user = db.get(AppUser, invitation.user_id)
     if user is None:
@@ -105,9 +107,14 @@ def revoke(
     invitation_id: int,
     request: Request,
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[AuthContext, Depends(require_admin_csrf)],
+    context: Annotated[AuthContext, Depends(require_admin_csrf)],
 ) -> dict[str, object]:
-    invitation = revoke_invitation(db, invitation_id)
+    invitation = revoke_invitation(
+        db,
+        invitation_id,
+        context.user.id,
+        request.state.request_id,
+    )
     user = db.get(AppUser, invitation.user_id)
     if user is None:
         raise RuntimeError("邀请关联用户不存在")

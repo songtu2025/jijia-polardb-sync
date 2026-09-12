@@ -1,0 +1,45 @@
+@font-face {
+  font-family: "SEEKWAY Anton";
+  src: url("./assets/anton-latin-400-normal.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+.brand-artwork {
+  display: block;
+  width: 100%;
+  max-height: 100%;
+  font-family: "SEEKWAY Anton", Impact, sans-serif;
+  fill: var(--login-art-ink);
+  color: var(--login-art-ink);
+}
+
+.brand-artwork__outline {
+  fill: transparent;
+  stroke: currentColor;
+  stroke-width: 1.7;
+}
+
+.brand-artwork__compact {
+  display: none;
+}
+
+.brand-artwork__trail {
+  opacity: 0.12;
+}
+
+@media (max-width: 760px) {
+  .brand-artwork {
+    display: none;
+  }
+  .brand-artwork__compact {
+    display: grid;
+    gap: 4px;
+    margin: 0;
+    color: var(--login-art-ink);
+    font-family: "SEEKWAY Inter", sans-serif;
+    font-size: clamp(13px, 3.5vw, 16px);
+    line-height: 1.6;
+  }
+}

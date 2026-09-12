@@ -60,6 +60,8 @@ apis:
       max_pages: 5
       list_field: data.rows
       total_field: data.total
+      # total 是 rows 内站点数量，不是店铺行数；店铺分页以短页结束。
+      stop_on_short_page: true
     primary_key:
       field: ""
       required: false
@@ -1700,7 +1702,7 @@ apis:
       enabled: true
       start_field: beginDate
       end_field: endDate
-      default_start: "2026-07-02"
+      default_start: "2021-08-01"
       days: 1
       lag_days: 1
     rate_limit:
@@ -2460,3 +2462,60 @@ apis:
       retries: 1
       delay_seconds: 1
     params: {}
+
+  # 销售阶段：核心查询字段投影到受限业务表；买家备注和标签备注仍只保存 raw_json。
+  - api_code: sale_return_order_page
+    name: 查询退货订单列表
+    enabled: false
+    method: POST
+    path: /operation/sale/returnOrder/page
+    storage_mode: history_on_change
+    checkpoint_kind: history_backfill
+    page:
+      enabled: true
+      page_no_field: page
+      page_size_field: pagesize
+      page_size: 100
+      list_field: data.rows
+      total_field: data.total
+    commit_per_page: true
+    primary_key:
+      field: id
+      required: false
+    date_field: returnDateTime
+    date_window:
+      enabled: true
+      start_field: returnStartDate
+      end_field: returnEndDate
+      default_start: "2020-01-01"
+      days: 31
+      lag_days: 1
+    # 官方文档 9 明确支持按修改时间筛选；相同内容 hash 不重复新增版本。
+    update_window:
+      enabled: true
+      verified_doc_id: 9
+      start_field: updateTimeBegin
+      end_field: updateTimeEnd
+      default_start: "2020-01-01"
+      days: 31
+      lag_days: 1
+      value_format: datetime
+    # 官方文档 9 的 marketIds 支持单个或多个站点 ID；不传表示全部店铺。
+    market_scope:
+      enabled: true
+      verified_doc_id: 9
+      request_field: marketIds
+      source_api_code: amazon_shop_page
+      source_array_field: marketListVos
+      id_field: marketId
+      label_fields:
+        - marketName
+    sensitive_response: true
+    rate_limit:
+      sleep_seconds: 0.2
+    retry:
+      retries: 1
+      delay_seconds: 1
+    params:
+      page: 1
+      pagesize: 100

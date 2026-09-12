@@ -2,17 +2,21 @@ from collections.abc import Generator
 from dataclasses import dataclass
 
 import pytest
+from cryptography.fernet import Fernet
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from app.config import load_api_configs
 from backend.app.api.deps import get_mail_sender
 from backend.app.core.config import WebSettings, get_web_settings
 from backend.app.core.database import get_db
 from backend.app.main import create_app
 from backend.app.models import Base
+from backend.app.models.sync_records import sync_records_metadata
+from backend.app.services.api_config_publish_service import publish_api_configs
 from backend.app.services.mail_service import FakeMailSender
 
 
@@ -35,6 +39,7 @@ def harness() -> Generator[AuthHarness, None, None]:
         poolclass=StaticPool,
     )
     Base.metadata.create_all(engine)
+    sync_records_metadata.create_all(engine)
     session_factory = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
     settings = WebSettings(
         _env_file=None,
@@ -47,7 +52,14 @@ def harness() -> Generator[AuthHarness, None, None]:
         login_max_failures=3,
         login_lock_minutes=15,
         mail_provider="fake",
+        credential_encryption_key=Fernet.generate_key().decode("ascii"),
     )
+    with session_factory() as db:
+        publish_api_configs(
+            db,
+            load_api_configs(settings.api_config_path),
+            settings.api_catalog_path,
+        )
     mail_sender = FakeMailSender()
     app = create_app(validate_settings=False)
 
@@ -61,5 +73,6 @@ def harness() -> Generator[AuthHarness, None, None]:
     with TestClient(app) as client:
         yield AuthHarness(app, client, session_factory, settings, mail_sender)
     app.dependency_overrides.clear()
+    sync_records_metadata.drop_all(engine)
     Base.metadata.drop_all(engine)
     engine.dispose()

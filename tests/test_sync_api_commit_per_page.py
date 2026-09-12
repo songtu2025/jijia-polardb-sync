@@ -5,6 +5,14 @@ from sqlalchemy.exc import OperationalError
 from app.sync_engine import SyncEngine
 
 
+class FakeResult:
+    def mappings(self):
+        return self
+
+    def all(self):
+        return []
+
+
 class FakeConnection:
     def __init__(self, name):
         self.name = name
@@ -12,6 +20,7 @@ class FakeConnection:
 
     def execute(self, statement, params=None):
         self.calls.append((str(statement), params or {}))
+        return FakeResult()
 
 
 class FakeTransaction:
@@ -41,8 +50,10 @@ class InvalidatedOnceConnection(FakeConnection):
         self.engine = engine
 
     def execute(self, statement, params=None):
-        super().execute(statement, params)
-        if self.engine.invalidated_writes_remaining > 0 and "INSERT INTO raw_api_data" in str(statement):
+        result = super().execute(statement, params)
+        if self.engine.invalidated_writes_remaining > 0 and "INSERT INTO raw_api_data" in str(
+            statement
+        ):
             self.engine.invalidated_writes_remaining -= 1
             raise OperationalError(
                 str(statement),
@@ -50,6 +61,7 @@ class InvalidatedOnceConnection(FakeConnection):
                 OSError("lost connection"),
                 connection_invalidated=True,
             )
+        return result
 
 
 class InvalidatedOnceTransaction(FakeTransaction):
@@ -69,8 +81,12 @@ class InvalidatedOnceEngine(FakeEngine):
 
 
 class CommitPerPageSyncEngine(SyncEngine):
-    def __init__(self, api_configs, engine):
-        super().__init__(api_configs, engine)
+    def __init__(self, api_configs, engine, progress_callback=None):
+        super().__init__(
+            api_configs,
+            engine,
+            progress_callback=progress_callback,
+        )
         self.request_pages = []
 
     def _new_batch_no(self):
@@ -91,10 +107,46 @@ class TruncatedCommitPerPageSyncEngine(CommitPerPageSyncEngine):
         return {"data": {"rows": rows, "total": 101}}, 1
 
 
+class FailingSecondPageSyncEngine(CommitPerPageSyncEngine):
+    def _insert_raw_items_in_page_transaction(self, api, items, batch_no, **kwargs):
+        if self.request_pages[-1] == 2:
+            raise RuntimeError("mock second page write failure")
+        return super()._insert_raw_items_in_page_transaction(
+            api,
+            items,
+            batch_no,
+            **kwargs,
+        )
+
+
+class FailingPausedLogSyncEngine(CommitPerPageSyncEngine):
+    def _insert_api_log(self, connection, batch_no, api_code, status, *args, **kwargs):
+        if status == "paused":
+            raise RuntimeError("mock paused log failure")
+        return super()._insert_api_log(
+            connection,
+            batch_no,
+            api_code,
+            status,
+            *args,
+            **kwargs,
+        )
+
+
+class ConflictingResultSyncEngine(CommitPerPageSyncEngine):
+    def _sync_api_with_page_transactions(self, api, batch_no, api_client, token):
+        return {
+            "item_count": 1,
+            "request_count": 1,
+            "failed_count": 1,
+            "paused": True,
+        }
+
+
 class SyncApiCommitPerPageTest(unittest.TestCase):
-    def test_single_api_total_driven_pagination_writes_each_page_in_short_transaction(self):
+    def test_failure_after_pause_clears_pause_and_finishes_failed(self):
         fake_engine = FakeEngine()
-        sync_engine = CommitPerPageSyncEngine(
+        sync_engine = FailingPausedLogSyncEngine(
             [
                 {
                     "api_code": "wide_report",
@@ -115,6 +167,110 @@ class SyncApiCommitPerPageTest(unittest.TestCase):
             ],
             fake_engine,
         )
+        sync_engine.pause_callback = lambda: True
+
+        result = sync_engine.test_api_once("wide_report", object(), object())
+
+        self.assertEqual(result["failed_count"], 1)
+        self.assertFalse(result["paused"])
+        batch_updates = [
+            params
+            for connection in fake_engine.connections
+            for statement, params in connection.calls
+            if "UPDATE sync_batch" in statement
+        ]
+        self.assertEqual(batch_updates[-1]["status"], "failed")
+        self.assertEqual(batch_updates[-1]["failed_api_count"], 1)
+
+    def test_failed_result_takes_precedence_over_paused_when_finishing_batch(self):
+        fake_engine = FakeEngine()
+        sync_engine = ConflictingResultSyncEngine(
+            [
+                {
+                    "api_code": "wide_report",
+                    "enabled": False,
+                    "commit_per_page": True,
+                }
+            ],
+            fake_engine,
+        )
+
+        result = sync_engine.test_api_once("wide_report", object(), object())
+
+        self.assertEqual(result["failed_count"], 1)
+        self.assertTrue(result["paused"])
+        batch_updates = [
+            params
+            for connection in fake_engine.connections
+            for statement, params in connection.calls
+            if "UPDATE sync_batch" in statement
+        ]
+        self.assertEqual(batch_updates[-1]["status"], "failed")
+
+    def test_pause_stops_after_committed_page_without_advancing_checkpoint(self):
+        fake_engine = FakeEngine()
+        page_progress = []
+        sync_engine = CommitPerPageSyncEngine(
+            [
+                {
+                    "api_code": "wide_report",
+                    "enabled": False,
+                    "commit_per_page": True,
+                    "params": {"page": 1, "pagesize": 1},
+                    "page": {
+                        "enabled": True,
+                        "page_no_field": "page",
+                        "page_size_field": "pagesize",
+                        "page_size": 1,
+                        "list_field": "data.rows",
+                        "total_field": "data.total",
+                    },
+                    "primary_key": {"field": "id"},
+                    "date_field": "",
+                }
+            ],
+            fake_engine,
+            progress_callback=lambda current, total: page_progress.append((current, total)),
+        )
+        sync_engine.pause_callback = lambda: True
+
+        result = sync_engine.test_api_once("wide_report", object(), object())
+
+        self.assertTrue(result["paused"])
+        self.assertEqual(result["failed_count"], 0)
+        self.assertEqual(sync_engine.request_pages, [1])
+        self.assertEqual(page_progress, [(1, 3)])
+        statements = [
+            statement for connection in fake_engine.connections for statement, _ in connection.calls
+        ]
+        self.assertFalse(any("sync_checkpoint" in statement for statement in statements))
+        self.assertTrue(any("status = :status" in statement for statement in statements))
+
+    def test_single_api_total_driven_pagination_writes_each_page_in_short_transaction(self):
+        fake_engine = FakeEngine()
+        page_progress = []
+        sync_engine = CommitPerPageSyncEngine(
+            [
+                {
+                    "api_code": "wide_report",
+                    "enabled": False,
+                    "commit_per_page": True,
+                    "params": {"page": 1, "pagesize": 1},
+                    "page": {
+                        "enabled": True,
+                        "page_no_field": "page",
+                        "page_size_field": "pagesize",
+                        "page_size": 1,
+                        "list_field": "data.rows",
+                        "total_field": "data.total",
+                    },
+                    "primary_key": {"field": "id"},
+                    "date_field": "",
+                }
+            ],
+            fake_engine,
+            progress_callback=lambda current, total: page_progress.append((current, total)),
+        )
 
         result = sync_engine.test_api_once("wide_report", api_client=object(), token=object())
 
@@ -122,13 +278,59 @@ class SyncApiCommitPerPageTest(unittest.TestCase):
         self.assertEqual(result["request_count"], 3)
         self.assertEqual(result["failed_count"], 0)
         self.assertEqual(sync_engine.request_pages, [1, 2, 3])
-        self.assertEqual([connection.name for connection in fake_engine.connections], ["tx-1", "tx-2", "tx-3", "tx-4", "tx-5", "tx-6"])
+        self.assertEqual(page_progress, [(1, 3), (2, 3), (3, 3)])
+        self.assertEqual(
+            [connection.name for connection in fake_engine.connections],
+            ["tx-1", "tx-2", "tx-3", "tx-4", "tx-5", "tx-6"],
+        )
         raw_write_transactions = [
             connection.name
             for connection in fake_engine.connections
             if any("INSERT INTO raw_api_data" in statement for statement, _ in connection.calls)
         ]
         self.assertEqual(raw_write_transactions, ["tx-2", "tx-3", "tx-4"])
+
+    def test_live_progress_only_reports_committed_short_transactions(self):
+        api = {
+            "api_code": "wide_report",
+            "enabled": False,
+            "commit_per_page": True,
+            "params": {"page": 1, "pagesize": 1},
+            "page": {
+                "enabled": True,
+                "page_no_field": "page",
+                "page_size_field": "pagesize",
+                "page_size": 1,
+                "list_field": "data.rows",
+                "total_field": "data.total",
+            },
+            "primary_key": {"field": "id"},
+            "date_field": "",
+        }
+        page_progress = []
+        failed = FailingSecondPageSyncEngine(
+            [api],
+            FakeEngine(),
+            progress_callback=lambda current, total: page_progress.append((current, total)),
+        )
+
+        result = failed.test_api_once("wide_report", object(), object())
+
+        self.assertEqual(result["failed_count"], 1)
+        self.assertEqual(page_progress, [(1, 3)])
+
+        page_progress.clear()
+        api["commit_per_page"] = False
+        regular = CommitPerPageSyncEngine(
+            [api],
+            FakeEngine(),
+            progress_callback=lambda current, total: page_progress.append((current, total)),
+        )
+
+        result = regular.test_api_once("wide_report", object(), object())
+
+        self.assertEqual(result["failed_count"], 0)
+        self.assertEqual(page_progress, [])
 
     def test_page_write_retries_once_when_checked_out_connection_is_invalidated(self):
         fake_engine = InvalidatedOnceEngine()

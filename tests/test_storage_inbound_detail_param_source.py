@@ -32,7 +32,9 @@ class FakeConnection:
 
 class StorageInboundDetailParamSourceTest(unittest.TestCase):
     def setUp(self):
-        self.apis = {api["api_code"]: api for api in load_api_configs("config/api_config.example.yaml")}
+        self.apis = {
+            api["api_code"]: api for api in load_api_configs("config/api_config.example.yaml")
+        }
 
     def test_storage_inbound_detail_uses_missing_storage_inbound_codes_and_is_enabled(self):
         self.assertIn("storage_inbound_detail", self.apis)
@@ -57,7 +59,9 @@ class StorageInboundDetailParamSourceTest(unittest.TestCase):
 
     def test_source_param_sets_read_storage_inbound_codes_from_raw_json(self):
         engine = SyncEngine([])
-        connection = FakeConnection([{"source_0": "GIB00922092000000001"}, {"source_0": "GIB00922092100000002"}])
+        connection = FakeConnection(
+            [{"source_0": "GIB00922092000000001"}, {"source_0": "GIB00922092100000002"}]
+        )
         api = {
             "api_code": "storage_inbound_detail",
             "param_source": {
@@ -69,8 +73,18 @@ class StorageInboundDetailParamSourceTest(unittest.TestCase):
 
         params = engine._source_param_sets(connection, api)
 
-        self.assertEqual(params, [{"code": "GIB00922092000000001"}, {"code": "GIB00922092100000002"}])
-        self.assertEqual(connection.calls[0][1], {"source_api_code": "storage_inbound_page", "limit": 3, "offset": 0})
+        self.assertEqual(
+            params, [{"code": "GIB00922092000000001"}, {"code": "GIB00922092100000002"}]
+        )
+        self.assertEqual(
+            connection.calls[0][1],
+            {
+                "jijia_account_id": 0,
+                "source_api_code": "storage_inbound_page",
+                "limit": 3,
+                "offset": 0,
+            },
+        )
         self.assertIn("JSON_EXTRACT(raw_json, '$.code')", str(connection.calls[0][0]))
 
 

@@ -60,7 +60,10 @@ class NestedArrayParamSourceTest(unittest.TestCase):
                 "source_api_code": "amazon_shop_page",
                 "limit": 2,
                 "fields": [
-                    {"source_field": "raw_json.marketListVos[].marketId", "target_field": "marketId"},
+                    {
+                        "source_field": "raw_json.marketListVos[].marketId",
+                        "target_field": "marketId",
+                    },
                 ],
             },
         }
@@ -69,7 +72,13 @@ class NestedArrayParamSourceTest(unittest.TestCase):
 
         self.assertEqual(params, [{"marketId": "11"}, {"marketId": "22"}])
         self.assertIn("raw_json", str(connection.calls[0][0]))
-        self.assertEqual(connection.calls[0][1], {"source_api_code": "amazon_shop_page"})
+        self.assertEqual(
+            connection.calls[0][1],
+            {
+                "jijia_account_id": 0,
+                "source_api_code": "amazon_shop_page",
+            },
+        )
 
 
 if __name__ == "__main__":

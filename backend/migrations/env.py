@@ -3,7 +3,8 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
-from app.config import load_settings
+from app.config import load_migration_settings
+from app.db import configure_engine_session_timezone, set_connection_session_utc
 from backend.app.models import Base
 
 config = context.config
@@ -18,7 +19,7 @@ def database_url() -> str:
     configured_url = config.get_main_option("sqlalchemy.url")
     if configured_url:
         return configured_url
-    return load_settings().database_url.render_as_string(hide_password=False)
+    return load_migration_settings().database_url.render_as_string(hide_password=False)
 
 
 def run_migrations_offline() -> None:
@@ -38,6 +39,7 @@ def run_migrations_online() -> None:
     """在单一连接中执行迁移。"""
     external_connection = config.attributes.get("connection")
     if external_connection is not None:
+        set_connection_session_utc(external_connection)
         context.configure(connection=external_connection, target_metadata=target_metadata)
         with context.begin_transaction():
             context.run_migrations()
@@ -50,6 +52,7 @@ def run_migrations_online() -> None:
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
+    configure_engine_session_timezone(connectable)
     with connectable.connect() as connection:
         context.configure(connection=connection, target_metadata=target_metadata, compare_type=True)
         with context.begin_transaction():

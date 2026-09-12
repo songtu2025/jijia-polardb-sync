@@ -1,8 +1,17 @@
 import unittest
+
 from sqlalchemy.exc import OperationalError, PendingRollbackError
 
-
+from app.sync_context import UPDATE_INCREMENTAL, SyncContext
 from app.sync_engine import SyncEngine
+
+
+class FakeResult:
+    def mappings(self):
+        return self
+
+    def all(self):
+        return []
 
 
 class FakeConnection:
@@ -13,6 +22,7 @@ class FakeConnection:
 
     def execute(self, statement, params=None):
         self.statements.append((str(statement), params or {}))
+        return FakeResult()
 
 
 class FakeTransaction:
@@ -36,6 +46,7 @@ class FakeEngine:
     def begin(self):
         return FakeTransaction(self, f"tx-{len(self.connections) + 1}")
 
+
 class InvalidatingConnection(FakeConnection):
     def __init__(self, name, engine):
         super().__init__(name)
@@ -47,9 +58,9 @@ class InvalidatingConnection(FakeConnection):
             raise PendingRollbackError("transaction is invalidated")
         self.statements.append((str(statement), params or {}))
         if self.engine.invalidated_writes_remaining <= 0:
-            return None
+            return FakeResult()
         if "INSERT INTO raw_api_data" not in str(statement):
-            return None
+            return FakeResult()
         self.engine.invalidated_writes_remaining -= 1
         self.invalidated = True
         raise OperationalError(
@@ -99,7 +110,6 @@ def regular_api(api_code):
     }
 
 
-
 class TransactionScopedSyncEngine(SyncEngine):
     def __init__(self, api_configs, engine):
         super().__init__(api_configs, engine)
@@ -119,6 +129,48 @@ class TransactionScopedSyncEngine(SyncEngine):
 
 
 class SyncEnabledTransactionScopeTest(unittest.TestCase):
+    def test_single_api_validates_before_creating_regular_or_paged_batch(self):
+        for commit_per_page in (False, True):
+            with self.subTest(commit_per_page=commit_per_page):
+                fake_engine = FakeEngine()
+                api = regular_api("unsafe_update")
+                api["commit_per_page"] = commit_per_page
+                sync_engine = SyncEngine(
+                    [api],
+                    fake_engine,
+                    SyncContext(checkpoint_kind=UPDATE_INCREMENTAL),
+                )
+
+                with self.assertRaisesRegex(ValueError, "verified updateTime contract"):
+                    sync_engine.test_api_once(
+                        "unsafe_update",
+                        api_client=object(),
+                        token=object(),
+                    )
+
+                self.assertEqual(fake_engine.connections, [])
+
+    def test_enabled_sync_validates_every_api_before_creating_batch(self):
+        valid_api = regular_api("valid_update")
+        valid_api["update_window"] = {
+            "enabled": True,
+            "verified_doc_id": "verified-doc",
+            "start_field": "updateTimeBegin",
+            "end_field": "updateTimeEnd",
+            "value_format": "datetime",
+        }
+        fake_engine = FakeEngine()
+        sync_engine = SyncEngine(
+            [valid_api, regular_api("unsafe_update")],
+            fake_engine,
+            SyncContext(checkpoint_kind=UPDATE_INCREMENTAL),
+        )
+
+        with self.assertRaisesRegex(ValueError, "verified updateTime contract"):
+            sync_engine.sync_enabled_apis(api_client=object(), token=object())
+
+        self.assertEqual(fake_engine.connections, [])
+
     def test_enabled_sync_commits_batch_and_each_api_separately(self):
         fake_engine = FakeEngine()
         sync_engine = TransactionScopedSyncEngine(
@@ -133,7 +185,9 @@ class SyncEnabledTransactionScopeTest(unittest.TestCase):
 
         self.assertEqual(result["api_count"], 2)
         self.assertEqual(result["failed_count"], 0)
-        self.assertEqual([conn.name for conn in fake_engine.connections], ["tx-1", "tx-2", "tx-3", "tx-4"])
+        self.assertEqual(
+            [conn.name for conn in fake_engine.connections], ["tx-1", "tx-2", "tx-3", "tx-4"]
+        )
         self.assertEqual(sync_engine.api_connection_names, ["tx-2", "tx-3"])
 
     def test_enabled_sync_dispatches_commit_per_page_without_outer_api_transaction(self):

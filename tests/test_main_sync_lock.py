@@ -1,5 +1,8 @@
 import argparse
 import unittest
+from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
 
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -58,6 +61,68 @@ class FakeReleaseFailLockEngine(FakeLockEngine):
 
 
 class SyncTaskLockTest(unittest.TestCase):
+    def test_account_scope_rejects_every_unscoped_legacy_write_mode(self):
+        write_modes = (
+            ("mock_sync", True),
+            ("test_api", "amazon_shop_page"),
+            ("sync_api", "amazon_shop_page"),
+            ("sync_enabled", True),
+            ("publish_api_configs", True),
+            ("sync_api_configs", True),
+        )
+        for field_name, value in write_modes:
+            args = argparse.Namespace(
+                mock_sync=False,
+                test_api=None,
+                sync_api=None,
+                sync_enabled=False,
+                publish_api_configs=False,
+                sync_api_configs=False,
+            )
+            setattr(args, field_name, value)
+            with self.subTest(mode=field_name), self.assertRaises(SystemExit) as raised:
+                main_module._reject_unscoped_legacy_write(args, "account")
+            self.assertEqual(raised.exception.code, 2)
+
+    def test_account_scope_rejects_legacy_write_before_database_or_provider(self):
+        args = argparse.Namespace(
+            check_db=False,
+            mock_sync=False,
+            test_token=False,
+            test_api=None,
+            sync_api="amazon_shop_page",
+            probe_api=None,
+            sync_enabled=False,
+            validate_api_configs=False,
+            publish_api_configs=False,
+            sync_api_configs=False,
+        )
+        settings = SimpleNamespace(
+            sync_lock_scope="account",
+            log_dir=Path("logs"),
+            log_level="INFO",
+        )
+
+        with (
+            patch.object(main_module, "parse_args", return_value=args),
+            patch.object(main_module, "load_settings", return_value=settings),
+            patch.object(main_module, "setup_logging"),
+            patch.object(
+                main_module,
+                "create_db_engine",
+                side_effect=AssertionError("拒绝后不能创建数据库引擎"),
+            ),
+            patch.object(
+                main_module,
+                "JijiaAuthClient",
+                side_effect=AssertionError("拒绝后不能读取凭据或调用上游"),
+            ),
+            self.assertRaises(SystemExit) as raised,
+        ):
+            main_module.main()
+
+        self.assertEqual(raised.exception.code, 2)
+
     def test_exits_before_task_when_named_lock_is_unavailable(self):
         engine = FakeLockEngine(lock_result=0)
 
@@ -71,7 +136,9 @@ class SyncTaskLockTest(unittest.TestCase):
         self.assertIn("GET_LOCK", engine.connection.statements[0])
         self.assertEqual(engine.connection.params[0]["lock_name"], "jijia_polardb_sync_task")
         self.assertTrue(engine.connection.closed)
-        self.assertFalse(any("RELEASE_LOCK" in statement for statement in engine.connection.statements))
+        self.assertFalse(
+            any("RELEASE_LOCK" in statement for statement in engine.connection.statements)
+        )
 
     def test_releases_named_lock_when_task_raises(self):
         engine = FakeLockEngine(lock_result=1)
@@ -82,7 +149,9 @@ class SyncTaskLockTest(unittest.TestCase):
 
         self.assertIn("GET_LOCK", engine.connection.statements[0])
         self.assertIn({"isolation_level": "AUTOCOMMIT"}, engine.connection.execution_options_calls)
-        self.assertTrue(any("RELEASE_LOCK" in statement for statement in engine.connection.statements))
+        self.assertTrue(
+            any("RELEASE_LOCK" in statement for statement in engine.connection.statements)
+        )
         self.assertTrue(engine.connection.closed)
 
     def test_release_failure_after_successful_task_does_not_fail_task(self):
@@ -97,7 +166,7 @@ class SyncTaskLockTest(unittest.TestCase):
         self.assertTrue(engine.connection.closed)
         self.assertTrue(any("release sync task lock failed" in message for message in logs.output))
         self.assertTrue(any("SQLAlchemyError" in message for message in logs.output))
-        self.assertTrue(any("release failed" in message for message in logs.output))
+        self.assertFalse(any("release failed" in message for message in logs.output))
 
     def test_only_database_write_modes_require_sync_lock(self):
         args = argparse.Namespace(

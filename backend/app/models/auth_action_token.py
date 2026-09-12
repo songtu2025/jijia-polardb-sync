@@ -7,7 +7,7 @@ from backend.app.models.base import Base, TimestampMixin
 
 
 class AuthActionToken(TimestampMixin, Base):
-    """保存邀请令牌摘要及单次使用状态。"""
+    """保存身份操作令牌摘要及单次使用状态。"""
 
     __tablename__ = "auth_action_token"
     __table_args__ = (Index("idx_auth_action_token_email_purpose", "email", "purpose"),)

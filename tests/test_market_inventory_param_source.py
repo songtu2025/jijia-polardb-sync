@@ -1,5 +1,5 @@
-import unittest
 import json
+import unittest
 
 from app.config import load_api_configs
 from app.sync_engine import SyncEngine
@@ -44,7 +44,9 @@ class CheckpointConnection:
 
 class MarketInventoryParamSourceTest(unittest.TestCase):
     def setUp(self):
-        self.apis = {api["api_code"]: api for api in load_api_configs("config/api_config.example.yaml")}
+        self.apis = {
+            api["api_code"]: api for api in load_api_configs("config/api_config.example.yaml")
+        }
 
     def test_market_inventory_query_config_uses_inventory_sku_warehouse_and_stays_disabled(self):
         api = self.apis["market_inventory_query"]
@@ -92,8 +94,18 @@ class MarketInventoryParamSourceTest(unittest.TestCase):
 
         params = engine._source_param_sets(connection, api)
 
-        self.assertEqual(params, [{"sku": "SKU-A", "warehouseId": "12"}, {"sku": "SKU-B", "warehouseId": "17"}])
-        self.assertEqual(connection.calls[0][1], {"source_api_code": "product_inventory_page", "limit": 3, "offset": 3})
+        self.assertEqual(
+            params, [{"sku": "SKU-A", "warehouseId": "12"}, {"sku": "SKU-B", "warehouseId": "17"}]
+        )
+        self.assertEqual(
+            connection.calls[0][1],
+            {
+                "jijia_account_id": 0,
+                "source_api_code": "product_inventory_page",
+                "limit": 3,
+                "offset": 3,
+            },
+        )
         self.assertIn("JSON_EXTRACT(raw_json, '$.sku')", str(connection.calls[0][0]))
         self.assertIn("JSON_EXTRACT(raw_json, '$.warehouseId')", str(connection.calls[0][0]))
         self.assertIn("OFFSET :offset", str(connection.calls[0][0]))
@@ -118,7 +130,15 @@ class MarketInventoryParamSourceTest(unittest.TestCase):
         params = engine._source_param_sets(connection, api)
 
         self.assertEqual(params, [{"sku": "SKU-C", "warehouseId": "23"}])
-        self.assertEqual(connection.calls[-1][1], {"source_api_code": "product_inventory_page", "limit": 3, "offset": 6})
+        self.assertEqual(
+            connection.calls[-1][1],
+            {
+                "jijia_account_id": 0,
+                "source_api_code": "product_inventory_page",
+                "limit": 3,
+                "offset": 6,
+            },
+        )
 
     def test_checkpoint_records_next_param_offset(self):
         engine = SyncEngine([])

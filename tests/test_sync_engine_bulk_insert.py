@@ -3,12 +3,25 @@ import unittest
 from app.sync_engine import SyncEngine
 
 
+class FakeResult:
+    def mappings(self):
+        return self
+
+    def all(self):
+        return []
+
+
 class FakeConnection:
     def __init__(self):
         self.calls = []
 
     def execute(self, statement, params=None):
         self.calls.append((statement, params))
+        return FakeResult()
+
+
+def raw_write_calls(connection):
+    return [call for call in connection.calls if "INSERT INTO raw_api_data (" in str(call[0])]
 
 
 class SyncEngineBulkInsertTest(unittest.TestCase):
@@ -27,8 +40,9 @@ class SyncEngineBulkInsertTest(unittest.TestCase):
 
         engine._insert_raw_items(connection, api, items, "batch-001")
 
-        self.assertEqual(len(connection.calls), 1)
-        rows = connection.calls[0][1]
+        calls = raw_write_calls(connection)
+        self.assertEqual(len(calls), 1)
+        rows = calls[0][1]
         self.assertEqual(len(rows), 2)
         self.assertEqual(rows[0]["source_primary_key"], "1")
         self.assertEqual(str(rows[1]["data_date"]), "2026-07-02")
@@ -52,8 +66,9 @@ class SyncEngineBulkInsertTest(unittest.TestCase):
 
         engine._insert_raw_items(connection, api, items, "batch-001")
 
-        self.assertEqual(len(connection.calls), 3)
-        self.assertEqual([len(call[1]) for call in connection.calls], [2, 2, 1])
+        calls = raw_write_calls(connection)
+        self.assertEqual(len(calls), 3)
+        self.assertEqual([len(call[1]) for call in calls], [2, 2, 1])
 
     def test_insert_raw_items_can_use_request_window_date(self):
         engine = SyncEngine([])
@@ -64,11 +79,16 @@ class SyncEngineBulkInsertTest(unittest.TestCase):
             "date_field": "dateLine",
         }
 
-        engine._insert_raw_items(connection, api, [{"dateLine": None, "uniqueValue": "a"}], "batch-001", data_date_override="2026-07-02")
+        engine._insert_raw_items(
+            connection,
+            api,
+            [{"dateLine": None, "uniqueValue": "a"}],
+            "batch-001",
+            data_date_override="2026-07-02",
+        )
 
-        rows = connection.calls[0][1]
+        rows = raw_write_calls(connection)[0][1]
         self.assertEqual(str(rows[0]["data_date"]), "2026-07-02")
-
 
     def test_optional_missing_and_empty_primary_keys_are_written_as_null(self):
         engine = SyncEngine([])
@@ -86,7 +106,7 @@ class SyncEngineBulkInsertTest(unittest.TestCase):
             "batch-001",
         )
 
-        rows = connection.calls[0][1]
+        rows = raw_write_calls(connection)[0][1]
         self.assertEqual([row["source_primary_key"] for row in rows], [None, None])
 
     def test_zero_is_preserved_as_valid_primary_key(self):
@@ -105,7 +125,7 @@ class SyncEngineBulkInsertTest(unittest.TestCase):
             "batch-001",
         )
 
-        self.assertEqual(connection.calls[0][1][0]["source_primary_key"], "0")
+        self.assertEqual(raw_write_calls(connection)[0][1][0]["source_primary_key"], "0")
 
     def test_upsert_updates_hash_with_raw_json(self):
         engine = SyncEngine([])
@@ -123,7 +143,7 @@ class SyncEngineBulkInsertTest(unittest.TestCase):
             "batch-001",
         )
 
-        statement = str(connection.calls[0][0])
+        statement = str(raw_write_calls(connection)[0][0])
         self.assertIn("data_hash = VALUES(data_hash)", statement)
 
     def test_same_raw_with_different_request_keys_does_not_reassign_existing_key(self):
@@ -151,14 +171,15 @@ class SyncEngineBulkInsertTest(unittest.TestCase):
             source_primary_key="second",
         )
 
-        first_row = connection.calls[0][1][0]
-        second_row = connection.calls[1][1][0]
+        writes = raw_write_calls(connection)
+        first_row = writes[0][1][0]
+        second_row = writes[1][1][0]
         self.assertEqual(first_row["data_hash"], second_row["data_hash"])
         self.assertNotEqual(
             first_row["source_primary_key"],
             second_row["source_primary_key"],
         )
-        statement = str(connection.calls[0][0])
+        statement = str(writes[0][0])
         self.assertNotIn(
             "source_primary_key =",
             statement.split("ON DUPLICATE KEY UPDATE", 1)[1],

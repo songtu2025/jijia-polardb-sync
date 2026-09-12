@@ -1,9 +1,17 @@
-import unittest
 import json
+import unittest
 from datetime import date, datetime
 
 from app.config import load_api_configs
 from app.sync_engine import ApiRequestError, SyncEngine
+
+
+class FakeResult:
+    def mappings(self):
+        return self
+
+    def all(self):
+        return []
 
 
 class CapturingConnection:
@@ -12,6 +20,7 @@ class CapturingConnection:
 
     def execute(self, statement, params=None):
         self.calls.append((str(statement), params))
+        return FakeResult()
 
 
 class FakeHttpResponse:
@@ -27,10 +36,7 @@ class FakeHttpError(RuntimeError):
 
 class AllUserListConfigTest(unittest.TestCase):
     def test_all_user_list_is_raw_only_and_stays_disabled(self):
-        apis = {
-            api["api_code"]: api
-            for api in load_api_configs("config/api_config.example.yaml")
-        }
+        apis = {api["api_code"]: api for api in load_api_configs("config/api_config.example.yaml")}
 
         self.assertIn("all_user_list", apis)
         api = apis["all_user_list"]
@@ -63,9 +69,7 @@ class AllUserListConfigTest(unittest.TestCase):
         )
 
     def test_sensitive_failure_records_redact_response_and_error_details(self):
-        engine = SyncEngine(
-            [{"api_code": "all_user_list", "sensitive_response": True}]
-        )
+        engine = SyncEngine([{"api_code": "all_user_list", "sensitive_response": True}])
         connection = CapturingConnection()
         request_error = ApiRequestError(
             FakeHttpError(),
@@ -142,7 +146,10 @@ class AllUserListConfigTest(unittest.TestCase):
 
         engine._insert_raw_items(connection, api, [item], "batch-sensitive")
 
-        stored_item = json.loads(connection.calls[0][1][0]["raw_json"])
+        raw_write = next(
+            call for call in connection.calls if "INSERT INTO raw_api_data (" in call[0]
+        )
+        stored_item = json.loads(raw_write[1][0]["raw_json"])
         self.assertEqual(stored_item, item)
 
     def test_non_sensitive_failure_records_keep_existing_details(self):

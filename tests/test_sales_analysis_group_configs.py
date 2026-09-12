@@ -5,20 +5,22 @@ from app.config import load_api_configs
 
 class SalesAnalysisGroupConfigsTest(unittest.TestCase):
     def setUp(self):
-        self.apis = {api["api_code"]: api for api in load_api_configs("config/api_config.example.yaml")}
+        self.apis = {
+            api["api_code"]: api for api in load_api_configs("config/api_config.example.yaml")
+        }
 
     def test_sales_analysis_groups_are_configured_as_disabled_date_windows(self):
         expected_groups = {
-            "sales_analysis_seller_sku_page": "seller_sku",
-            "sales_analysis_asin_page": "asin",
-            "sales_analysis_variation_asin_page": "variation_asin",
-            "sales_analysis_sku_page": "sku",
-            "sales_analysis_spu_page": "spu",
-            "sales_analysis_country_page": "country",
-            "sales_analysis_market_page": "market",
+            "sales_analysis_seller_sku_page": ("seller_sku", "2026-07-02"),
+            "sales_analysis_asin_page": ("asin", "2026-07-02"),
+            "sales_analysis_variation_asin_page": ("variation_asin", "2021-08-01"),
+            "sales_analysis_sku_page": ("sku", "2026-07-02"),
+            "sales_analysis_spu_page": ("spu", "2026-07-02"),
+            "sales_analysis_country_page": ("country", "2026-07-02"),
+            "sales_analysis_market_page": ("market", "2026-07-02"),
         }
 
-        for api_code, group_by_type in expected_groups.items():
+        for api_code, (group_by_type, default_start) in expected_groups.items():
             with self.subTest(api_code=api_code):
                 self.assertIn(api_code, self.apis)
                 api = self.apis[api_code]
@@ -42,7 +44,7 @@ class SalesAnalysisGroupConfigsTest(unittest.TestCase):
                 self.assertTrue(api["date_window"]["enabled"])
                 self.assertEqual(api["date_window"]["start_field"], "beginDate")
                 self.assertEqual(api["date_window"]["end_field"], "endDate")
-                self.assertEqual(api["date_window"]["default_start"], "2026-07-02")
+                self.assertEqual(api["date_window"]["default_start"], default_start)
                 self.assertEqual(api["date_window"]["days"], 1)
                 self.assertEqual(api["date_window"]["lag_days"], 1)
                 self.assertEqual(api["rate_limit"]["sleep_seconds"], 20)

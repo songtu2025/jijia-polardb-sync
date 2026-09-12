@@ -1,20 +1,24 @@
 import argparse
 import logging
 from contextlib import contextmanager
-from typing import Any
 
 from requests import HTTPError, RequestException
-from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session
 
-from app.auth import JijiaAuthClient
 from app.api_client import JijiaApiClient
-from app.config import load_api_configs, load_settings
+from app.api_config_registry import load_published_api_configs, publication_records
+from app.auth import JijiaAuthClient
+from app.config import (
+    WEB_SCHEDULER_ONLY_API_CODES,
+    enabled_web_scheduler_only_api_codes,
+    load_api_configs,
+    load_settings,
+)
 from app.db import check_db_connection, create_db_engine
 from app.logger import setup_logging
 from app.sync_engine import ApiRequestError, SyncEngine
-
-SYNC_TASK_LOCK_NAME = "jijia_polardb_sync_task"
+from app.sync_lock import SyncTaskLockUnavailable, sync_task_lock
 
 
 def parse_args() -> argparse.Namespace:
@@ -30,8 +34,20 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--test-api", help="测试单个积加 API，并写入 raw_api_data")
     parser.add_argument("--sync-api", help="同步单个真实积加 API，并写入 raw_api_data")
     parser.add_argument("--probe-api", help="只请求单个分页 API 首页，返回总数和所需页数")
-    parser.add_argument("--sync-enabled", action="store_true", help="同步 YAML 中 enabled=true 的真实积加 API")
-    parser.add_argument("--sync-api-configs", action="store_true", help="同步 YAML API 配置到 api_config 表")
+    parser.add_argument(
+        "--sync-enabled",
+        action="store_true",
+        help="同步数据库中 legacy enabled 的真实积加 API",
+    )
+    parser.add_argument(
+        "--validate-api-configs", action="store_true", help="校验 YAML 发布输入和官方只读证据"
+    )
+    parser.add_argument(
+        "--publish-api-configs", action="store_true", help="原子发布 YAML 配置并补齐账号策略"
+    )
+    parser.add_argument(
+        "--sync-api-configs", action="store_true", help="兼容旧命令；等同 --publish-api-configs"
+    )
     return parser.parse_args()
 
 
@@ -45,6 +61,7 @@ def main() -> None:
     settings = load_settings()
     setup_logging(settings.log_dir, settings.log_level)
     logger = logging.getLogger(__name__)
+    _reject_unscoped_legacy_write(args, settings.sync_lock_scope)
 
     if args.check_db:
         _check_db(settings)
@@ -55,84 +72,81 @@ def main() -> None:
         _test_token(settings)
         return
 
-    api_configs = load_api_configs(settings.api_config_path)
-    if args.sync_api_configs:
-        _sync_api_configs(settings, api_configs)
+    if getattr(args, "validate_api_configs", False):
+        _validate_api_configs(settings)
+        return
+
+    if getattr(args, "publish_api_configs", False) or args.sync_api_configs:
+        _publish_api_configs(settings)
         return
 
     if args.probe_api:
-        _probe_single_api(settings, api_configs, args.probe_api)
+        _probe_single_api(settings, args.probe_api)
         return
 
     if args.sync_enabled:
-        _sync_enabled(settings, api_configs)
+        _sync_enabled(settings)
         return
 
     # sync-api 和 test-api 共用同一条单接口执行链路，差别只在命令语义。
     if args.sync_api:
-        _run_single_api(settings, api_configs, args.sync_api, "sync api")
+        _run_single_api(settings, args.sync_api, "sync api")
         return
 
     if args.test_api:
-        _run_single_api(settings, api_configs, args.test_api, "test api")
+        _run_single_api(settings, args.test_api, "test api")
         return
 
     if args.mock_sync:
         engine = create_db_engine(settings)
+        api_configs = load_published_api_configs(engine)
+        _reject_legacy_scheduler_ownership(
+            enabled_web_scheduler_only_api_codes(api_configs),
+        )
         try:
             with _sync_task_lock(engine):
                 batch_no = SyncEngine(api_configs, engine).mock_sync()
         except SQLAlchemyError:
             logger.error("mock sync failed: check database connection, schema, and privileges")
-            raise SystemExit(1)
+            raise SystemExit(1) from None
         logger.info("mock sync batch created: %s", batch_no)
         return
 
+    api_configs = load_api_configs(settings.api_config_path)
     SyncEngine(api_configs).dry_run()
     logger.info("dry-run finished; use --mock-sync to verify database writes")
 
 
 def _requires_sync_lock(args: argparse.Namespace) -> bool:
     """判断当前命令是否需要同步任务互斥。"""
-    return bool(args.mock_sync or args.test_api or args.sync_api or args.sync_enabled or args.sync_api_configs)
+    return bool(
+        args.mock_sync
+        or args.test_api
+        or args.sync_api
+        or args.sync_enabled
+        or getattr(args, "publish_api_configs", False)
+        or args.sync_api_configs
+    )
+
+
+def _reject_unscoped_legacy_write(args: argparse.Namespace, sync_lock_scope: str) -> None:
+    """账号锁模式禁止无法映射 Web 账号的 legacy 写入口。"""
+    if sync_lock_scope != "account" or not _requires_sync_lock(args):
+        return
+    logging.getLogger(__name__).error("legacy sync blocked: code=LEGACY_ACCOUNT_SCOPE_REQUIRED")
+    raise SystemExit(2)
 
 
 @contextmanager
-def _sync_task_lock(engine: Any):
-    """用 MySQL named lock 防止两个同步任务同时写入。
-
-    锁连接必须在任务期间保持打开；释放前不等待、不抢占，拿不到锁就直接退出。
-    该连接只负责 named lock，使用 AUTOCOMMIT 避免留下隐式 InnoDB 事务。
-    """
+def _sync_task_lock(engine):
+    """保持原 CLI 语义：拿不到共享同步锁时立即退出。"""
     logger = logging.getLogger(__name__)
-    connection = engine.connect().execution_options(isolation_level="AUTOCOMMIT")
-    lock_acquired = False
     try:
-        result = connection.execute(
-            text("SELECT GET_LOCK(:lock_name, 0)"),
-            {"lock_name": SYNC_TASK_LOCK_NAME},
-        ).scalar()
-        if result != 1:
-            logger.error("sync task is already running: lock=%s", SYNC_TASK_LOCK_NAME)
-            raise SystemExit(1)
-
-        lock_acquired = True
-        yield
-    finally:
-        if lock_acquired:
-            try:
-                connection.execute(
-                    text("SELECT RELEASE_LOCK(:lock_name)"),
-                    {"lock_name": SYNC_TASK_LOCK_NAME},
-                )
-            except SQLAlchemyError as error:
-                logger.exception(
-                    "release sync task lock failed: lock=%s error_type=%s error=%s",
-                    SYNC_TASK_LOCK_NAME,
-                    type(error).__name__,
-                    error,
-                )
-        connection.close()
+        with sync_task_lock(engine, logger):
+            yield
+    except SyncTaskLockUnavailable:
+        logger.error("sync task is already running")
+        raise SystemExit(1) from None
 
 
 def _check_db(settings) -> None:
@@ -145,9 +159,10 @@ def _check_db(settings) -> None:
         check_db_connection(engine)
     except SQLAlchemyError:
         logging.getLogger(__name__).error(
-            "database connection failed: check .env credentials, network allowlist, and user privileges"
+            "database connection failed: check .env credentials, network allowlist, "
+            "and user privileges"
         )
-        raise SystemExit(1)
+        raise SystemExit(1) from None
 
 
 def _test_token(settings) -> None:
@@ -161,67 +176,106 @@ def _test_token(settings) -> None:
     except HTTPError as error:
         status_code = error.response.status_code if error.response is not None else "unknown"
         logger.error("access token request failed: http_status=%s", status_code)
-        raise SystemExit(1)
+        raise SystemExit(1) from None
     except ValueError as error:
-        logger.error("access token request failed: %s", error)
-        raise SystemExit(1)
+        logger.error(
+            "access token request failed: error_type=%s",
+            type(error).__name__,
+        )
+        raise SystemExit(1) from None
     except RequestException:
         logger.error("access token request failed: check API host and network")
-        raise SystemExit(1)
+        raise SystemExit(1) from None
 
-    logger.info("access token ok; expires_in=%s expires_out=%s", token.expires_in, token.expires_out)
+    logger.info(
+        "access token ok; expires_in=%s expires_out=%s", token.expires_in, token.expires_out
+    )
 
 
-def _sync_api_configs(settings, api_configs) -> None:
-    """把 YAML API 配置写入数据库 api_config 表。
+def _validate_api_configs(settings) -> None:
+    """离线校验 YAML 发布输入与本地官方目录。"""
+    api_configs = load_api_configs(settings.api_config_path)
+    records = publication_records(api_configs, settings.api_catalog_path)
+    enabled_count = sum(bool(record["enabled"]) for record in records)
+    logging.getLogger(__name__).info(
+        "api configs valid: count=%s enabled=%s",
+        len(records),
+        enabled_count,
+    )
+
+
+def _publish_api_configs(settings) -> None:
+    """把 YAML API 配置原子发布到数据库并补齐账号策略。
 
     该命令只同步配置元数据，不获取 token，也不请求任何真实业务接口。
     """
     logger = logging.getLogger(__name__)
+    api_configs = load_api_configs(settings.api_config_path)
     engine = create_db_engine(settings)
     try:
         with _sync_task_lock(engine):
-            count = SyncEngine(api_configs, engine).sync_api_configs()
-    except SQLAlchemyError:
-        logger.error("sync api configs failed: check database schema and privileges")
-        raise SystemExit(1)
+            from backend.app.services.api_config_publish_service import publish_api_configs
 
-    logger.info("api configs synced: count=%s", count)
+            with Session(engine) as db:
+                result = publish_api_configs(
+                    db,
+                    api_configs,
+                    settings.api_catalog_path,
+                )
+    except (SQLAlchemyError, ValueError):
+        logger.error("publish api configs failed: check schema and official catalog")
+        raise SystemExit(1) from None
+
+    logger.info(
+        "api configs published: count=%s created=%s disabled=%s policies=%s",
+        result["published"],
+        result["created"],
+        result["disabled"],
+        result["policiesCreated"],
+    )
 
 
-def _sync_enabled(settings, api_configs) -> None:
-    """同步 YAML 中所有 enabled=true 的接口。
+def _sync_enabled(settings) -> None:
+    """同步数据库中所有 legacy enabled 接口。
 
     这是生产定时任务应使用的主入口：一次运行创建一个 sync_batch，并为每个
     API 写入独立的 sync_api_log。
     """
     logger = logging.getLogger(__name__)
     engine = create_db_engine(settings)
+    api_configs = load_published_api_configs(engine)
+    _reject_legacy_scheduler_ownership(
+        enabled_web_scheduler_only_api_codes(api_configs),
+    )
     try:
         with _sync_task_lock(engine):
             auth_client = JijiaAuthClient(settings)
             token = auth_client.get_access_token()
-            result = SyncEngine(api_configs, engine).sync_enabled_apis(JijiaApiClient(settings, auth_client=auth_client), token)
+            result = SyncEngine(api_configs, engine).sync_enabled_apis(
+                JijiaApiClient(settings, auth_client=auth_client), token
+            )
     except HTTPError as error:
         status_code = error.response.status_code if error.response is not None else "unknown"
-        logger.exception(
-            "sync enabled failed: http_status=%s error_type=%s error=%s",
+        logger.error(
+            "sync enabled failed: http_status=%s error_type=%s",
             status_code,
             type(error).__name__,
-            error,
         )
-        raise SystemExit(1)
+        raise SystemExit(1) from None
     except (RequestException, SQLAlchemyError, ValueError) as error:
-        logger.exception(
-            "sync enabled failed: error_type=%s error=%s",
+        logger.error(
+            "sync enabled failed: error_type=%s",
             type(error).__name__,
-            error,
         )
-        raise SystemExit(1)
+        raise SystemExit(1) from None
 
     if result["failed_count"]:
-        logger.error("sync enabled finished with failed APIs: batch=%s failed=%s", result["batch_no"], result["failed_count"])
-        raise SystemExit(1)
+        logger.error(
+            "sync enabled finished with failed APIs: batch=%s failed=%s",
+            result["batch_no"],
+            result["failed_count"],
+        )
+        raise SystemExit(1) from None
     logger.info(
         "sync enabled ok: batch=%s apis=%s rows=%s requests=%s",
         result["batch_no"],
@@ -231,9 +285,11 @@ def _sync_enabled(settings, api_configs) -> None:
     )
 
 
-def _probe_single_api(settings, api_configs, api_code: str) -> None:
+def _probe_single_api(settings, api_code: str) -> None:
     """只读预检单个普通分页 API 的总数和最小页数。"""
     logger = logging.getLogger(__name__)
+    engine = create_db_engine(settings)
+    api_configs = load_published_api_configs(engine)
     try:
         auth_client = JijiaAuthClient(settings)
         token = auth_client.get_access_token()
@@ -245,20 +301,20 @@ def _probe_single_api(settings, api_configs, api_code: str) -> None:
     except HTTPError as error:
         status_code = error.response.status_code if error.response is not None else "unknown"
         logger.error("pagination probe failed: http_status=%s", status_code)
-        raise SystemExit(1)
+        raise SystemExit(1) from None
     except ApiRequestError as error:
         original_error = error.original_error
         response = getattr(original_error, "response", None)
-        status_code = getattr(response, "status_code", None)
+        original_status_code = getattr(response, "status_code", None)
         logger.error(
             "pagination probe failed: error_type=%s http_status=%s",
             type(original_error).__name__,
-            status_code if status_code is not None else "unknown",
+            original_status_code if original_status_code is not None else "unknown",
         )
-        raise SystemExit(1)
+        raise SystemExit(1) from None
     except (RequestException, ValueError) as error:
         logger.error("pagination probe failed: error_type=%s", type(error).__name__)
-        raise SystemExit(1)
+        raise SystemExit(1) from None
 
     logger.info(
         "pagination probe ok: api_code=%s total_count=%s page_size=%s "
@@ -271,37 +327,41 @@ def _probe_single_api(settings, api_configs, api_code: str) -> None:
     )
 
 
-def _run_single_api(settings, api_configs, api_code: str, action_label: str) -> None:
+def _run_single_api(settings, api_code: str, action_label: str) -> None:
     """同步单个指定 API。
 
     主要用于接入新接口时小范围验证配置、分页和入库结果，避免一上来跑完整
     API 列表导致排查范围过大。
     """
     logger = logging.getLogger(__name__)
+    _reject_legacy_scheduler_ownership(
+        (api_code,) if api_code in WEB_SCHEDULER_ONLY_API_CODES else (),
+    )
     engine = create_db_engine(settings)
+    api_configs = load_published_api_configs(engine)
     try:
         with _sync_task_lock(engine):
             auth_client = JijiaAuthClient(settings)
             token = auth_client.get_access_token()
-            result = SyncEngine(api_configs, engine).test_api_once(api_code, JijiaApiClient(settings, auth_client=auth_client), token)
+            result = SyncEngine(api_configs, engine).test_api_once(
+                api_code, JijiaApiClient(settings, auth_client=auth_client), token
+            )
     except HTTPError as error:
         status_code = error.response.status_code if error.response is not None else "unknown"
-        logger.exception(
-            "%s failed: http_status=%s error_type=%s error=%s",
+        logger.error(
+            "%s failed: http_status=%s error_type=%s",
             action_label,
             status_code,
             type(error).__name__,
-            error,
         )
-        raise SystemExit(1)
+        raise SystemExit(1) from None
     except (RequestException, SQLAlchemyError, ValueError) as error:
-        logger.exception(
-            "%s failed: error_type=%s error=%s",
+        logger.error(
+            "%s failed: error_type=%s",
             action_label,
             type(error).__name__,
-            error,
         )
-        raise SystemExit(1)
+        raise SystemExit(1) from None
 
     if result["failed_count"]:
         logger.error("%s failed: batch=%s", action_label, result["batch_no"])
@@ -314,6 +374,17 @@ def _run_single_api(settings, api_configs, api_code: str, action_label: str) -> 
         result["item_count"],
         result["request_count"],
     )
+
+
+def _reject_legacy_scheduler_ownership(api_codes: tuple[str, ...]) -> None:
+    """阻止 Web 独占接口再次从 legacy 入口写入账号 0。"""
+    if not api_codes:
+        return
+    logging.getLogger(__name__).error(
+        "legacy sync blocked: code=LEGACY_SCHEDULER_OWNERSHIP_CONFLICT api_code_count=%s",
+        len(api_codes),
+    )
+    raise SystemExit(2)
 
 
 if __name__ == "__main__":

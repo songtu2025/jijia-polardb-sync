@@ -1,7 +1,7 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request
-from sqlalchemy import func, select, update
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from backend.app.api.deps import AuthContext, require_admin, require_admin_csrf
@@ -12,6 +12,7 @@ from backend.app.core.security import utc_now
 from backend.app.models.user import AppUser, UserRole, UserStatus
 from backend.app.models.user_session import UserSession
 from backend.app.schemas.user import UserUpdateRequest
+from backend.app.services.audit_service import add_audit_log
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -44,13 +45,24 @@ def update_user(
     payload: UserUpdateRequest,
     request: Request,
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[AuthContext, Depends(require_admin_csrf)],
+    context: Annotated[AuthContext, Depends(require_admin_csrf)],
 ) -> dict[str, object]:
-    user = db.get(AppUser, user_id)
-    if user is None:
-        raise ApiError(404, "USER_NOT_FOUND", "用户不存在")
     if payload.status == UserStatus.INVITED:
         raise ApiError(422, "USER_STATUS_INVALID", "不能把用户改回受邀状态")
+    active_admins = db.scalars(
+        select(AppUser)
+        .where(
+            AppUser.role == UserRole.ADMIN,
+            AppUser.status == UserStatus.ACTIVE,
+        )
+        .order_by(AppUser.id)
+        .with_for_update()
+    ).all()
+    user = next((admin for admin in active_admins if admin.id == user_id), None)
+    if user is None:
+        user = db.get(AppUser, user_id)
+    if user is None:
+        raise ApiError(404, "USER_NOT_FOUND", "用户不存在")
     removes_active_admin = (
         user.role == UserRole.ADMIN
         and user.status == UserStatus.ACTIVE
@@ -59,18 +71,21 @@ def update_user(
             or payload.status == UserStatus.DISABLED
         )
     )
-    if removes_active_admin:
-        other_admins = db.scalar(
-            select(func.count(AppUser.id)).where(
-                AppUser.id != user.id,
-                AppUser.role == UserRole.ADMIN,
-                AppUser.status == UserStatus.ACTIVE,
-            )
-        )
-        if not other_admins:
-            raise ApiError(409, "LAST_ADMIN_REQUIRED", "至少保留 1 名可用管理员")
+    if removes_active_admin and len(active_admins) <= 1:
+        raise ApiError(409, "LAST_ADMIN_REQUIRED", "至少保留 1 名可用管理员")
     if payload.role is not None:
         user.role = payload.role
+        add_audit_log(
+            db,
+            actor_user_id=context.user.id,
+            jijia_account_id=None,
+            action="user.role.update",
+            resource_type="user",
+            resource_id=user.id,
+            request_id=request.state.request_id,
+            result="success",
+            changes={"role": payload.role.value},
+        )
     if payload.status is not None:
         user.status = payload.status
         if payload.status == UserStatus.DISABLED:
@@ -82,6 +97,19 @@ def update_user(
                 )
                 .values(revoked_at=utc_now())
             )
+        add_audit_log(
+            db,
+            actor_user_id=context.user.id,
+            jijia_account_id=None,
+            action=(
+                "user.disable" if payload.status == UserStatus.DISABLED else "user.status.update"
+            ),
+            resource_type="user",
+            resource_id=user.id,
+            request_id=request.state.request_id,
+            result="success",
+            changes={"status": payload.status.value},
+        )
     db.commit()
     db.refresh(user)
     return success_response(request, user_data(user))

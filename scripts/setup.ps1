@@ -8,10 +8,11 @@ if (-not (Test-Path -LiteralPath ".venv\Scripts\python.exe")) {
 }
 
 & ".\.venv\Scripts\python.exe" -m pip install -r requirements.txt -r requirements-dev.txt
+npm ci
 
 Push-Location -LiteralPath "frontend"
 try {
-    npm install
+    npm ci
 }
 finally {
     Pop-Location

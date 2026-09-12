@@ -1,0 +1,30 @@
+{
+  "path": [
+    "app",
+    "backend/app",
+    "frontend/src",
+    "scripts",
+    "request_sale_return_order_page.py"
+  ],
+  "format": [
+    "python",
+    "typescript",
+    "tsx",
+    "css",
+    "powershell"
+  ],
+  "ignore": [
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/*.d.ts",
+    "**/test/**",
+    "**/tests/**",
+    "**/__pycache__/**",
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/coverage/**"
+  ],
+  "reporters": [
+    "console"
+  ]
+}

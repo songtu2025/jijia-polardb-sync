@@ -68,7 +68,9 @@ HIGH_RISK_URL_WORDS = [
     "review",
     "feedback",
 ]
-HIGH_RISK_URL_PATTERN = re.compile("|".join(re.escape(word) for word in HIGH_RISK_URL_WORDS), re.IGNORECASE)
+HIGH_RISK_URL_PATTERN = re.compile(
+    "|".join(re.escape(word) for word in HIGH_RISK_URL_WORDS), re.IGNORECASE
+)
 KNOWN_RISK_REVIEW_PATHS = {
     # 这些路径已有真实探测结论：编码、限流、数组入参或敏感字段边界尚未稳定，不应反复作为普通候选。
     "/middle/base/marketNames/query",
@@ -101,7 +103,9 @@ def classify_api_detail(detail: dict[str, Any]) -> dict[str, Any]:
 
     required_fields = _required_body_fields(request_body)
     business_required_fields = [
-        field for field in required_fields if field not in PAGE_FIELDS and field not in OPTIONAL_QUERY_OBJECTS
+        field
+        for field in required_fields
+        if field not in PAGE_FIELDS and field not in OPTIONAL_QUERY_OBJECTS
     ]
     has_page = _has_page_response(response_body)
     has_list = _has_list_response(response_body)
@@ -127,6 +131,7 @@ def classify_api_detail(detail: dict[str, Any]) -> dict[str, Any]:
         "has_page_response": has_page,
         "has_list_response": has_list,
         "has_sensitive_response_fields": has_sensitive,
+        "response_fields": _response_field_contract(response_body),
     }
 
 
@@ -171,7 +176,9 @@ def execution_plan_for_api(
         return {
             "execution_bucket": "needs_sensitive_review",
             "execution_stage": "needs_sensitive_review",
-            "execution_reason": "公开文档响应或接口域可能包含敏感信息，需先做字段审查和脱敏边界确认。",
+            "execution_reason": (
+                "公开文档响应或接口域可能包含敏感信息，需先做字段审查和脱敏边界确认。"
+            ),
         }
     if classification == "write_or_mutation":
         return {
@@ -190,7 +197,9 @@ def execution_plan_for_api(
             return {
                 "execution_bucket": "defer_or_review",
                 "execution_stage": "risk_review_before_probe",
-                "execution_reason": "接口位于订单、财务、客服、物流或销售等高风险域，需先人工确认字段和调用边界。",
+                "execution_reason": (
+                    "接口位于订单、财务、客服、物流或销售等高风险域，需先人工确认字段和调用边界。"
+                ),
             }
         return {
             "execution_bucket": "can_probe",
@@ -203,6 +212,42 @@ def execution_plan_for_api(
         "execution_stage": "unsupported_shape_review",
         "execution_reason": "公开文档形态暂不适配当前同步引擎，需单独确认请求和响应结构。",
     }
+
+
+def _verified_request_contract(
+    detail: dict[str, Any],
+    configured_api: dict[str, Any] | None,
+    doc_id: int | None,
+) -> list[dict[str, Any]]:
+    """保存已核验请求字段，避免接口配置与官方契约静默漂移。"""
+    if not configured_api:
+        return []
+    window = configured_api.get("update_window") or {}
+    market_scope = configured_api.get("market_scope") or {}
+    field_names = []
+    if window.get("verified_doc_id") == doc_id:
+        field_names.extend([window.get("start_field"), window.get("end_field")])
+    if market_scope.get("verified_doc_id") == doc_id:
+        field_names.append(market_scope.get("request_field"))
+    fields_by_name = {
+        field.get("name"): field
+        for field in detail.get("requestBody") or []
+        if isinstance(field, dict)
+    }
+    contract = []
+    for field_name in dict.fromkeys(field_names):
+        field = fields_by_name.get(field_name)
+        if field is None:
+            continue
+        contract.append(
+            {
+                "name": field_name,
+                "type": field.get("type"),
+                "must": bool(field.get("must")),
+                "description": field.get("description") or "",
+            }
+        )
+    return contract
 
 
 def build_catalog(
@@ -222,7 +267,13 @@ def build_catalog(
         try:
             detail = _get_json(DOC_DETAIL_URL.format(doc_id=doc_id)).get("data") or {}
             classified = classify_api_detail(detail)
-            configured_api = configured_by_path.get(detail.get("apiUrl"))
+            detail_path = str(detail.get("apiUrl") or "")
+            configured_apis = configured_by_path.get(detail_path, [])
+            configured_api = configured_apis[0] if configured_apis else None
+            configured_codes = [str(item["api_code"]) for item in configured_apis]
+            enabled_codes = [
+                str(item["api_code"]) for item in configured_apis if bool(item.get("enabled"))
+            ]
             item = {
                 "doc_id": doc_id,
                 "menu_path": " > ".join(menu_path),
@@ -236,9 +287,15 @@ def build_catalog(
                 "has_page_response": classified["has_page_response"],
                 "has_list_response": classified["has_list_response"],
                 "has_sensitive_response_fields": classified["has_sensitive_response_fields"],
+                "response_fields": classified["response_fields"],
                 "configured_api_code": configured_api.get("api_code") if configured_api else "",
-                "configured_enabled": bool(configured_api.get("enabled")) if configured_api else False,
+                "configured_api_codes": configured_codes,
+                "configured_enabled": bool(enabled_codes),
+                "configured_enabled_api_codes": enabled_codes,
             }
+            verified_contract = _verified_request_contract(detail, configured_api, doc_id)
+            if verified_contract:
+                item["verified_request_contract"] = verified_contract
             item.update(execution_plan_for_api(item, review_by_doc_id.get(doc_id)))
             catalog.append(item)
         except requests.RequestException as error:
@@ -258,7 +315,9 @@ def build_catalog(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="生成积加开放平台公开文档 API 覆盖矩阵")
-    parser.add_argument("--api-config", default="config/api_config.example.yaml", help="本地 API YAML 配置路径")
+    parser.add_argument(
+        "--api-config", default="config/api_config.example.yaml", help="本地 API YAML 配置路径"
+    )
     parser.add_argument(
         "--review-config",
         default="config/api_review_overrides.yaml",
@@ -279,7 +338,9 @@ def main() -> None:
 
 
 def _summarize_catalog(
-    catalog: list[dict[str, Any]], errors: list[dict[str, Any]], configured_by_path: dict[str, dict[str, Any]]
+    catalog: list[dict[str, Any]],
+    errors: list[dict[str, Any]],
+    configured_by_path: dict[str, list[dict[str, Any]]],
 ) -> dict[str, Any]:
     classification_counts = Counter(item["classification"] for item in catalog)
     execution_bucket_counts = Counter(item["execution_bucket"] for item in catalog)
@@ -306,8 +367,10 @@ def _summarize_catalog(
         "tree_api_count": len(catalog) + len(errors),
         "detail_success_count": len(catalog),
         "detail_error_count": len(errors),
-        "configured_real_api_count": len(configured_by_path),
-        "configured_enabled_real_api_count": sum(1 for api in configured_by_path.values() if api.get("enabled")),
+        "configured_real_api_count": sum(len(apis) for apis in configured_by_path.values()),
+        "configured_enabled_real_api_count": sum(
+            bool(api.get("enabled")) for apis in configured_by_path.values() for api in apis
+        ),
         "classification_counts": dict(sorted(classification_counts.items())),
         "execution_bucket_counts": dict(sorted(execution_bucket_counts.items())),
         "execution_stage_counts": dict(sorted(execution_stage_counts.items())),
@@ -342,14 +405,16 @@ def load_review_overrides(review_config_path: str | Path) -> dict[int, dict[str,
     return review_by_doc_id
 
 
-def _load_configured_apis(api_config_path: str | Path) -> dict[str, dict[str, Any]]:
+def _load_configured_apis(
+    api_config_path: str | Path,
+) -> dict[str, list[dict[str, Any]]]:
     path = Path(api_config_path)
     data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-    configured = {}
+    configured: dict[str, list[dict[str, Any]]] = {}
     for api in data.get("apis") or []:
         api_path = str(api.get("path") or "")
         if api_path and not api_path.startswith("/replace/"):
-            configured[api_path] = api
+            configured.setdefault(api_path, []).append(api)
     return configured
 
 
@@ -368,7 +433,9 @@ def _walk_menu(nodes: list[dict[str, Any]], path: tuple[str, ...] = ()):
         yield from _walk_menu(node.get("subMenu") or [], current_path)
 
 
-def _flatten_fields(fields: list[dict[str, Any]], prefix: str = "") -> list[tuple[str, dict[str, Any]]]:
+def _flatten_fields(
+    fields: list[dict[str, Any]], prefix: str = ""
+) -> list[tuple[str, dict[str, Any]]]:
     result = []
     for field in fields or []:
         name = str(field.get("name") or "")
@@ -402,6 +469,21 @@ def _has_sensitive_response_fields(fields: list[dict[str, Any]]) -> bool:
     return False
 
 
+def _response_field_contract(
+    fields: list[dict[str, Any]],
+) -> list[dict[str, str]]:
+    """保存接口中心需要的字段路径、类型和官方说明。"""
+    return [
+        {
+            "name": name,
+            "type": str(field.get("type") or ""),
+            "description": str(field.get("description") or ""),
+        }
+        for name, field in _flatten_fields(fields)
+        if name
+    ]
+
+
 def _is_write_like(op_type: str, api_url: str) -> bool:
     url = api_url.lower()
     return (
@@ -409,7 +491,16 @@ def _is_write_like(op_type: str, api_url: str) -> bool:
         or any(hint in op_type for hint in WRITE_HINTS)
         or any(
             fragment in url
-            for fragment in ["/update", "/delete", "/save", "/create", "/add", "/import", "/upload", "/confirm"]
+            for fragment in [
+                "/update",
+                "/delete",
+                "/save",
+                "/create",
+                "/add",
+                "/import",
+                "/upload",
+                "/confirm",
+            ]
         )
     )
 

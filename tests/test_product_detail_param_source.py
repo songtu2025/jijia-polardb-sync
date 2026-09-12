@@ -1,7 +1,6 @@
 import unittest
 from datetime import datetime
 
-
 from app.config import load_api_configs
 from app.sync_engine import SyncEngine
 
@@ -32,7 +31,9 @@ class FakeConnection:
 
 class ProductDetailParamSourceTest(unittest.TestCase):
     def setUp(self):
-        self.apis = {api["api_code"]: api for api in load_api_configs("config/api_config.example.yaml")}
+        self.apis = {
+            api["api_code"]: api for api in load_api_configs("config/api_config.example.yaml")
+        }
 
     def test_product_detail_config_uses_product_page_ids_and_is_enabled(self):
         api = self.apis["product_detail"]
@@ -76,7 +77,15 @@ class ProductDetailParamSourceTest(unittest.TestCase):
         params = engine._source_param_sets(connection, api)
 
         self.assertEqual(params, [{"id": "101"}, {"id": "202"}])
-        self.assertEqual(connection.calls[0][1], {"source_api_code": "product_page", "limit": 3, "offset": 0})
+        self.assertEqual(
+            connection.calls[0][1],
+            {
+                "jijia_account_id": 0,
+                "source_api_code": "product_page",
+                "limit": 3,
+                "offset": 0,
+            },
+        )
 
     def test_source_param_sets_can_exclude_existing_target_primary_keys(self):
         engine = SyncEngine([])
@@ -97,7 +106,13 @@ class ProductDetailParamSourceTest(unittest.TestCase):
         self.assertEqual(params, [{"id": "8460"}])
         self.assertEqual(
             connection.calls[0][1],
-            {"source_api_code": "product_page", "target_api_code": "product_detail", "limit": 3, "offset": 0},
+            {
+                "jijia_account_id": 0,
+                "source_api_code": "product_page",
+                "target_api_code": "product_detail",
+                "limit": 3,
+                "offset": 0,
+            },
         )
         query = str(connection.calls[0][0])
         self.assertIn("target_data.api_code = :target_api_code", query)
@@ -137,7 +152,9 @@ class ProductDetailParamSourceTest(unittest.TestCase):
             },
         }
 
-        result = engine._sync_api_from_param_source_in_batch(connection, api, "batch-001", object(), object())
+        result = engine._sync_api_from_param_source_in_batch(
+            connection, api, "batch-001", object(), object()
+        )
 
         self.assertEqual(result, {"item_count": 0, "request_count": 0, "failed_count": 1})
         self.assertEqual(connection.calls[0][1]["api_code"], "bad_detail")

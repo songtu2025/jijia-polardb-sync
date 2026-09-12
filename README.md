@@ -15,9 +15,9 @@
 
 ## 规范基线
 
-- 公司规范：[SEEKWAY Codex 开发规范 V1.5.0](https://github.com/songtu2025/seekway-codex-standards/)
-- 上游基准提交：`f3bd25e2f134414a8b0348b7c7681aef312b7b0f`
-- 接入日期：2026-09-08
+- 公司规范：[SEEKWAY Codex 开发规范 V1.8.1](https://github.com/songtu2025/seekway-codex-standards/)
+- 上游基准提交：`181397ca1510db153f77695e820dcf1907062bb4`
+- 接入日期：2026-09-09
 - 项目专项规则：`docs/codex/sync-project.md`
 - Web 界面规范：`docs/web-ui-standard.md`
 - 运行时主题入口：`frontend/src/styles/seekway-theme.css`
@@ -27,6 +27,16 @@
 `sql/migrations/` 管理，Alembic 只管理 Web 身份域及已确认的 Web 增量表；部署继续使用
 阿里云 ECS、systemd 和 Nginx，不引入 Docker；cron 仅用于尚未完成的平台割接过渡期，不属于最终生产架构。完整规则按根目录 `AGENTS.md` 的
 触发条件读取，项目事实优先于公司新项目默认模板，安全、权限和生产边界不得放宽。
+
+V1.8.1 的[登录页模板](https://github.com/songtu2025/seekway-codex-standards/tree/181397ca1510db153f77695e820dcf1907062bb4/templates/seekway-login)
+已于 2026-09-09 接入登录页，来源提交为上述 `181397ca1510db153f77695e820dcf1907062bb4`。
+复用 C 版字场、Logo、本地字体和布局，保留项目邮箱认证、自动填充与原页面跳转；
+登录尺寸配置集中在 `frontend/src/theme/antdTheme.ts`，继承全局主题，注册页保持原实现。
+字体许可位于 `frontend/public/Fonts-LICENSE.txt`，由 Vite 随构建产物分发。
+后续按来源提交增量合并；适用规则见 `docs/web-ui-standard.md` 的“应用壳层与登录页”。
+[开发辅助资源](https://github.com/songtu2025/seekway-codex-standards/blob/181397ca1510db153f77695e820dcf1907062bb4/README.md#开发辅助资源可选)
+包括 VibeHub、Archify 和 CodeGraph，按当前问题选用，不作为启动或验收前提；推荐不等于安装授权，
+不自动修改个人配置或加入生产依赖。工具不可用时继续使用现有方式，索引与图示需核对源码，不能替代测试。
 
 ## 目录结构
 
@@ -421,18 +431,26 @@ Web 管理服务独立位于 `backend/` 和 `frontend/`。当前支持受邀注�
 同步策略、任务、运行、原始数据，以及 `/api-catalog` 接口中心。接口中心只展示和引导，
 不允许在网页直接修改路径、分页或安全分类等底层配置。
 
-Windows PowerShell 本地启动：
+Windows PowerShell 本地完整系统启动。API 固定监听 `127.0.0.1:8004`，Web 使用 `5183`
+端口并默认监听 `127.0.0.1`；`dev-local.ps1` 会同时启动 API、常驻 Worker 和 Web，任一
+进程退出时会停止其余进程：
 
 ```powershell
 .\scripts\setup.ps1
 .\.venv\Scripts\python.exe -m alembic -c backend\alembic.ini upgrade head
-.\.venv\Scripts\python.exe -m backend.app.cli bootstrap-admin --email admin@example.com
-.\scripts\dev-api.ps1
-# 另开一个 PowerShell
-.\scripts\dev-web.ps1
+.\scripts\setup-local-test.ps1
+.\.venv\Scripts\python.exe -m dotenv -f .env.localtest run --override -- `
+  ".\.venv\Scripts\python.exe" -m backend.app.cli bootstrap-admin --email admin@example.com
+.\scripts\dev-local.ps1
 ```
 
-本地 `MAIL_PROVIDER=console` 时，邀请地址只输出到 API 进程终端；生产环境必须配置 SMTP、HTTPS、`SESSION_COOKIE_SECURE=true` 和带 `__Host-` 前缀的 Cookie 名。`0001` 只创建 `app_user`、`auth_action_token`、`user_session`，生产迁移必须由部署负责人执行。
+`setup-local-test.ps1` 只需在首次使用固定本地隔离库时运行；它要求 `.env` 指向本机
+`127.0.0.1:3306` 已完成同步表初始化的 `jijia_sync_isolated_20260827`，并生成不会被覆盖的
+`.env.localtest`。
+`dev-local.ps1` 启动的 Worker 会处理该隔离库中的排队任务；本地库存在有效账号凭据和排队任务时，
+任务仍会调用真实积加 API。
+
+本地 `MAIL_PROVIDER=console` 时，邀请地址只输出到执行邀请操作的进程终端；生产环境必须配置 SMTP、HTTPS、`SESSION_COOKIE_SECURE=true` 和带 `__Host-` 前缀的 Cookie 名。`0001` 只创建 `app_user`、`auth_action_token`、`user_session`，生产迁移必须由部署负责人执行。
 
 完整检查：
 
@@ -529,11 +547,23 @@ M3 既有同步表升级前，只能对已经获准只读扫描的隔离 MySQL/P
 失败都会停止后续语句并返回 `restoreRequired=true`；输出不包含 SQL、异常文本、连接串
 或业务记录。它不会映射 legacy 账号，也不会补种首次历史基线。
 
+同步域增量 SQL 的唯一执行顺序如下，必须先在隔离副本完成演练并逐项获得批准：
+
+1. `0003_sync_scope_and_history.sql`
+2. `0004_api_config_runtime.sql`
+3. `0004_sale_return_order_projection.sql`
+4. `0005_raw_query_indexes.sql`
+5. `0006_sale_return_created_index.sql`
+6. `0007_raw_api_data_stat.sql`
+
+两个 `0004` 分属不同能力，不能只按编号排序或漏执行。`0003`、`0007` 使用仓库受控入口；
+`0004` 至 `0006` 当前由部署负责人按上述顺序人工执行，不进入服务自动启动流程。
+
 Web API 提供两个公开健康检查：`GET /health/live` 只证明进程存活；
 `GET /health/ready` 在生产会检查运行数据库可连接且实例未处于全局只读状态，数据库
 不可用或只读时返回脱敏 503，供 ECS/Nginx 决定是否导流。该只读查询不证明运行账号
-拥有 DML 权限，真实权限仍须在隔离副本和 ECS 发布演练中验证。M3 Worker 已使用数据库队列和单执行器实现；密码重置、Redis、Celery 和
-第三方登录继续不属于当前 MVP。
+拥有 DML 权限，真实权限仍须在隔离副本和 ECS 发布演练中验证。M3 Worker 已使用数据库队列和单执行器实现；
+密码重置已实现，Redis、Celery 和第三方登录继续不属于当前 MVP。
 
 任务详情中的批次号可直接进入对应运行详情和日志。原始数据列表支持按
 `sync_batch_no` 查询，该字段的精确语义是“当前记录最后观察批次”，不是记录形成批次，
@@ -545,12 +575,16 @@ Web API 提供两个公开健康检查：`GET /health/live` 只证明进程存�
 
 Web 第一版直接使用 ECS 上的 systemd、Nginx 和静态前端产物，不使用 Docker。仓库提供：
 
-- `config/ecs/jijia-api.service.example`：单进程 FastAPI，仅监听 `127.0.0.1:8000`。
-- `config/ecs/jijia-worker.service.example`：单 Worker，使用 `flock` 防止重复实例。
+- `config/ecs/jijia-api.service.example`：FastAPI，仅监听 `127.0.0.1:8000`。
+- `config/ecs/jijia-scheduler.service.example`：唯一 Scheduler，使用 `flock` 防止重复实例。
+- `config/ecs/jijia-worker@.service.example`：Worker 模板；当前只启用 `jijia-worker@worker-1`。
 - `config/ecs/nginx.conf.example`：TLS、SPA 静态资源、API/健康检查代理和登录限流。
 
 生产运行凭据放在仅服务用户可读的 `.env`；迁移高权限凭据单独放在 `.env.migration`，
-只能由获批迁移命令读取，不能配置到 API 或 Worker 的 `EnvironmentFile`。两个文件都不得提交。
+只能由获批迁移命令读取，不能配置到 API、Scheduler 或 Worker 的 `EnvironmentFile`。两个文件都不得提交。
+三个 systemd 模板替换占位符后，分别安装为 `/etc/systemd/system/jijia-api.service`、
+`/etc/systemd/system/jijia-scheduler.service` 和
+`/etc/systemd/system/jijia-worker@.service`；Worker 模板中的 `__WORKER_PROCESSES__` 当前固定替换为 `1`。
 
 发布负责人在 ECS 上替换模板中的双下划线占位符后，按以下最短链路验证：
 
@@ -560,19 +594,58 @@ python3 -m venv .venv
 ./.venv/bin/python -m pip install -r requirements.txt
 cd frontend && npm ci && npm run build && cd ..
 
-# 只执行配置、前端产物和运行库 SELECT 检查，不执行迁移或业务 API。
-./.venv/bin/python -m backend.app.release_preflight --confirm-read-only-database
+# 只执行生产配置、已发布接口和运行库 SELECT 检查，不执行迁移或业务 API。
+# 只有 API 范围检查前端产物，Scheduler 和 Worker 不依赖 frontend/dist。
+./.venv/bin/python -m backend.app.release_preflight --confirm-read-only-database --service api
+./.venv/bin/python -m backend.app.release_preflight --confirm-read-only-database --service scheduler
+./.venv/bin/python -m backend.app.release_preflight --confirm-read-only-database --service worker
 
 sudo systemd-analyze verify /etc/systemd/system/jijia-api.service
-sudo systemd-analyze verify /etc/systemd/system/jijia-worker.service
+sudo systemd-analyze verify /etc/systemd/system/jijia-scheduler.service
+sudo systemd-analyze verify /etc/systemd/system/jijia-worker@.service
 sudo nginx -t
 sudo systemctl daemon-reload
-sudo systemctl enable --now jijia-api jijia-worker nginx
+sudo systemctl enable jijia-api jijia-scheduler jijia-worker@worker-1 nginx
+
+# 先确认 API 与数据库就绪，再启动任务生成器和唯一 Worker，最后对外提供服务。
+sudo systemctl start jijia-api
+curl --fail http://127.0.0.1:8000/health/ready
+sudo systemctl start jijia-scheduler jijia-worker@worker-1
+curl --fail http://127.0.0.1:8000/health/worker
+sudo systemctl reload-or-restart nginx
+
+systemctl is-active jijia-api jijia-scheduler jijia-worker@worker-1 nginx
 curl --fail https://sync.example.com/health/ready
+curl --fail https://sync.example.com/health/worker
 ```
 
-`release_preflight` 通过只代表当前运行配置、前端产物、YAML 和数据库目标符合启动条件，
-不代表批准迁移或部署。`0003` 仍必须先在隔离副本完成演练，并由部署负责人单独授权。
-服务日志进入 journald，可用 `journalctl -u jijia-api` 和 `journalctl -u jijia-worker` 查看；
-日志只保留稳定错误码和异常类型。Worker 收到停止信号后不再领取新任务，并给当前长任务最多
-3 小时完成。当前仓库只完成本地部署就绪验证，尚未在真实 ECS、Nginx 或 PolarDB 上执行。
+`release_preflight` 通过只代表当前生产配置、YAML、数据库中的已发布接口和运行数据库目标符合启动条件；
+API 范围还要求前端产物完整。它不代表批准迁移或部署。
+`0003` 仍必须先在隔离副本完成演练，并由部署负责人单独授权。
+当前只运行一个 `jijia-worker@worker-1`，不得额外启用其他 Worker 实例。
+服务日志统一进入 journald：
+
+```bash
+journalctl -u jijia-api -u jijia-scheduler -u jijia-worker@worker-1 --since "2 hours ago"
+```
+
+应用或 unit 回滚时先停止领取和生成新任务，恢复上一版本应用、前端产物、运行 `.env` 和 unit 文件后，
+按同一顺序重新验证；本流程不执行 Alembic downgrade，也不替代已批准的数据库恢复方案：
+
+```bash
+sudo systemctl stop jijia-worker@worker-1 jijia-scheduler jijia-api
+# 恢复上一版本应用、frontend/dist、运行 .env 和三个 systemd unit。
+sudo systemctl daemon-reload
+sudo systemctl start jijia-api
+curl --fail http://127.0.0.1:8000/health/ready
+sudo systemctl start jijia-scheduler jijia-worker@worker-1
+curl --fail http://127.0.0.1:8000/health/worker
+sudo nginx -t
+sudo systemctl reload-or-restart nginx
+systemctl is-active jijia-api jijia-scheduler jijia-worker@worker-1 nginx
+curl --fail https://sync.example.com/health/ready
+curl --fail https://sync.example.com/health/worker
+```
+
+Worker 收到停止信号后不再领取新任务，并给当前长任务最多 3 小时完成。
+当前仓库只完成本地部署就绪验证，尚未在真实 ECS、Nginx 或 PolarDB 上执行。

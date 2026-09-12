@@ -1,0 +1,37 @@
+SET SESSION time_zone = '+00:00';
+
+-- 新增退货订单当前查询投影，不修改 raw 快照和版本历史。
+CREATE TABLE sale_return_order (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  jijia_account_id INT NOT NULL,
+  raw_data_id BIGINT UNSIGNED NOT NULL,
+  source_primary_key VARCHAR(255) NOT NULL,
+  record_identity CHAR(64) NOT NULL,
+  market_id INT NULL,
+  return_date_time DATETIME NULL,
+  order_id VARCHAR(255) NULL,
+  seller_order_id VARCHAR(255) NULL,
+  asin VARCHAR(32) NULL,
+  msku VARCHAR(255) NULL,
+  fnsku VARCHAR(255) NULL,
+  sku VARCHAR(255) NULL,
+  product_name TEXT NULL,
+  quantity INT NULL,
+  fulfillment_center_id VARCHAR(100) NULL,
+  disposition VARCHAR(100) NULL,
+  reason TEXT NULL,
+  status VARCHAR(100) NULL,
+  source_created_at DATETIME NULL,
+  source_updated_at DATETIME NULL,
+  data_hash CHAR(64) NOT NULL,
+  sync_batch_no VARCHAR(64) NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_sale_return_account_source (jijia_account_id, source_primary_key),
+  UNIQUE KEY uk_sale_return_raw_data (raw_data_id),
+  KEY idx_sale_return_account_date (jijia_account_id, return_date_time, id),
+  KEY idx_sale_return_account_status_date (jijia_account_id, status, return_date_time),
+  KEY idx_sale_return_account_order (jijia_account_id, order_id),
+  KEY idx_sale_return_account_sku (jijia_account_id, sku)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

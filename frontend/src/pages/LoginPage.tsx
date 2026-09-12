@@ -1,79 +1,127 @@
-import { type FormEvent, useState } from "react";
-import { Navigate, useLocation, useNavigate } from "react-router-dom";
+import { type FormEvent, useEffect, useRef, useState } from "react";
+import { Alert, Button, Form, Input } from "antd";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 
 import { ApiError } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
-import { BrandPanel } from "../components/BrandPanel";
-import { FormField } from "../components/FormField";
+import { AuthPageFrame } from "../components/login/AuthPageFrame";
+
+interface LoginValues {
+  email: string;
+  password: string;
+}
 
 export function LoginPage() {
-  const { login, user } = useAuth();
+  const { clearSession, login, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [form] = Form.useForm<LoginValues>();
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const pending = useRef(false);
+  const routeState = location.state as {
+    from?: string;
+    passwordChanged?: boolean;
+    passwordReset?: boolean;
+  } | null;
+  const requested = routeState?.from;
+  const successMessage = routeState?.passwordChanged
+    ? "密码已修改，请使用新密码登录"
+    : routeState?.passwordReset
+      ? "密码已重置，请使用新密码登录"
+      : "";
 
-  if (user) {
-    return <Navigate replace to={user.role === "admin" ? "/members" : "/"} />;
+  useEffect(() => {
+    if (successMessage) clearSession();
+  }, [clearSession, successMessage]);
+
+  if (user && !successMessage) {
+    return <Navigate replace to={requested ?? "/"} />;
   }
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  function syncAutofilledValues(event: FormEvent<HTMLFormElement>) {
+    if (pending.current) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+    // 密码管理器可能没有触发输入事件，校验前以浏览器实际填入的值为准。
+    const formData = new FormData(event.currentTarget);
+    form.setFieldsValue({
+      email: String(formData.get("email") ?? ""),
+      password: String(formData.get("password") ?? ""),
+    });
+  }
+
+  async function handleSubmit(values: LoginValues) {
+    if (pending.current) return;
+    pending.current = true;
     setError("");
     setSubmitting(true);
     try {
-      const signedInUser = await login(email, password);
-      const requested = (location.state as { from?: string } | null)?.from;
-      navigate(
-        requested ?? (signedInUser.role === "admin" ? "/members" : "/"),
-        { replace: true },
-      );
+      await login(values.email, values.password);
+      navigate(requested ?? "/", { replace: true });
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : "登录失败，请稍后重试");
     } finally {
+      pending.current = false;
       setSubmitting(false);
     }
   }
 
   return (
-    <main className="auth-layout" data-node-id="120:432">
-      <BrandPanel mode="login" />
-      <section className="auth-main">
-        <div className="auth-top-note">仅限受邀成员使用</div>
-        <form className="auth-form auth-form--login" onSubmit={handleSubmit}>
-          <h2>欢迎回来</h2>
-          <p className="auth-description">使用管理员为你开通的邮箱和密码登录。</p>
-          <div className="auth-fields">
-            <FormField
-              autoComplete="email"
-              id="email"
-              label="邮箱"
-              placeholder="name@example.com"
-              required
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-            />
-            <FormField
-              autoComplete="current-password"
-              id="password"
-              label="密码"
-              placeholder="请输入密码"
-              required
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-            />
-          </div>
-          {error ? <div className="form-alert" role="alert">{error}</div> : null}
-          <button className="primary-button auth-submit" disabled={submitting} type="submit">
-            {submitting ? "登录中…" : "登录"}
-          </button>
-          <p className="form-help">无法登录？请联系管理员确认账号状态。</p>
-        </form>
-      </section>
-    </main>
+    <AuthPageFrame title="积加数据同步管理平台" subtitle="请输入邮箱和密码">
+      {successMessage ? (
+        <Alert
+          className="seekway-login__feedback seekway-login__feedback--before-form"
+          role="status"
+          title={successMessage}
+          type="success"
+          showIcon
+        />
+      ) : null}
+      <Form<LoginValues>
+        form={form}
+        name="login"
+        layout="vertical"
+        requiredMark={false}
+        disabled={submitting}
+        noValidate
+        validateTrigger="onBlur"
+        scrollToFirstError={{ focus: true }}
+        onSubmitCapture={syncAutofilledValues}
+        onFinish={handleSubmit}
+      >
+        <Form.Item
+          name="email"
+          label="邮箱"
+          rules={[
+            { required: true, whitespace: true, message: "请输入邮箱" },
+            { type: "email", message: "请输入有效的邮箱地址" },
+          ]}
+        >
+          <Input autoComplete="email" name="email" placeholder="name@example.com" type="email" />
+        </Form.Item>
+        <Form.Item name="password" label="密码" rules={[{ required: true, message: "请输入密码" }]}>
+          <Input.Password
+            autoComplete="current-password"
+            name="password"
+            placeholder="请输入密码"
+          />
+        </Form.Item>
+        <div className="seekway-login__password-help">
+          <Link to="/forgot-password">忘记密码？</Link>
+        </div>
+        <Button autoInsertSpace={false} block htmlType="submit" loading={submitting} type="primary">
+          {submitting ? "登录中…" : "登录"}
+        </Button>
+      </Form>
+      <div aria-live="polite" aria-atomic="true">
+        {error ? (
+          <Alert className="seekway-login__feedback" title={error} type="error" showIcon />
+        ) : null}
+      </div>
+      <p className="seekway-login__help">仅限受邀成员使用。</p>
+    </AuthPageFrame>
   );
 }

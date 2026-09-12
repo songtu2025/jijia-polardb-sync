@@ -15,7 +15,12 @@ class JijiaApiClient:
     重试和日志由 `SyncEngine` 统一控制，避免 HTTP 层掺入同步状态。
     """
 
-    def __init__(self, settings: AppSettings, timeout_seconds: int = 30, auth_client: Any | None = None):
+    def __init__(
+        self,
+        settings: AppSettings,
+        timeout_seconds: int = 30,
+        auth_client: Any | None = None,
+    ):
         """创建可复用的 requests Session。"""
         self.settings = settings
         self.timeout_seconds = timeout_seconds
@@ -45,8 +50,12 @@ class JijiaApiClient:
             response = self._send(method, url, params, effective_token, timeout_seconds)
             response.raise_for_status()
         except HTTPError as error:
-            response = error.response
-            if response is None or response.status_code != 401 or self.auth_client is None:
+            error_response = error.response
+            if (
+                error_response is None
+                or error_response.status_code != 401
+                or self.auth_client is None
+            ):
                 raise
             # 长批次可能跨过 accessToken 生命周期；401 时强制刷新一次，避免整批后半段失败。
             effective_token = self.auth_client.get_access_token(force_refresh=True)
@@ -57,7 +66,9 @@ class JijiaApiClient:
         payload = response.json()
         code = payload.get("code")
         if code not in (0, 200):
-            messages = payload.get("messages") or [f"API request failed: {api_config.get('api_code')}"]
+            messages = payload.get("messages") or [
+                f"API request failed: {api_config.get('api_code')}"
+            ]
             raise ValueError(str(messages[0]))
         return payload
 

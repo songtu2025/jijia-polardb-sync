@@ -30,6 +30,7 @@ class CapturingConnection:
 
     def execute(self, statement, params=None):
         self.calls.append((str(statement), params))
+        return FakeResult([])
 
 
 class FakeHttpResponse:
@@ -45,10 +46,7 @@ class FakeHttpError(RuntimeError):
 
 class FileFileUrlQueryConfigTest(unittest.TestCase):
     def test_file_file_url_query_uses_real_attachment_id_source_and_stays_disabled(self):
-        apis = {
-            api["api_code"]: api
-            for api in load_api_configs("config/api_config.example.yaml")
-        }
+        apis = {api["api_code"]: api for api in load_api_configs("config/api_config.example.yaml")}
 
         self.assertIn("file_file_url_query", apis)
         api = apis["file_file_url_query"]
@@ -88,13 +86,7 @@ class FileFileUrlQueryConfigTest(unittest.TestCase):
     def test_attachment_id_becomes_request_primary_key_without_entering_raw_json(self):
         engine = SyncEngine([])
         connection = FakeConnection(
-            [
-                {
-                    "raw_json": json.dumps(
-                        {"attachmentVOList": [{"id": 123456}]}
-                    )
-                }
-            ]
+            [{"raw_json": json.dumps({"attachmentVOList": [{"id": 123456}]})}]
         )
         api = {
             "api_code": "file_file_url_query",
@@ -113,9 +105,7 @@ class FileFileUrlQueryConfigTest(unittest.TestCase):
         }
 
         params = engine._source_param_sets(connection, api, offset=0)
-        raw_items = engine._response_items(
-            {"data": "https://example.invalid/fictional-file"}, api
-        )
+        raw_items = engine._response_items({"data": "https://example.invalid/fictional-file"}, api)
 
         self.assertEqual(params, [{"id": "123456"}])
         self.assertEqual(engine._source_primary_key_from_params(api, params[0]), "123456")
@@ -130,14 +120,13 @@ class FileFileUrlQueryConfigTest(unittest.TestCase):
             "batch-file",
             source_primary_key=engine._source_primary_key_from_params(api, params[0]),
         )
-        stored_raw_json = json.loads(writer.calls[0][1][0]["raw_json"])
+        raw_write = next(call for call in writer.calls if "INSERT INTO raw_api_data (" in call[0])
+        stored_raw_json = json.loads(raw_write[1][0]["raw_json"])
         self.assertEqual(stored_raw_json, raw_items[0])
         self.assertNotIn("id", stored_raw_json)
 
     def test_sensitive_failure_hides_fictional_file_url_details(self):
-        engine = SyncEngine(
-            [{"api_code": "file_file_url_query", "sensitive_response": True}]
-        )
+        engine = SyncEngine([{"api_code": "file_file_url_query", "sensitive_response": True}])
         connection = CapturingConnection()
         error = ApiRequestError(
             FakeHttpError(),

@@ -1,0 +1,184 @@
+/* SEEKWAY Web UI Kit V1.8.1：Web 设计令牌唯一来源。 */
+:root {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC",
+    "Microsoft YaHei", sans-serif;
+  color: var(--color-text-primary);
+  background: var(--color-surface-page);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+
+  /* 原始色只用于维护语义令牌，业务样式不得直接引用。 */
+  --primitive-brand-50: #e8f5f1;
+  --primitive-brand-100: #b7ddd2;
+  --primitive-brand-500: #0c6b59;
+  --primitive-brand-700: #055247;
+  --primitive-brand-800: #04463d;
+
+  --primitive-neutral-0: #ffffff;
+  --primitive-neutral-10: #fbfcfb;
+  --primitive-neutral-20: #fafbf9;
+  --primitive-neutral-25: #f8fcfa;
+  --primitive-neutral-30: #f8faf8;
+  --primitive-neutral-50: #f7f9f9;
+  --primitive-neutral-75: #f5f8f6;
+  --primitive-neutral-100: #f1f5f4;
+  --primitive-neutral-200: #e8eeea;
+  --primitive-neutral-300: #d5dfdc;
+  --primitive-neutral-400: #b7cfc5;
+  --primitive-neutral-450: #98a39e;
+  --primitive-neutral-475: #8a958f;
+  --primitive-neutral-500: #7f8b85;
+  --primitive-neutral-600: #63736e;
+  --primitive-neutral-800: #141b18;
+
+  --primitive-green-gray-500: #9dbcae;
+  --primitive-forest-650: #255b49;
+  --primitive-forest-800: #1d342c;
+  --primitive-forest-850: #142b23;
+  --primitive-forest-900: #12251f;
+  --primitive-forest-950: #123f36;
+  --primitive-mint-300: #82e8c2;
+  --primitive-mint-400: #65d0a8;
+  --primitive-sage-300: #a9bbb4;
+  --primitive-sage-500: #81978e;
+  --primitive-orange-50: #fff3df;
+  --primitive-orange-200: #e9c58d;
+  --primitive-orange-500: #b36618;
+  --primitive-orange-700: #8a5b17;
+  --primitive-red-50: #fdecea;
+  --primitive-red-200: #efc7c7;
+  --primitive-red-500: #b23333;
+  --primitive-blue-50: #eaf1fb;
+  --primitive-blue-200: #bfd5ee;
+  --primitive-blue-500: #3266a8;
+  --primitive-alpha-white-6: #ffffff0e;
+  --primitive-alpha-white-9: #ffffff17;
+
+  /* 业务代码只使用以下语义色。 */
+  --color-primary: var(--primitive-brand-500);
+  --color-primary-hover: var(--primitive-brand-700);
+  --color-primary-active: var(--primitive-brand-800);
+  --color-primary-subtle: var(--primitive-brand-50);
+
+  --color-text-primary: var(--primitive-neutral-800);
+  --color-text-secondary: var(--primitive-neutral-600);
+  --color-text-placeholder: var(--primitive-neutral-600);
+  --color-text-disabled: var(--primitive-neutral-500);
+  --color-text-inverse: var(--primitive-neutral-0);
+  --color-text-sidebar-primary: var(--primitive-neutral-0);
+  --color-text-sidebar-secondary: var(--primitive-sage-300);
+  --color-text-sidebar-muted: var(--primitive-neutral-450);
+  --color-text-sidebar-accent: var(--primitive-mint-300);
+
+  --color-surface-page: var(--primitive-neutral-50);
+  --color-surface-container: var(--primitive-neutral-0);
+  --color-surface-hover: var(--primitive-neutral-25);
+  --color-surface-disabled: var(--primitive-neutral-100);
+  --color-surface-raised: var(--primitive-neutral-10);
+  --color-surface-subtle: var(--primitive-neutral-30);
+  --color-surface-table-head: var(--primitive-neutral-75);
+  --color-surface-topbar: var(--primitive-neutral-20);
+  --color-surface-sidebar: var(--primitive-forest-950);
+  --color-surface-sidebar-start: var(--primitive-forest-950);
+  --color-surface-sidebar-end: var(--primitive-forest-850);
+  --color-surface-sidebar-active: var(--primitive-forest-650);
+  --color-surface-sidebar-hover: var(--primitive-alpha-white-6);
+
+  --color-border-default: var(--primitive-neutral-300);
+  --color-border-soft: var(--primitive-neutral-200);
+  --color-border-strong: var(--primitive-neutral-400);
+  --color-border-control: var(--primitive-neutral-500);
+  --color-border-control-hover: var(--primitive-green-gray-500);
+  --color-border-sidebar-divider: var(--primitive-alpha-white-9);
+  --color-border-sidebar-accent: var(--primitive-mint-400);
+  --color-focus: var(--primitive-brand-500);
+
+  --color-success: var(--primitive-brand-500);
+  --color-success-subtle: var(--primitive-brand-50);
+  --color-success-border: var(--primitive-brand-100);
+  --color-success-dot: var(--primitive-brand-500);
+  --color-warning: var(--primitive-orange-500);
+  --color-warning-text: var(--primitive-orange-700);
+  --color-warning-subtle: var(--primitive-orange-50);
+  --color-warning-border: var(--primitive-orange-200);
+  --color-danger: var(--primitive-red-500);
+  --color-danger-subtle: var(--primitive-red-50);
+  --color-danger-border: var(--primitive-red-200);
+  --color-info: var(--primitive-blue-500);
+  --color-info-subtle: var(--primitive-blue-50);
+  --color-info-border: var(--primitive-blue-200);
+
+  --gradient-sidebar: linear-gradient(
+    180deg,
+    var(--color-surface-sidebar-start) 0%,
+    var(--color-surface-sidebar-end) 100%
+  );
+
+  --font-family-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text",
+    "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-size-caption: 12px;
+  --font-size-body: 14px;
+  --font-size-body-large: 16px;
+  --font-size-title-small: 18px;
+  --font-size-title: 20px;
+  --font-size-page-title: 28px;
+  --line-height-caption: 20px;
+  --line-height-body: 22px;
+  --line-height-body-large: 24px;
+  --line-height-title: 28px;
+  --line-height-page-title: 34px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  --control-height-small: 34px;
+  --control-height-default: 38px;
+  --control-height-large: 40px;
+  --radius-control: 7px;
+  --radius-default: 8px;
+  --radius-card: 12px;
+  --radius-overlay: 13px;
+
+  --layout-wide-max: 1680px;
+  --layout-workflow-max: 1560px;
+  --layout-narrow-max: 1180px;
+  --sidebar-width: 236px;
+  --sidebar-collapsed-width: 72px;
+  --topbar-height: 68px;
+
+  --page-padding: 32px;
+  --section-gap: 16px;
+  --field-gap: 8px;
+  --card-padding: 18px;
+  --detail-padding: 22px;
+  --filter-height: 60px;
+  --table-head-height: 42px;
+  --record-height: 48px;
+  --business-row-height: 84px;
+  --empty-state-height: 216px;
+
+  --shadow-small: 0 1px 2px rgb(0 0 0 / 4%),
+    0 8px 30px rgb(0 0 0 / 4%);
+  --shadow-large: 0 20px 70px rgb(19 34 29 / 18%);
+  --motion-duration-fast: 120ms;
+  --motion-duration-default: 160ms;
+  --motion-duration-slow: 200ms;
+
+  /* 旧页面保留兼容别名；新增样式直接使用上方语义令牌。 */
+  --brand: var(--color-primary-hover);
+  --brand-action: var(--color-primary);
+  --brand-soft: var(--color-primary-subtle);
+  --surface: var(--color-surface-container);
+  --surface-muted: var(--color-surface-disabled);
+  --border: var(--color-border-default);
+  --text: var(--color-text-primary);
+  --text-muted: var(--color-text-secondary);
+  --danger: var(--color-danger);
+  --shadow-soft: var(--shadow-small);
+}

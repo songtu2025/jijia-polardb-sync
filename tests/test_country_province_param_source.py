@@ -27,7 +27,9 @@ class FakeConnection:
 
 class CountryProvinceParamSourceTest(unittest.TestCase):
     def setUp(self):
-        self.apis = {api["api_code"]: api for api in load_api_configs("config/api_config.example.yaml")}
+        self.apis = {
+            api["api_code"]: api for api in load_api_configs("config/api_config.example.yaml")
+        }
 
     def test_country_province_query_uses_fba_warehouse_country_and_is_enabled(self):
         self.assertIn("country_province_query", self.apis)
@@ -63,7 +65,15 @@ class CountryProvinceParamSourceTest(unittest.TestCase):
         params = engine._source_param_sets(connection, api)
 
         self.assertEqual(params, [{"countryCode": "CA"}, {"countryCode": "US"}])
-        self.assertEqual(connection.calls[0][1], {"source_api_code": "fba_warehouse_page", "limit": 3, "offset": 0})
+        self.assertEqual(
+            connection.calls[0][1],
+            {
+                "jijia_account_id": 0,
+                "source_api_code": "fba_warehouse_page",
+                "limit": 3,
+                "offset": 0,
+            },
+        )
         self.assertIn("JSON_EXTRACT(raw_json, '$.country')", str(connection.calls[0][0]))
 
 
