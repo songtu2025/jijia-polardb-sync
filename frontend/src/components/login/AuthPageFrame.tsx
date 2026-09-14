@@ -13,7 +13,7 @@ export function AuthPageFrame({
   title,
 }: {
   children: ReactNode;
-  subtitle: string;
+  subtitle?: string;
   title: string;
 }) {
   return (
@@ -38,7 +38,7 @@ export function AuthPageFrame({
           <div className="seekway-login__form">
             <header className="seekway-login__heading">
               <h1 id="auth-page-title">{title}</h1>
-              <p>{subtitle}</p>
+              {subtitle ? <p>{subtitle}</p> : null}
             </header>
             {children}
           </div>

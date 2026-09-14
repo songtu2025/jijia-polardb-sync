@@ -160,8 +160,13 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="app-shell">
       <aside className="top-nav">
         <div className="brand-lockup brand-lockup--dark">
-          <span className="brand-mark">积</span>
-          <span>积加数据接入平台</span>
+          <img
+            alt=""
+            aria-hidden="true"
+            className="brand-mark brand-mark--image"
+            src="/favicon.svg"
+          />
+          <span>SEEKWAY数据接入平台</span>
         </div>
         <nav aria-label="主导航">
           <NavLink className="top-nav-link" end to="/">

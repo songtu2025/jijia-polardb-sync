@@ -2,8 +2,13 @@ export function BrandPanel() {
   return (
     <header className="brand-panel">
       <div className="brand-lockup">
-        <span className="brand-mark brand-mark--light">积</span>
-        <span>积加数据接入平台</span>
+        <img
+          alt=""
+          aria-hidden="true"
+          className="brand-mark brand-mark--light brand-mark--image"
+          src="/favicon.svg"
+        />
+        <span>SEEKWAY数据接入平台</span>
       </div>
     </header>
   );

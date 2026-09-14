@@ -35,6 +35,8 @@ describe("登录页", () => {
     const user = userEvent.setup();
     renderLogin();
 
+    expect(screen.getByRole("heading", { name: "SEEKWAY数据接入平台" })).toBeInTheDocument();
+    expect(screen.queryByText("请输入邮箱和密码")).not.toBeInTheDocument();
     await user.type(screen.getByLabelText("邮箱"), "admin@example.com");
     await user.type(screen.getByLabelText("密码"), "safe-password");
     await user.click(screen.getByRole("button", { name: "登录" }));

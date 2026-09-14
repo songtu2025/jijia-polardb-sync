@@ -527,7 +527,7 @@ export function SyncJobsPage() {
 
   return (
     <AppShell>
-      <main className="m3-page">
+      <main className="m3-page jobs-page">
         <header className="page-heading">
           <div>
             <h1>同步任务</h1>
@@ -548,7 +548,7 @@ export function SyncJobsPage() {
             ) : null}
           </div>
         </header>
-        <WorkerStatusPanel />
+        <WorkerStatusPanel compact />
         {accountError ? (
           <Alert
             type="error"
@@ -711,14 +711,16 @@ export function SyncJobsPage() {
               onChange={(value) => setTriggerFilter(value as SyncJobTriggerType | "")}
             />
           </label>
-          <Button aria-label="筛选" htmlType="submit" loading={loading}>
-            筛选
-          </Button>
-          {accountFilter || apiFilter || statusFilter || groupFilter || triggerFilter ? (
-            <Button type="text" onClick={clearFilters}>
-              重置筛选
+          <div className="job-filter-actions">
+            <Button aria-label="筛选" htmlType="submit" loading={loading}>
+              筛选
             </Button>
-          ) : null}
+            {accountFilter || apiFilter || statusFilter || groupFilter || triggerFilter ? (
+              <Button type="text" onClick={clearFilters}>
+                重置筛选
+              </Button>
+            ) : null}
+          </div>
           <small className="timezone-note">{timeZoneNote()}</small>
         </Form>
         <section className="m3-card" aria-labelledby="jobs-title">

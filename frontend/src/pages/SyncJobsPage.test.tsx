@@ -111,7 +111,9 @@ describe("同步任务列表", () => {
     );
 
     expect(await screen.findByText("执行服务在线")).toBeInTheDocument();
-    expect(screen.getByText("可以自动领取新的排队任务。")).toBeInTheDocument();
+    expect(screen.getByText("可以领取新的排队任务。")).toBeInTheDocument();
+    expect(screen.getByLabelText("任务执行服务状态")).toHaveClass("worker-status--compact");
+    expect(screen.queryByText("排队任务")).not.toBeInTheDocument();
   });
 
   it("页面隐藏时暂停轮询，恢复可见后自动更新活动任务", async () => {

@@ -146,6 +146,12 @@ a {
   background: var(--brand);
   font-weight: 700;
 }
+.brand-mark--image {
+  box-sizing: border-box;
+  object-fit: contain;
+  padding: 7px;
+  background: var(--color-surface-container);
+}
 .brand-mark--light {
   width: 36px;
   height: 36px;

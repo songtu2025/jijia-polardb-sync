@@ -38,6 +38,8 @@ describe("邀请注册页", () => {
     );
 
     await screen.findByText("operator@example.com");
+    expect(screen.getByText("SEEKWAY数据接入平台")).toBeInTheDocument();
+    expect(document.querySelector(".brand-mark--image")).toHaveAttribute("src", "/favicon.svg");
     expect(api.validateInvitation).toHaveBeenCalledWith("abcdefghijklmnopqrstuvwxyz");
     expect(screen.getByText("操作员")).toBeInTheDocument();
     await user.type(screen.getByLabelText("姓名"), "周晨");

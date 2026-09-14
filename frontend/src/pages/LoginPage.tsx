@@ -70,7 +70,7 @@ export function LoginPage() {
   }
 
   return (
-    <AuthPageFrame title="积加数据同步管理平台" subtitle="请输入邮箱和密码">
+    <AuthPageFrame title="SEEKWAY数据接入平台">
       {successMessage ? (
         <Alert
           className="seekway-login__feedback seekway-login__feedback--before-form"

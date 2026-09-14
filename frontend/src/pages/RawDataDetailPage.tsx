@@ -7,7 +7,7 @@ import type { RawDataDetail, RawDataVersion } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import { AppShell } from "../components/AppShell";
 import { SourceBackLink } from "../components/SourceBackLink";
-import { formatDate, getApiErrorMessage, timeZoneNote } from "./m3Utils";
+import { browserTimeZone, formatDate, getApiErrorMessage } from "./m3Utils";
 
 function flattenJson(value: unknown, path = "$", result: Record<string, string> = {}) {
   if (value !== null && typeof value === "object") {
@@ -59,10 +59,10 @@ export function RawDataDetailPage() {
     ? `/jobs/${encodeURIComponent(verificationTaskId)}${
         verificationRunId ? `?runId=${encodeURIComponent(verificationRunId)}#job-diagnostics` : ""
       }`
-    : "/jobs";
+    : null;
   const verificationRunPath = verificationRunId
     ? `/runs/${encodeURIComponent(verificationRunId)}`
-    : "/runs";
+    : null;
   const rawDataReturnPath = `/raw-data${location.search}`;
 
   const sourceState = {
@@ -217,17 +217,29 @@ export function RawDataDetailPage() {
               <div>
                 <h1>{currentData.apiCode}</h1>
                 <p>
-                  {currentData.accountName ??
-                    (currentData.jijiaAccountId
-                      ? `账号 ${currentData.jijiaAccountId}`
-                      : "legacy 账号")}
-                  {" · 主键 "}
-                  {currentData.sourcePrimaryKey ?? "—"}
+                  来源账号：
+                  {currentData.jijiaAccountId ? (
+                    <Link
+                      className="m3-link"
+                      to={`/accounts/${currentData.jijiaAccountId}`}
+                      state={sourceState}
+                    >
+                      {currentData.accountName ?? `账号 ${currentData.jijiaAccountId}`}
+                    </Link>
+                  ) : (
+                    (currentData.accountName ?? "历史账号")
+                  )}
+                  {currentData.sourcePrimaryKey ? (
+                    <>
+                      {" · 业务编号："}
+                      {currentData.sourcePrimaryKey}
+                    </>
+                  ) : null}
                 </p>
               </div>
-              {verificationTaskId || verificationRunId ? (
+              {verificationTaskPath || verificationRunPath ? (
                 <div className="heading-actions">
-                  {verificationTaskId ? (
+                  {verificationTaskPath ? (
                     <Link
                       className="action-link action-link--neutral"
                       to={verificationTaskPath}
@@ -236,15 +248,15 @@ export function RawDataDetailPage() {
                       返回任务
                     </Link>
                   ) : null}
-                  {verificationRunId ? (
+                  {verificationRunPath ? (
                     <Link className="m3-link" to={verificationRunPath}>
-                      查看技术日志
+                      查看运行
                     </Link>
                   ) : null}
                 </div>
               ) : null}
             </header>
-            <section className="m3-card m3-summary-grid" aria-label="原始数据摘要">
+            <section className="m3-card m3-summary-grid raw-data-summary" aria-label="原始数据摘要">
               <div>
                 <span>数据日期</span>
                 <strong>{currentData.dataDate ?? "—"}</strong>
@@ -254,7 +266,7 @@ export function RawDataDetailPage() {
                 <strong>{currentData.dataHash ?? "—"}</strong>
               </div>
               <div>
-                <span>最后观察</span>
+                <span>最后观察（{browserTimeZone}）</span>
                 <strong>{formatDate(currentData.lastObservedAt ?? currentData.updatedAt)}</strong>
               </div>
               <div>
@@ -272,37 +284,6 @@ export function RawDataDetailPage() {
                 </strong>
               </div>
             </section>
-            <nav className="raw-lineage" aria-label="数据来源链路">
-              {currentData.jijiaAccountId ? (
-                <Link to={`/accounts/${currentData.jijiaAccountId}`} state={sourceState}>
-                  {currentData.accountName ?? `账号 ${currentData.jijiaAccountId}`}
-                </Link>
-              ) : (
-                <span>{currentData.accountName ?? "历史账号"}</span>
-              )}
-              <span>→</span>
-              <span>{currentData.apiCode}</span>
-              <span>→</span>
-              <Link to={verificationTaskPath} state={sourceState}>
-                {verificationTaskId ? `任务 #${verificationTaskId}` : "同步任务"}
-              </Link>
-              <span>→</span>
-              {verificationRunId ? (
-                <Link to={verificationRunPath} state={sourceState}>
-                  批次 {verificationBatchNo || currentData.batchNo || "—"}
-                </Link>
-              ) : (
-                <>
-                  <span>批次 {currentData.batchNo || "—"}</span>
-                  <Link to="/runs" state={sourceState}>
-                    浏览执行记录
-                  </Link>
-                </>
-              )}
-              <span>→</span>
-              <strong>记录 #{currentData.id}</strong>
-            </nav>
-            <p className="timezone-note">{timeZoneNote()}</p>
             {canViewRaw && currentData.rawJson != null ? (
               <section className="m3-card">
                 <div className="m3-card-heading">

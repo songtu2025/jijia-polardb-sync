@@ -62,7 +62,7 @@ describe("原始数据详情", () => {
     });
   });
 
-  it("无关联运行 ID 时批次只展示文本，账号进入概览并支持业务来源返回", async () => {
+  it("无精确上下文时不展示泛化任务和运行入口", async () => {
     vi.mocked(api.getRawData).mockResolvedValue({
       id: 3,
       apiCode: "amazon_shop_page",
@@ -88,13 +88,40 @@ describe("原始数据详情", () => {
         </Routes>
       </MemoryRouter>,
     );
-    await screen.findByRole("link", { name: "测试账号" });
-    expect(screen.getByRole("link", { name: "测试账号" })).toHaveAttribute("href", "/accounts/8");
+    const accountLink = await screen.findByRole("link", { name: "测试账号" });
+    expect(accountLink).toHaveAttribute("href", "/accounts/8");
+    expect(accountLink.closest("p")).toHaveTextContent("来源账号：测试账号");
+    expect(accountLink.closest("p")).not.toHaveTextContent("业务编号");
     expect(screen.queryByRole("link", { name: "批次 BATCH-ONLY" })).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "浏览执行记录" })).toHaveAttribute("href", "/runs");
+    expect(screen.queryByRole("link", { name: "浏览执行记录" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("navigation", { name: "数据来源链路" })).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "← 返回店铺信息" })).toHaveAttribute(
       "href",
       "/data/stores?keyword=demo",
+    );
+  });
+
+  it("存在来源业务主键时显示业务编号", async () => {
+    vi.mocked(api.getRawData).mockResolvedValue({
+      id: 3,
+      apiCode: "amazon_shop_page",
+      accountName: "测试账号",
+      sourcePrimaryKey: "B081DY9881",
+      dataDate: "2024-06-01",
+      rawJson: { asin: "B081DY9881" },
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/raw-data/3"]}>
+        <Routes>
+          <Route path="/raw-data/:id" element={<RawDataDetailPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const heading = await screen.findByRole("heading", { name: "amazon_shop_page" });
+    expect(heading.parentElement?.querySelector("p")).toHaveTextContent(
+      "来源账号：测试账号 · 业务编号：B081DY9881",
     );
   });
 
@@ -156,15 +183,29 @@ describe("原始数据详情", () => {
       "href",
       "/jobs/8?runId=17#job-diagnostics",
     );
-    expect(screen.getAllByRole("link", { name: "查看技术日志" })[0]).toHaveAttribute(
+    expect(screen.getAllByRole("link", { name: "查看运行" })[0]).toHaveAttribute(
       "href",
       "/runs/17",
     );
-    expect(screen.getByRole("link", { name: "任务 #8" })).toHaveAttribute(
-      "href",
-      "/jobs/8?runId=17#job-diagnostics",
+    expect(screen.queryByRole("navigation", { name: "数据来源链路" })).not.toBeInTheDocument();
+  });
+
+  it("将浏览器时区并入最后观察字段", async () => {
+    vi.mocked(api.getRawData).mockResolvedValue({
+      id: 3,
+      apiCode: "amazon_shop_page",
+      lastObservedAt: "2026-09-14T02:51:00Z",
+    });
+    render(
+      <MemoryRouter initialEntries={["/raw-data/3"]}>
+        <Routes>
+          <Route path="/raw-data/:id" element={<RawDataDetailPage />} />
+        </Routes>
+      </MemoryRouter>,
     );
-    expect(screen.getByRole("link", { name: "批次 BATCH-17" })).toHaveAttribute("href", "/runs/17");
+
+    expect(await screen.findByText(/^最后观察（.+）$/)).toBeInTheDocument();
+    expect(screen.queryByText(/时间按浏览器时区/)).not.toBeInTheDocument();
   });
 
   it.each(["admin", "operator"] as const)("%s 可以查看当前和版本原始 JSON", async (role) => {
